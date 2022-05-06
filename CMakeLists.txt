@@ -11,8 +11,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  onboard_vision
-  reactive_planner
 )
 
 ## System dependencies are found with CMake's conventions
@@ -136,7 +134,6 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/autonomous_flight_node.cpp)
-add_executable(orca_node src/simulation/orca_node.cpp)
 
 
 ## Rename C++ executable without prefix
@@ -153,7 +150,6 @@ add_executable(orca_node src/simulation/orca_node.cpp)
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
-target_link_libraries(orca_node ${catkin_LIBRARIES})
 
 #############
 ## Install ##
