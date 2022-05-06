@@ -12,7 +12,7 @@ int main(int argc, char** argv){
 	ros::NodeHandle nh;
 
 	AutoFlight::quadCommand qm (nh);
-
+	qm.takeoff();
 
 	return 0;
 }
