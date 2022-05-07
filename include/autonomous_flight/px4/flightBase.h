@@ -37,12 +37,18 @@ namespace AutoFlight{
 		
 		geometry_msgs::PoseStamped poseTgt_;
 
+
+		bool land_ = false;
+
 	public:
 		std::thread posePubWorker_;
 
 		flightBase(const ros::NodeHandle& nh);
+		~flightBase();
 		void updateTarget(const geometry_msgs::PoseStamped& ps);
 		void takeoff();
+		void land();
+		void run();
 
 		void pubPose();
 
@@ -70,7 +76,10 @@ namespace AutoFlight{
 
 		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
 		this->posePubWorker_ = std::thread(&flightBase::pubPose, this);
+		this->posePubWorker_.detach();
 	}
+
+	flightBase::~flightBase(){}
 
 	void flightBase::updateTarget(const geometry_msgs::PoseStamped& ps){
 		this->poseTgt_ = ps;
@@ -99,6 +108,14 @@ namespace AutoFlight{
 		ROS_INFO("Takeoff succeed!");
 	}
 
+	void flightBase::land(){
+		ROS_INFO("Landing...");
+		this->land_ = true;
+		mavros_msgs::SetMode landMode;
+		landMode.request.custom_mode = "AUTO.LAND";
+		this->setModeClient_.call(landMode);
+	}
+
 	void flightBase::pubPose(){
 		ros::Rate r (10);
 		// warmup
@@ -115,7 +132,7 @@ namespace AutoFlight{
 		mavros_msgs::CommandBool armCmd;
 		armCmd.request.value = true;
 		ros::Time lastRequest = ros::Time::now();
-		while (ros::ok()){
+		while (ros::ok() and not this->land_){
 			if (this->mavrosState_.mode != "OFFBOARD" && (ros::Time::now() - lastRequest > ros::Duration(5.0))){
 	            if (this->setModeClient_.call(offboardMode) && offboardMode.response.mode_sent){
 	                ROS_INFO("Offboard enabled");
@@ -133,6 +150,46 @@ namespace AutoFlight{
 			this->posePub_.publish(this->poseTgt_);
 			ros::spinOnce();
 			r.sleep();
+		}
+	}
+
+	void flightBase::run(){
+		std::string testMode;
+		if (not this->nh_.getParam("test_mode", testMode)){
+			testMode = "hover";
+			ROS_INFO("No test_mode param found. Use default: hover.");
+		}
+
+		if (testMode == "hover"){
+			double duration;
+			if (not this->nh_.getParam("hover_duration", duration)){
+				duration = 5.0;
+				ROS_INFO("No hover_duration param found. Use default: 5.0 s.");
+			}
+			ROS_INFO("Starting hovering for %f second.", duration);
+			ros::Time startTime = ros::Time::now();
+			ros::Time endTime = ros::Time::now();
+			ros::Rate r (10);
+			while (ros::ok() and (endTime - startTime <= ros::Duration(duration))){
+				endTime = ros::Time::now();
+				r.sleep();
+			}
+		}
+		else if (testMode == "circular"){
+			double radius;
+			if (not this->nh_.getParam("radius", radius)){
+				radius = 5.0;
+				ROS_INFO("No radius param found. Use default: 2.0 m.");
+			}
+		}
+		else if (testMode == "square"){
+
+		}
+		else if (testMode == "eight"){
+
+		}
+		else{
+			ROS_INFO("Cannot find your test mode!");
 		}
 	}
 
