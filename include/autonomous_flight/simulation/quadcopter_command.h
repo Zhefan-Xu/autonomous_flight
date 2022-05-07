@@ -10,6 +10,8 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <gazebo_msgs/SetModelState.h>
+#include <autonomous_flight/simulation/utils.h>
 
 
 namespace AutoFlight{
@@ -23,6 +25,8 @@ namespace AutoFlight{
 		ros::Publisher posPub_;
 
 		ros::Subscriber odomSub_;
+
+		ros::ServiceClient setStateClient_;
 
 		nav_msgs::Odometry odom_;
 
@@ -44,6 +48,7 @@ namespace AutoFlight{
 
 		this->odomSub_ = this->nh_.subscribe("/CERLAB/quadcopter/odom", 10, &quadCommand::odomCB, this);
 		
+		this->setStateClient_ = this->nh_.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
 	}
 
 	void quadCommand::takeoff(){
@@ -67,7 +72,13 @@ namespace AutoFlight{
 	}
 
 	void quadCommand::setVelocity(double vx, double vy, double vz){ // local frame
-
+		geometry_msgs::TwistStamped ts;
+		ts.header.frame_id = "base_link";
+		ts.header.stamp = ros::Time::now();
+		ts.twist.linear.x = vx;
+		ts.twist.linear.y = vy;
+		ts.twist.linear.z = vz;
+		this->velPub_.publish(ts);
 	}
 
 	void quadCommand::setPosition(double x, double y, double z, double yaw){ // global frame
@@ -75,7 +86,16 @@ namespace AutoFlight{
 	}
 
 	void quadCommand::resetPosition(double x, double y, double z, double yaw){
-
+		gazebo_msgs::SetModelState srv;
+		gazebo_msgs::ModelState msg;
+		msg.model_name = "quadcopter";
+		msg.pose.position.x = x;
+		msg.pose.position.y = y;
+		msg.pose.position.z = z;
+		msg.pose.orientation = quaternion_from_rpy(0, 0, yaw);
+		msg.reference_frame = "map";
+		srv.request.model_state = msg;
+		this->setStateClient_.call(srv);
 	}
 
 	void quadCommand::odomCB(const nav_msgs::OdometryConstPtr& odom){

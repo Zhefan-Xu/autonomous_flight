@@ -13,6 +13,7 @@ int main(int argc, char** argv){
 
 	AutoFlight::quadCommand qm (nh);
 	qm.takeoff();
+	qm.resetPosition(5, 5, 1, 0);
 
 	return 0;
 }
