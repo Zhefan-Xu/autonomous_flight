@@ -13,7 +13,20 @@ int main(int argc, char** argv){
 
 	AutoFlight::quadCommand qm (nh);
 	qm.takeoff();
-	// qm.resetPosition(5, 5, 1, 0);
-	ros::spin();
+	std::vector<double> goal = qm.getGoal();
+	
+	reactivePlanner::orcaPlanner op (nh);
+	op.updateGoal(std::vector<double> {goal[0], goal[1]});
+
+	ros::Rate r (10);
+	while (ros::ok()){
+		std::vector<double> outputVel;
+		op.makePlan(outputVel, true);
+		qm.setVelocity(outputVel[0], outputVel[1], 0);
+		cout << "Vel: " << outputVel[0] <<  " " << outputVel[1] << endl;
+		ros::spinOnce();
+		r.sleep();
+	}
+
 	return 0;
 }

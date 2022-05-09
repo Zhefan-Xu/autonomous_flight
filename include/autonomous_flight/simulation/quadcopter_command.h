@@ -53,6 +53,7 @@ namespace AutoFlight{
 		void resetPosition(double x, double y, double z=0, double yaw=0);
 		void switchClickMode(bool clickGoal);
 		void pubGoal();
+		std::vector<double> getGoal();
 		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
 	};
@@ -71,6 +72,7 @@ namespace AutoFlight{
 		this->clickGoalInit_ = false;
 		this->clickGoal_ = true;
 		this->clickCount_ = 0;
+
 
 		this->goalPubWorker_ = std::thread(&quadCommand::pubGoal, this);
 	}
@@ -134,7 +136,8 @@ namespace AutoFlight{
 
 	void quadCommand::pubGoal(){
 		ros::Rate r (10);
-		while (this->clickGoalInit_ == false){
+		while (ros::ok() and this->clickGoalInit_ == false){
+			ros::spinOnce();
 			r.sleep();
 		}
 
@@ -143,6 +146,16 @@ namespace AutoFlight{
 			this->goalPub_.publish(this->goalMsg_);
 			r.sleep();
 		}
+	}
+
+	std::vector<double> quadCommand::getGoal(){
+		ros::Rate r (1);
+		while (ros::ok() and this->clickGoalInit_ == false){
+			ROS_INFO("Wait for clicked goal position...");
+			ros::spinOnce();
+			r.sleep();
+		}
+		return this->clickGoalPos_;
 	}
 
 	void quadCommand::odomCB(const nav_msgs::OdometryConstPtr& odom){
