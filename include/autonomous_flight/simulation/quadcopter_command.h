@@ -12,7 +12,8 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <gazebo_msgs/SetModelState.h>
 #include <autonomous_flight/simulation/utils.h>
-
+#include <thread>
+#include <mutex>
 
 namespace AutoFlight{
 	class quadCommand{
@@ -23,21 +24,37 @@ namespace AutoFlight{
 		ros::Publisher landPub_;
 		ros::Publisher velPub_;
 		ros::Publisher posPub_;
+		ros::Publisher goalPub_;
 
 		ros::Subscriber odomSub_;
+		ros::Subscriber clickSub_;
 
 		ros::ServiceClient setStateClient_;
 
 		nav_msgs::Odometry odom_;
 
+		// for click
+		bool clickGoal_;
+		bool clickGoalInit_;
+		int clickCount_;
+		std::vector<double> clickGoalPos_;
+		geometry_msgs::PoseStamped goalMsg_;
+
+
 	public:
+		std::thread goalPubWorker_;
+
 		quadCommand(const ros::NodeHandle& nh);
+		~quadCommand();
 		void takeoff();
 		void land();
 		void setVelocity(double vx, double vy, double vz);
 		void setPosition(double x, double y, double z, double yaw=0);
 		void resetPosition(double x, double y, double z=0, double yaw=0);
+		void switchClickMode(bool clickGoal);
+		void pubGoal();
 		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
+		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
 	};
 
 
@@ -45,10 +62,21 @@ namespace AutoFlight{
 		this->takeoffPub_ = this->nh_.advertise<std_msgs::Empty>("/CERLAB/quadcopter/takeoff", 1000);
 		this->landPub_ = this->nh_.advertise<std_msgs::Empty>("/CERLAB/quadcopter/land", 1000);
 		this->velPub_ = this->nh_.advertise<geometry_msgs::TwistStamped>("/CERLAB/quadcopter/cmd_vel", 1000);
+		this->goalPub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/quadCommand/goal", 1000);
 
 		this->odomSub_ = this->nh_.subscribe("/CERLAB/quadcopter/odom", 10, &quadCommand::odomCB, this);
-		
+		this->clickSub_ = this->nh_.subscribe("/move_base_simple/goal", 10, &quadCommand::clickCB, this);
+
 		this->setStateClient_ = this->nh_.serviceClient<gazebo_msgs::SetModelState>("/gazebo/set_model_state");
+		this->clickGoalInit_ = false;
+		this->clickGoal_ = true;
+		this->clickCount_ = 0;
+
+		this->goalPubWorker_ = std::thread(&quadCommand::pubGoal, this);
+	}
+
+	quadCommand::~quadCommand(){
+		this->goalPubWorker_.detach();
 	}
 
 	void quadCommand::takeoff(){
@@ -98,8 +126,54 @@ namespace AutoFlight{
 		this->setStateClient_.call(srv);
 	}
 
+	void quadCommand::switchClickMode(bool clickGoal){
+		this->clickGoal_ = clickGoal;
+		this->clickGoalInit_ = false;
+	}
+
+
+	void quadCommand::pubGoal(){
+		ros::Rate r (10);
+		while (this->clickGoalInit_ == false){
+			r.sleep();
+		}
+
+		while (ros::ok() and this->clickGoalInit_){
+			this->goalMsg_.header.stamp = ros::Time::now();
+			this->goalPub_.publish(this->goalMsg_);
+			r.sleep();
+		}
+	}
+
 	void quadCommand::odomCB(const nav_msgs::OdometryConstPtr& odom){
 		this->odom_ = *odom;
+	}
+
+	void quadCommand::clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp){
+		double x, y, z;
+		x = (*cp).pose.position.x;
+		y = (*cp).pose.position.y;
+		z = 1.0;
+		if (this->clickGoal_){
+			if (this->clickCount_ % 2 == 0){
+				this->clickGoalPos_ = std::vector<double> {x, y, z}; 
+				this->goalMsg_ = *cp;
+				this->goalMsg_.pose.position.x = x;
+				this->goalMsg_.pose.position.y = y;
+				this->goalMsg_.pose.position.z = 1.0;
+				if (this->clickGoalInit_ ==  false){  
+					this->clickGoalInit_ = true;
+				}
+			}
+			else{
+				double yaw = atan2(this->clickGoalPos_[1]-y, this->clickGoalPos_[0]-x);
+				this->resetPosition(x, y, z, yaw);
+			}
+		}
+		else{
+			this->resetPosition(x, y, z, 0);
+		}
+		++this->clickCount_;
 	}
 }
 #endif
