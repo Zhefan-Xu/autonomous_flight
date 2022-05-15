@@ -18,8 +18,14 @@ int main(int argc, char** argv){
 	reactivePlanner::orcaPlanner op (nh);
 	op.updateGoal(std::vector<double> {goal[0], goal[1]});
 
-	ros::Rate r (10);
+	ros::Rate r (50);
 	while (ros::ok()){
+		if (op.isReach() == true){
+			std::vector<double> goal = qm.getGoal();
+			op.updateGoal(std::vector<double> {goal[0], goal[1]});
+		}
+
+
 		std::vector<double> outputVel;
 		op.makePlan(outputVel, true);
 		qm.setVelocity(outputVel[0], outputVel[1], 0);

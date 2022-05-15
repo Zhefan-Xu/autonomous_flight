@@ -1,0 +1,8 @@
+collision_box: [0.8, 0.8, 0.4]
+responsibility: 1.0 # [0.0, 1.0] how much portion should robot take to avoid obstacle
+vel_prefer: 4.0
+vel_max: 4.5
+tau: 0.1
+reach_distance: 1.0
+odom_topic_name: "/CERLAB/quadcopter/odom"
+obstacle_topic_name: "/onboard_vision/obstacles"

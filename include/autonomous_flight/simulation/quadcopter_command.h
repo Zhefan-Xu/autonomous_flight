@@ -150,8 +150,8 @@ namespace AutoFlight{
 
 	std::vector<double> quadCommand::getGoal(){
 		ros::Rate r (1);
-		while (ros::ok() and this->clickGoalInit_ == false){
-			ROS_INFO("Wait for clicked goal position...");
+		while (ros::ok() and (this->clickGoalInit_ == false or this->clickCount_ % 2 != 0)){
+			ROS_INFO("Wait for clicked goal and start position...");
 			ros::spinOnce();
 			r.sleep();
 		}
