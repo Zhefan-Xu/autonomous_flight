@@ -1,10 +1,10 @@
 test_mode: "hover" # circular, square, eight
 takeoff_height: 1.0
-duration: 10
+duration: 60
 
 
 # Hover mode
-hover_duration: 5.0
+hover_duration: 60.0
 
 
 # Circular

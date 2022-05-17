@@ -135,6 +135,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/autonomous_flight_node.cpp)
 add_executable(flight_test_node src/px4/flight_test_node.cpp)
+add_executable(offboard_mode_node src/px4/offboard_mode_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -151,6 +152,7 @@ add_executable(flight_test_node src/px4/flight_test_node.cpp)
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(flight_test_node ${catkin_LIBRARIES})
+target_link_libraries(offboard_mode_node ${catkin_LIBRARIES})
 
 #############
 ## Install ##
