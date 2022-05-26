@@ -47,7 +47,7 @@ namespace AutoFlight{
 		~flightBase();
 		void updateTarget(const geometry_msgs::PoseStamped& ps);
 		void takeoff();
-		void land();
+		// void land();
 		void run();
 
 		void pubPose();
@@ -108,13 +108,13 @@ namespace AutoFlight{
 		ROS_INFO("Takeoff succeed!");
 	}
 
-	void flightBase::land(){
-		ROS_INFO("Landing...");
-		this->land_ = true;
-		mavros_msgs::SetMode landMode;
-		landMode.request.custom_mode = "AUTO.LAND";
-		this->setModeClient_.call(landMode);
-	}
+	// void flightBase::land(){
+	// 	ROS_INFO("Landing...");
+	// 	this->land_ = true;
+	// 	mavros_msgs::SetMode landMode;
+	// 	landMode.request.custom_mode = "AUTO.LAND";
+	// 	this->setModeClient_.call(landMode);
+	// }
 
 	void flightBase::pubPose(){
 		ros::Rate r (10);

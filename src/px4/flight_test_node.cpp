@@ -14,7 +14,7 @@ int main(int argc, char** argv){
 	AutoFlight::flightBase fb (nh);
 	fb.takeoff();
 	fb.run();
-	fb.land();
+	// fb.land();
 
 	return 0;
 }
