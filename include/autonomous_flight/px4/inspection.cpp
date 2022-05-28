@@ -60,12 +60,22 @@ namespace AutoFlight{
 
 		ros::Rate r (1.0/this->sampleTime_);
 		while (ros::ok()){
+			ros::Time t1 = ros::Time::now();
 			this->updateMap();
+			ros::Time t2 = ros::Time::now();
 			forwardPath = this->getForwardPath();
+			ros::Time t3 = ros::Time::now();
 			this->pwlPlanner_->updatePath(forwardPath);
+			ros::Time t4 = ros::Time::now();
 			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(this->sampleTime_);
+			ros::Time t5 = ros::Time::now(); 
 			this->updateTarget(ps);
-			cout << "here" << endl;
+			ros::Time t6 = ros::Time::now();
+			cout << "1: " << (t2 - t1).toSec() << endl;
+			cout << "2: " << (t3 - t2).toSec() << endl;
+			cout << "3: " << (t4 - t3).toSec() << endl;
+			cout << "4: " << (t5 - t4).toSec() << endl;
+			cout << "5: " << (t6 - t5).toSec() << endl;
 			r.sleep();
 		}
 	}
@@ -83,18 +93,30 @@ namespace AutoFlight{
 	}
 
 	void inspector::updateMap(){
+		ros::Time t0 = ros::Time::now();
 		octomap_msgs::GetOctomap mapSrv;
 		bool service_success = this->mapClient_.call(mapSrv);
+		ros::Time t1 = ros::Time::now();
 		ros::Rate rate(10);
 		while (not service_success and ros::ok()){
 			service_success = this->mapClient_.call(mapSrv);
 			ROS_INFO("[AutoFlight]: Wait for Octomap Service...");
 			rate.sleep();
 		}
+		
 		octomap::AbstractOcTree* abtree = octomap_msgs::binaryMsgToMap(mapSrv.response.map);
-		this->map_ = std::shared_ptr<octomap::OcTree>(dynamic_cast<octomap::OcTree*>(abtree));
+		ros::Time t2 = ros::Time::now();
+		this->map_ = dynamic_cast<octomap::OcTree*>(abtree);
+		ros::Time t3 = ros::Time::now();
 		this->mapRes_ = this->map_->getResolution();
+		ros::Time t4 = ros::Time::now();
 		this->setSurroundingFree(this->getPoint3dPos());
+		ros::Time t5 = ros::Time::now();
+		cout << "u0: " << (t1 - t0).toSec() << endl;
+		cout << "u1: " << (t2 - t1).toSec() << endl;
+		cout << "u2: " << (t3 - t2).toSec() << endl;
+		cout << "u3: " << (t4 - t3).toSec() << endl;
+		cout << "u4: " << (t5 - t4).toSec() << endl;
 	}
 
 	geometry_msgs::PoseStamped inspector::getForwardGoal(){
@@ -105,8 +127,6 @@ namespace AutoFlight{
 		octomap::point3d pForward = p;
 		while (ros::ok() and not this->checkCollision(pForward)){
 			pForward.x() += res;
-
-			cout << pForward << endl;
 		}
 		octomap::point3d pGoal = pForward;
 		pGoal.x() -= res;

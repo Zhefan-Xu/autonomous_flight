@@ -23,7 +23,7 @@ namespace AutoFlight{
 		std::vector<double> collisionBox_;
 		double safeDist_;
 
-		std::shared_ptr<octomap::OcTree> map_;
+		octomap::OcTree* map_;
 		double mapRes_;
 
 		// planner
