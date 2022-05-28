@@ -11,6 +11,9 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  octomap_ros
+  global_planner
+  trajectory_planner
 )
 
 ## System dependencies are found with CMake's conventions
@@ -121,9 +124,9 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/autonomous_flight.cpp
-# )
+add_library(${PROJECT_NAME}
+   include/${PROJECT_NAME}/px4/inspection.cpp
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -136,6 +139,7 @@ include_directories(
 # add_executable(${PROJECT_NAME}_node src/autonomous_flight_node.cpp)
 add_executable(flight_test_node src/px4/flight_test_node.cpp)
 add_executable(offboard_mode_node src/px4/offboard_mode_node.cpp)
+add_executable(inspection_node src/px4/inspection_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -151,8 +155,10 @@ add_executable(offboard_mode_node src/px4/offboard_mode_node.cpp)
 # target_link_libraries(${PROJECT_NAME}_node
 #   ${catkin_LIBRARIES}
 # )
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(flight_test_node ${catkin_LIBRARIES})
 target_link_libraries(offboard_mode_node ${catkin_LIBRARIES})
+target_link_libraries(inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #############
 ## Install ##

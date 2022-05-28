@@ -37,8 +37,8 @@ namespace AutoFlight{
 		
 		geometry_msgs::PoseStamped poseTgt_;
 
-
-		bool land_ = false;
+		double sampleTime_;
+		// bool land_ = false;
 
 	public:
 		std::thread posePubWorker_;
@@ -74,6 +74,12 @@ namespace AutoFlight{
     	ROS_INFO("Topics are ready!!");
 
 
+    	// pose publisher
+    	if (not this->nh_.getParam("sample_time", this->sampleTime_)){
+    		this->sampleTime_ = 0.1;
+    		ROS_INFO("No sample time param. Use default: 0.1s.");
+    	}
+
 		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
 		this->posePubWorker_ = std::thread(&flightBase::pubPose, this);
 		this->posePubWorker_.detach();
@@ -96,8 +102,13 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped ps;
 		ps.header.frame_id = "map";
 		ps.header.stamp = ros::Time::now();
-		ps.pose = this->odom_.pose.pose;
+		ps.pose.position.x = 0.0;
+		ps.pose.position.y = 0.0;
 		ps.pose.position.z = takeoffHgt;
+		ps.pose.orientation.x = 0.0;
+		ps.pose.orientation.y = 0.0;
+		ps.pose.orientation.z = 0.0;
+		ps.pose.orientation.w = 1.0;
 
 		this->updateTarget(ps);
 		ROS_INFO("Start taking off...");
@@ -117,7 +128,7 @@ namespace AutoFlight{
 	// }
 
 	void flightBase::pubPose(){
-		ros::Rate r (10);
+		ros::Rate r (1.0/this->sampleTime_);
 		// warmup
 		for(int i = 100; ros::ok() && i > 0; --i){
 	        this->poseTgt_.header.stamp = ros::Time::now();
@@ -132,7 +143,7 @@ namespace AutoFlight{
 		mavros_msgs::CommandBool armCmd;
 		armCmd.request.value = true;
 		ros::Time lastRequest = ros::Time::now();
-		while (ros::ok() and not this->land_){
+		while (ros::ok()){
 			if (this->mavrosState_.mode != "OFFBOARD" && (ros::Time::now() - lastRequest > ros::Duration(5.0))){
 	            if (this->setModeClient_.call(offboardMode) && offboardMode.response.mode_sent){
 	                ROS_INFO("Offboard enabled");

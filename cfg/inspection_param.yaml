@@ -1,0 +1,8 @@
+sample_time: 0.1
+collision_box: [0.75, 0.75, 0.3]
+safe_distance: 1.0 #m. Distance for inspection and obstacles
+
+
+# Trajectory Planner (piece-wise linear)
+desired_velocity: 0.3
+desired_angular_velocity: 0.5
