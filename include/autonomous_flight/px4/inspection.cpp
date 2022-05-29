@@ -9,8 +9,8 @@
 namespace AutoFlight{
 	inspector::inspector(const ros::NodeHandle& nh) : flightBase(nh){
 		this->loadParam();
-		this->mapClient_ = this->nh_.serviceClient<octomap_msgs::GetOctomap>("/octomap_binary");
 		this->initPlanner();
+		this->mapSub_ = this->nh_.subscribe("/octomap_full", 1, &inspector::mapCB, this);
 		cout << "init succeed" << endl;
 	}
 
@@ -33,8 +33,10 @@ namespace AutoFlight{
 	}
 
 	void inspector::run(){
+		this->lookAround();
+
 		// forward to surface
-		this->forward();
+		// this->forward();
 
 		// check surroundings and dimensions of the surface
 		this->checkSurroundings();
@@ -44,6 +46,43 @@ namespace AutoFlight{
 	
 		// go back to the start position
 		this->backward();
+	}
+
+	void inspector::lookAround(){
+		cout << "Look around" << endl;
+		nav_msgs::Path lookAroundPath;
+		
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		double currYaw = trajPlanner::rpy_from_quaternion(ps.pose.orientation);
+		double targetYaw1 = currYaw + M_PI/2;
+		double targetYaw2 = currYaw - M_PI/2;
+		geometry_msgs::PoseStamped ps1, ps2;
+		ps1.pose.position = ps.pose.position;
+		ps2.pose.position = ps.pose.position;
+		ps1.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, targetYaw1);
+		ps2.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, targetYaw2);
+		std::vector<geometry_msgs::PoseStamped> lookAroundPathVec = std::vector<geometry_msgs::PoseStamped> {ps, ps1, ps, ps2, ps};
+		lookAroundPath.poses = lookAroundPathVec;
+		this->pwlPlanner_->updatePath(lookAroundPath, true);
+
+		double t = 0.0;
+		ros::Rate r (1.0/this->sampleTime_);
+		ros::Time tStart = ros::Time::now();
+		while (ros::ok() and (not this->isReach(ps) or t <= this->pwlPlanner_->getDuration())){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			cout << "t" << t << endl;
+			if (t > this->pwlPlanner_->getDuration()){
+				t = this->pwlPlanner_->getDuration();
+			}
+			geometry_msgs::PoseStamped targetPose = this->pwlPlanner_->getPose(t);
+			cout << "t" << t << endl;
+			cout << targetPose.pose.position.x << " " << targetPose.pose.position.y << endl;
+			this->updateTarget(targetPose);
+			r.sleep();
+		}
+		cout << "Finish lookaround" << endl;
 	}
 
 
@@ -61,8 +100,8 @@ namespace AutoFlight{
 		ros::Rate r (1.0/this->sampleTime_);
 		while (ros::ok()){
 			ros::Time t1 = ros::Time::now();
-			this->updateMap();
 			ros::Time t2 = ros::Time::now();
+			cout << "========new path=========" << endl;
 			forwardPath = this->getForwardPath();
 			ros::Time t3 = ros::Time::now();
 			this->pwlPlanner_->updatePath(forwardPath);
@@ -71,11 +110,11 @@ namespace AutoFlight{
 			ros::Time t5 = ros::Time::now(); 
 			this->updateTarget(ps);
 			ros::Time t6 = ros::Time::now();
-			cout << "1: " << (t2 - t1).toSec() << endl;
-			cout << "2: " << (t3 - t2).toSec() << endl;
-			cout << "3: " << (t4 - t3).toSec() << endl;
-			cout << "4: " << (t5 - t4).toSec() << endl;
-			cout << "5: " << (t6 - t5).toSec() << endl;
+			// cout << "1: " << (t2 - t1).toSec() << endl;
+			// cout << "2: " << (t3 - t2).toSec() << endl;
+			// cout << "3: " << (t4 - t3).toSec() << endl;
+			// cout << "4: " << (t5 - t4).toSec() << endl;
+			// cout << "5: " << (t6 - t5).toSec() << endl;
 			r.sleep();
 		}
 	}
@@ -92,41 +131,24 @@ namespace AutoFlight{
 
 	}
 
-	void inspector::updateMap(){
-		ros::Time t0 = ros::Time::now();
-		octomap_msgs::GetOctomap mapSrv;
-		bool service_success = this->mapClient_.call(mapSrv);
-		ros::Time t1 = ros::Time::now();
-		ros::Rate rate(10);
-		while (not service_success and ros::ok()){
-			service_success = this->mapClient_.call(mapSrv);
-			ROS_INFO("[AutoFlight]: Wait for Octomap Service...");
-			rate.sleep();
-		}
-		
-		octomap::AbstractOcTree* abtree = octomap_msgs::binaryMsgToMap(mapSrv.response.map);
-		ros::Time t2 = ros::Time::now();
-		this->map_ = dynamic_cast<octomap::OcTree*>(abtree);
-		ros::Time t3 = ros::Time::now();
-		this->mapRes_ = this->map_->getResolution();
-		ros::Time t4 = ros::Time::now();
-		this->setSurroundingFree(this->getPoint3dPos());
-		ros::Time t5 = ros::Time::now();
-		cout << "u0: " << (t1 - t0).toSec() << endl;
-		cout << "u1: " << (t2 - t1).toSec() << endl;
-		cout << "u2: " << (t3 - t2).toSec() << endl;
-		cout << "u3: " << (t4 - t3).toSec() << endl;
-		cout << "u4: " << (t5 - t4).toSec() << endl;
+	void inspector::mapCB(const octomap_msgs::Octomap &msg){
+    	octomap::OcTree* treePtr = dynamic_cast<octomap::OcTree*>(octomap_msgs::msgToMap(msg));
+   	 	this->map_ = std::shared_ptr<octomap::OcTree>(treePtr);
+   	 	this->mapRes_ = this->map_->getResolution();
+   	 	this->setSurroundingFree(this->getPoint3dPos());
+   	 	// cout << "here" << endl;
 	}
 
 	geometry_msgs::PoseStamped inspector::getForwardGoal(){
 		octomap::point3d p = this->getPoint3dPos();
 	
 		// cast a ray along the x direction and check collision
-		double res = this->mapRes_;
+		float res = this->mapRes_;
 		octomap::point3d pForward = p;
 		while (ros::ok() and not this->checkCollision(pForward)){
 			pForward.x() += res;
+			cout << res << endl;
+			cout << pForward << endl;
 		}
 		octomap::point3d pGoal = pForward;
 		pGoal.x() -= res;
@@ -138,10 +160,7 @@ namespace AutoFlight{
 		ps.pose.position.x = pGoal.x();
 		ps.pose.position.y = pGoal.y();
 		ps.pose.position.z = pGoal.z();
-		ps.pose.orientation.x = 0.0;
-		ps.pose.orientation.y = 0.0;
-		ps.pose.orientation.z = 0.0;
-		ps.pose.orientation.w = 1.0;
+		ps.pose.orientation = this->odom_.pose.pose.orientation;
 		return ps;
 	}
 

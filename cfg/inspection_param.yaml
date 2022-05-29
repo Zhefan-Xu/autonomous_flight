@@ -5,4 +5,4 @@ safe_distance: 1.0 #m. Distance for inspection and obstacles
 
 # Trajectory Planner (piece-wise linear)
 desired_velocity: 0.3
-desired_angular_velocity: 0.5
+desired_angular_velocity: 0.3

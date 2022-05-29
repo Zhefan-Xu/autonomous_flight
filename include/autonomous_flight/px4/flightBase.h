@@ -7,6 +7,7 @@
 #ifndef FLIGHTBASE_H
 #define FLIGHTBASE_H
 #include <ros/ros.h>
+#include <autonomous_flight/px4/utils.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <mavros_msgs/CommandBool.h>
@@ -55,6 +56,8 @@ namespace AutoFlight{
 		// callback
 		void stateCB(const mavros_msgs::State::ConstPtr& state);
 		void odomCB(const nav_msgs::Odometry::ConstPtr& odom);
+
+		bool isReach(const geometry_msgs::PoseStamped& poseTgt);
 	};
 
 	flightBase::flightBase(const ros::NodeHandle& nh) : nh_(nh){
@@ -215,6 +218,30 @@ namespace AutoFlight{
 		this->odom_ = *odom;
 		if (not this->odomReady_){
 			this->odomReady_ = true;
+		}
+	}
+
+	bool flightBase::isReach(const geometry_msgs::PoseStamped& poseTgt){
+		double targetX, targetY, targetZ, targetYaw, currX, currY, currZ, currYaw;
+		targetX = poseTgt.pose.position.x;
+		targetY = poseTgt.pose.position.y;
+		targetZ = poseTgt.pose.position.z;
+		targetYaw = AutoFlight::rpy_from_quaternion(poseTgt.pose.orientation);
+		currX = this->odom_.pose.pose.position.x;
+		currY = this->odom_.pose.pose.position.y;
+		currZ = this->odom_.pose.pose.position.z;
+		currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		
+		bool reachX, reachY, reachZ, reachYaw;
+		reachX = std::abs(targetX - currX) < 0.1;
+		reachY = std::abs(targetY - currY) < 0.1;
+		reachZ = std::abs(targetZ - currZ) < 0.1;
+		reachYaw = std::abs(targetYaw - currYaw) < 0.1;
+		if (reachX and reachY and reachZ and reachYaw){
+			return true;
+		}
+		else{
+			return false;
 		}
 	}
 }

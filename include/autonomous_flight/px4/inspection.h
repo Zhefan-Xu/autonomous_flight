@@ -13,17 +13,18 @@
 #include <nav_msgs/Path.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <autonomous_flight/px4/flightBase.h>
+#include <math.h>
 
 using std::cout; using std::endl;
 namespace AutoFlight{
 	class inspector : public flightBase{
 	private:
-		ros::ServiceClient mapClient_;
+		ros::Subscriber mapSub_;
 
 		std::vector<double> collisionBox_;
 		double safeDist_;
 
-		octomap::OcTree* map_;
+		std::shared_ptr<octomap::OcTree> map_;
 		double mapRes_;
 
 		// planner
@@ -34,11 +35,12 @@ namespace AutoFlight{
 		void loadParam();
 		void initPlanner();
 		void run();
+		void lookAround();
 		void forward(); // get forward towards the wall
 		void checkSurroundings(); // check the surrounding dimensions of the target surface
 		void inspect(); // generate zig-zag path to inspect the wall
 		void backward(); // go back to the starting position
-		void updateMap();
+		void mapCB(const octomap_msgs::Octomap &msg);
 
 		// helper functions
 		geometry_msgs::PoseStamped getForwardGoal();
