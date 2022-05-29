@@ -13,24 +13,38 @@
 #include <nav_msgs/Path.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <autonomous_flight/px4/flightBase.h>
+#include <algorithm>
 #include <math.h>
+#include <visualization_msgs/MarkerArray.h>
 
 using std::cout; using std::endl;
 namespace AutoFlight{
 	class inspector : public flightBase{
 	private:
 		ros::Subscriber mapSub_;
+		ros::Publisher targetVisPub_;
 
+		// parameters
 		std::vector<double> collisionBox_;
 		double safeDist_;
+		double minTargetArea_; // min area to be considered as the target
+		double maxTargetHgt_; // max range of inspection target height
+		double maxTargetWidth_; // max range of inspection target width
 
+		// map
 		std::shared_ptr<octomap::OcTree> map_;
 		double mapRes_;
 
 		// planner
 		trajPlanner::pwlTraj* pwlPlanner_;
 
+		// visualization
+		std::vector<visualization_msgs::Marker> targetVisVec_;
+		visualization_msgs::MarkerArray targetVisMsg_; 
+
 	public:
+		std::thread targetVisWorker_;
+
 		inspector(const ros::NodeHandle& nh);
 		void loadParam();
 		void initPlanner();
@@ -40,7 +54,13 @@ namespace AutoFlight{
 		void checkSurroundings(); // check the surrounding dimensions of the target surface
 		void inspect(); // generate zig-zag path to inspect the wall
 		void backward(); // go back to the starting position
+		bool hasReachTarget(); // check whether the target has been reached
 		void mapCB(const octomap_msgs::Octomap &msg);
+
+		// Visualziation
+		visualization_msgs::Marker getLineMarker(double x1, double y1, double z1, double x2, double y2, double z2, int id, bool hasReachTarget);
+		void updateTargetVis(const std::vector<double>& range, bool hasReachTarget);
+		void publishTargetVis();
 
 		// helper functions
 		geometry_msgs::PoseStamped getForwardGoal();
@@ -49,6 +69,8 @@ namespace AutoFlight{
 		bool checkCollision(const octomap::point3d &p, bool ignoreUnknown=false);
 		bool checkCollisionPoint(const octomap::point3d &p, bool ignoreUnknown=false);
 		void setSurroundingFree(const octomap::point3d& p);
+		double findTargetRangeAxis(const octomap::point3d& pStart, const octomap::point3d& direction, std::vector<octomap::point3d>& resultVec);
+		double findTargetRange(std::vector<double>& range);
 	};
 }
 

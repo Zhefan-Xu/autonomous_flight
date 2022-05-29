@@ -16,6 +16,7 @@
 #include <thread>
 #include <mutex>
 
+using std::cout; using std::endl;
 namespace AutoFlight{
 	class flightBase{
 	private:
@@ -237,6 +238,7 @@ namespace AutoFlight{
 		reachY = std::abs(targetY - currY) < 0.1;
 		reachZ = std::abs(targetZ - currZ) < 0.1;
 		reachYaw = std::abs(targetYaw - currYaw) < 0.1;
+		// cout << reachX << reachY << reachZ << reachYaw << endl;
 		if (reachX and reachY and reachZ and reachYaw){
 			return true;
 		}

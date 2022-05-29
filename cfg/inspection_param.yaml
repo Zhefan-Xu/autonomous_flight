@@ -1,8 +1,14 @@
 sample_time: 0.1
 collision_box: [0.75, 0.75, 0.3]
 safe_distance: 1.0 #m. Distance for inspection and obstacles
-
+takeoff_height: 1.0 #m
 
 # Trajectory Planner (piece-wise linear)
 desired_velocity: 0.3
 desired_angular_velocity: 0.3
+
+
+# Inspection Target Parameters
+min_target_area: 10 # m^2. the minimum area to be considered as the target area
+max_inspection_target_height: 3.0 # Just a rough value. No necessarily to be accurate
+max_inspection_target_width: 5.0
