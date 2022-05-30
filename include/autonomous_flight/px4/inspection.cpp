@@ -60,7 +60,16 @@ namespace AutoFlight{
 
 
 		// max width
-		if (not this->nh_.getParam("max_inspection_target_width", this->maxTargetWidth_)){
+		if (not this->nh_.getParam("max_inspection_target_width", this->descendHgt_)){
+			this->descendHgt_ = 0.3;
+			cout << "[AutoFlight]: No descend height for inspection. Use default: 0.3m" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Descend height for inspection: " << this->descendHgt_ << "m" << endl;
+		}
+
+		// descend height
+		if (not this->nh_.getParam("inspection_descend_height", this->maxTargetWidth_)){
 			this->maxTargetWidth_ = 5.0;
 			cout << "[AutoFlight]: No max width for inspection. Use default: 5.0m" << endl;
 		}
@@ -82,6 +91,13 @@ namespace AutoFlight{
 
 		bool targetReach = this->hasReachTarget();
 		cout << "reach target: " << targetReach << endl;
+
+		this->moveUp();
+
+		this->lookAround();
+
+		octomap::point3d pI = this->findInspectionStartPoint();
+		cout << "inspection point: " << pI << endl;
 
 		// check surroundings and dimensions of the surface
 		this->checkSurroundings();
@@ -124,12 +140,13 @@ namespace AutoFlight{
 
 
 	void inspector::forward(){
-		double t = 0.0;
 		nav_msgs::Path forwardPath = this->getForwardPath();
 		this->pwlPlanner_->updatePath(forwardPath);
+
+		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
 		ros::Time tStart = ros::Time::now();
-		geometry_msgs::PoseStamped pGoal = forwardPath.poses[forwardPath.poses.size()-1];
+		geometry_msgs::PoseStamped pGoal = forwardPath.poses.back();
 		while (ros::ok() and not this->isReach(pGoal)){
 			ros::Time tCurr = ros::Time::now();
 			t = (tCurr - tStart).toSec();
@@ -137,6 +154,31 @@ namespace AutoFlight{
 			this->updateTarget(ps);
 			r.sleep();
 		}
+	}
+
+	void inspector::moveUp(){
+		nav_msgs::Path upwardPath;
+		geometry_msgs::PoseStamped pCurr;
+		geometry_msgs::PoseStamped pHgt;
+		pCurr.pose = this->odom_.pose.pose;
+		pHgt = pCurr;
+		pHgt.pose.position.z = this->maxTargetHgt_;
+		std::vector<geometry_msgs::PoseStamped> upwardPathVec {pCurr, pHgt};
+		upwardPath.poses = upwardPathVec;
+		this->pwlPlanner_->updatePath(upwardPath);
+
+		double t = 0.0;
+		ros::Rate r (1.0/this->sampleTime_);
+		ros::Time tStart = ros::Time::now();
+		geometry_msgs::PoseStamped pGoal = upwardPath.poses.back();
+		while (ros::ok() and not this->isReach(pGoal)){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
+			this->updateTarget(ps);
+			r.sleep();
+		}
+
 	}
 
 	void inspector::checkSurroundings(){
@@ -270,8 +312,8 @@ namespace AutoFlight{
 		octomap::point3d pForward = p;
 		while (ros::ok() and not this->checkCollision(pForward)){
 			pForward.x() += res;
-			cout << res << endl;
-			cout << pForward << endl;
+			// cout << res << endl;
+			// cout << pForward << endl;
 		}
 		octomap::point3d pGoal = pForward;
 		pGoal.x() -= res;
@@ -475,5 +517,77 @@ namespace AutoFlight{
 			double crossSectionArea = (zmax - zmin) * (ymax - ymin);
 			return crossSectionArea;
 		}
+	}
+
+	octomap::point3d inspector::findInspectionStartPoint(){
+		octomap::point3d pCurr = this->getPoint3dPos();
+
+		// check along +y axis
+		bool hasCollision = false;
+		octomap::point3d pCheck;
+		int count = 0;
+		while (ros::ok() and not hasCollision){
+			pCheck = pCurr;
+			pCheck.y() += count * this->mapRes_;
+			hasCollision = this->checkCollision(pCheck);
+			++count;
+		}
+		octomap::point3d pChecklimit = pCheck;
+		pChecklimit.y() -= this->mapRes_;
+		pChecklimit.y() -= this->safeDist_; 
+
+		return pChecklimit;
+	}
+
+	std::vector<octomap::point3d> inspector::getInspectionLimit(const octomap::point3d& p){
+		std::vector<octomap::point3d> limitVec;
+
+		// Plus Y direction
+		octomap::point3d pCheckPlus = p;
+		bool hasCollisionPlus = false;
+		int countPlus = 0;
+		while (ros::ok() and not hasCollisionPlus){
+			pCheckPlus.y() += countPlus * this->mapRes_;
+			hasCollisionPlus = this->checkCollision(pCheckPlus);
+			++countPlus;
+		}
+		octomap::point3d pLimitPlus = pCheckPlus;
+		pLimitPlus.y() -= this->mapRes_;
+		pLimitPlus.y() -= this->safeDist_;
+
+		// Minus Y direction
+		octomap::point3d pCheckMinus = p;
+		bool hasCollisionMinus = false;
+		int countMinus = 0;
+		while (ros::ok() and not hasCollisionMinus){
+			pCheckMinus.y() += countMinus * this->mapRes_;
+			hasCollisionMinus = this->checkCollision(pCheckMinus);
+			++countMinus;
+		}
+		octomap::point3d pLimitMinus = pCheckMinus;
+		pLimitMinus.y() -= this->mapRes_;
+		pLimitMinus.y() -= this->safeDist_;
+
+		// check the distance between two limits and the closer one gets first in the vec
+		double distPlus = p.distance(pLimitPlus);
+		double distMinus = p.distance(pLimitMinus);
+		if (distPlus >= distMinus){
+			limitVec.push_back(pLimitMinus);
+			limitVec.push_back(pLimitPlus);
+		}
+		else{
+			limitVec.push_back(pLimitPlus);
+			limitVec.push_back(pLimitMinus);
+		}
+		return limitVec;
+	}
+
+	nav_msgs::Path inspector::generateZigZagPath(){
+		octomap::point3d pCurr = this->getPoint3dPos();
+		octomap::point3d pInspection = this->findInspectionStartPoint();
+		nav_msgs::Path zzPath;
+		std::vector<geometry_msgs::PoseStamped> zzPathVec;
+
+		return zzPath;
 	}
 }

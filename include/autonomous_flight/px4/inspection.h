@@ -30,6 +30,7 @@ namespace AutoFlight{
 		double minTargetArea_; // min area to be considered as the target
 		double maxTargetHgt_; // max range of inspection target height
 		double maxTargetWidth_; // max range of inspection target width
+		double descendHgt_;
 
 		// map
 		std::shared_ptr<octomap::OcTree> map_;
@@ -51,6 +52,7 @@ namespace AutoFlight{
 		void run();
 		void lookAround();
 		void forward(); // get forward towards the wall
+		void moveUp(); // move up to the maximum inspection height
 		void checkSurroundings(); // check the surrounding dimensions of the target surface
 		void inspect(); // generate zig-zag path to inspect the wall
 		void backward(); // go back to the starting position
@@ -71,6 +73,9 @@ namespace AutoFlight{
 		void setSurroundingFree(const octomap::point3d& p);
 		double findTargetRangeAxis(const octomap::point3d& pStart, const octomap::point3d& direction, std::vector<octomap::point3d>& resultVec);
 		double findTargetRange(std::vector<double>& range);
+		octomap::point3d findInspectionStartPoint();
+		std::vector<octomap::point3d> getInspectionLimit(const octomap::point3d& p);
+		nav_msgs::Path generateZigZagPath();
 	};
 }
 
