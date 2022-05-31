@@ -11,6 +11,7 @@
 #include <octomap_msgs/GetOctomap.h>
 #include <octomap_msgs/conversions.h>
 #include <nav_msgs/Path.h>
+#include <global_planner/rrtStarOctomap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <autonomous_flight/px4/flightBase.h>
 #include <algorithm>
@@ -38,6 +39,7 @@ namespace AutoFlight{
 
 		// planner
 		trajPlanner::pwlTraj* pwlPlanner_;
+		globalPlanner::rrtStarOctomap<3>* rrtPlanner_;
 
 		// visualization
 		std::vector<visualization_msgs::Marker> targetVisVec_;
@@ -68,6 +70,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped getForwardGoal();
 		nav_msgs::Path getForwardPath();
 		octomap::point3d getPoint3dPos();
+		std::vector<double> getVecPos();
 		bool checkCollision(const octomap::point3d &p, bool ignoreUnknown=false);
 		bool checkCollisionPoint(const octomap::point3d &p, bool ignoreUnknown=false);
 		void setSurroundingFree(const octomap::point3d& p);
@@ -76,6 +79,7 @@ namespace AutoFlight{
 		octomap::point3d findInspectionStartPoint();
 		std::vector<octomap::point3d> getInspectionLimit(const octomap::point3d& p);
 		nav_msgs::Path generateZigZagPath();
+		geometry_msgs::PoseStamped pointToPose(const octomap::point3d& p); // this will keep current orientation. Be careful
 	};
 }
 

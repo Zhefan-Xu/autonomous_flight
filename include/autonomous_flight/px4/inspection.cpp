@@ -60,26 +60,28 @@ namespace AutoFlight{
 
 
 		// max width
-		if (not this->nh_.getParam("max_inspection_target_width", this->descendHgt_)){
-			this->descendHgt_ = 0.3;
+		if (not this->nh_.getParam("max_inspection_target_width", this->maxTargetWidth_)){
+			this->descendHgt_ = 5.0;
+			cout << "[AutoFlight]: No max width for inspection. Use default: 5.0m" << endl;
+		}
+		else{
+			
+			cout << "[AutoFlight]: Max width for inspection: " << this->maxTargetWidth_ << "m" << endl;
+		}
+
+		// descend height
+		if (not this->nh_.getParam("inspection_descend_height", this->descendHgt_)){
+			this->descendHgt_ = 3.0;
 			cout << "[AutoFlight]: No descend height for inspection. Use default: 0.3m" << endl;
 		}
 		else{
 			cout << "[AutoFlight]: Descend height for inspection: " << this->descendHgt_ << "m" << endl;
 		}
-
-		// descend height
-		if (not this->nh_.getParam("inspection_descend_height", this->maxTargetWidth_)){
-			this->maxTargetWidth_ = 5.0;
-			cout << "[AutoFlight]: No max width for inspection. Use default: 5.0m" << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Max width for inspection: " << this->maxTargetWidth_ << "m" << endl;
-		}
 	}
 
 	void inspector::initPlanner(){
 		this->pwlPlanner_ = new trajPlanner::pwlTraj (this->nh_);
+		this->rrtPlanner_ = new globalPlanner::rrtStarOctomap<3> (this->nh_);
 	}
 
 	void inspector::run(){
@@ -186,11 +188,42 @@ namespace AutoFlight{
 	}
 
 	void inspector::inspect(){
-
+		nav_msgs::Path zigZagPath = this->generateZigZagPath();
+		this->pwlPlanner_->updatePath(zigZagPath, true);
+		
+		double t = 0.0;
+		ros::Rate r (1.0/this->sampleTime_);
+		ros::Time tStart = ros::Time::now();
+		geometry_msgs::PoseStamped pGoal = zigZagPath.poses.back();
+		while (ros::ok() and not this->isReach(pGoal)){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
+			this->updateTarget(ps);
+			r.sleep();
+		}	
 	}
 
 	void inspector::backward(){
+		nav_msgs::Path backPath;
+		std::vector<double> startVec = this->getVecPos();
+		std::vector<double> goalVec {0.0, 0.0, this->takeoffHgt_};
+		this->rrtPlanner_->updateStart(startVec);
+		this->rrtPlanner_->updateGoal(goalVec);
+		this->rrtPlanner_->makePlan(backPath);
+		this->pwlPlanner_->updatePath(backPath);
 
+		double t = 0.0;
+		ros::Rate r (1.0/this->sampleTime_);
+		ros::Time tStart = ros::Time::now();
+		geometry_msgs::PoseStamped pGoal = backPath.poses.back();
+		while (ros::ok() and not this->isReach(pGoal)){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
+			this->updateTarget(ps);
+			r.sleep();
+		}
 	}
 
 	bool inspector::hasReachTarget(){
@@ -352,6 +385,15 @@ namespace AutoFlight{
 		y = this->odom_.pose.pose.position.y;
 		z = this->odom_.pose.pose.position.z;
 		return octomap::point3d (x, y, z);
+	}
+
+	std::vector<double> inspector::getVecPos(){
+		double x, y, z;
+		x = this->odom_.pose.pose.position.x;
+		y = this->odom_.pose.pose.position.y;
+		z = this->odom_.pose.pose.position.z;
+		std::vector<double> vecPos {x, y, z};
+		return vecPos;
 	}
 
 	bool inspector::checkCollision(const octomap::point3d &p, bool ignoreUnknown){
@@ -560,13 +602,13 @@ namespace AutoFlight{
 		bool hasCollisionMinus = false;
 		int countMinus = 0;
 		while (ros::ok() and not hasCollisionMinus){
-			pCheckMinus.y() += countMinus * this->mapRes_;
+			pCheckMinus.y() -= countMinus * this->mapRes_;
 			hasCollisionMinus = this->checkCollision(pCheckMinus);
 			++countMinus;
 		}
 		octomap::point3d pLimitMinus = pCheckMinus;
-		pLimitMinus.y() -= this->mapRes_;
-		pLimitMinus.y() -= this->safeDist_;
+		pLimitMinus.y() += this->mapRes_;
+		pLimitMinus.y() += this->safeDist_;
 
 		// check the distance between two limits and the closer one gets first in the vec
 		double distPlus = p.distance(pLimitPlus);
@@ -579,6 +621,8 @@ namespace AutoFlight{
 			limitVec.push_back(pLimitPlus);
 			limitVec.push_back(pLimitMinus);
 		}
+		// cout << "P Limit Plus: " << pLimitPlus << endl;
+		// cout << "p Limit Minus: " << pLimitMinus << endl;
 		return limitVec;
 	}
 
@@ -588,6 +632,37 @@ namespace AutoFlight{
 		nav_msgs::Path zzPath;
 		std::vector<geometry_msgs::PoseStamped> zzPathVec;
 
+		// add current pose and first inspection pose to the path
+		geometry_msgs::PoseStamped psCurr = this->pointToPose(pCurr);
+		geometry_msgs::PoseStamped psInspection = this->pointToPose(pInspection);
+		zzPathVec.push_back(psCurr);
+		zzPathVec.push_back(psInspection);
+
+		octomap::point3d pInspectionHgt = pInspection;
+		double height = pInspectionHgt.z();
+		while (ros::ok() and not (height <= this->takeoffHgt_)){
+			std::vector<octomap::point3d> pLimitCheck = this->getInspectionLimit(pInspectionHgt);
+			geometry_msgs::PoseStamped psLimit1 = this->pointToPose(pLimitCheck[0]);
+			geometry_msgs::PoseStamped psLimit2 = this->pointToPose(pLimitCheck[1]);
+			zzPathVec.push_back(psLimit1);
+			zzPathVec.push_back(psLimit2);
+			pInspectionHgt = pLimitCheck[1];
+			pInspectionHgt.z() -= this->descendHgt_;
+			geometry_msgs::PoseStamped psLimit2Lower = this->pointToPose(pInspectionHgt);
+			zzPathVec.push_back(psLimit2Lower); 
+			height = pInspectionHgt.z();
+		}
+		
+		zzPath.poses = zzPathVec;
 		return zzPath;
+	}
+
+	geometry_msgs::PoseStamped inspector::pointToPose(const octomap::point3d& p){
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		ps.pose.position.x = p.x();
+		ps.pose.position.y = p.y();
+		ps.pose.position.z = p.z();
+		return ps;
 	}
 }

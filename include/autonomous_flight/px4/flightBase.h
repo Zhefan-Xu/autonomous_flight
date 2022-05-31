@@ -40,6 +40,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped poseTgt_;
 
 		double sampleTime_;
+		double takeoffHgt_;
 		// bool land_ = false;
 
 	public:
@@ -96,19 +97,21 @@ namespace AutoFlight{
 	}
 
 	void flightBase::takeoff(){
-		// from cfg yaml read the flight height
-		double takeoffHgt;
-		if (not this->nh_.getParam("takeoff_height", takeoffHgt)){
-			takeoffHgt = 1.0;
-			ROS_INFO("No takeoff_height param found. Use default: 1.0 m.");
+		if (not this->nh_.getParam("takeoff_height", this->takeoffHgt_)){
+			this->takeoffHgt_ = 1.0;
+			ROS_INFO("No takeoff height param found. Use default: 1.0 m.");
+		}
+		else{
+			cout << "[AutoFlight]: Takeoff Height: " << this->takeoffHgt_ << "m." << endl;
 		}
 
+		// from cfg yaml read the flight height
 		geometry_msgs::PoseStamped ps;
 		ps.header.frame_id = "map";
 		ps.header.stamp = ros::Time::now();
 		ps.pose.position.x = 0.0;
 		ps.pose.position.y = 0.0;
-		ps.pose.position.z = takeoffHgt;
+		ps.pose.position.z = this->takeoffHgt_;
 		ps.pose.orientation.x = 0.0;
 		ps.pose.orientation.y = 0.0;
 		ps.pose.orientation.z = 0.0;
@@ -117,7 +120,7 @@ namespace AutoFlight{
 		this->updateTarget(ps);
 		ROS_INFO("Start taking off...");
 		ros::Rate r (10);
-		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - takeoffHgt) >= 0.1){
+		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1){
 			r.sleep();
 		}
 		ROS_INFO("Takeoff succeed!");
@@ -237,7 +240,7 @@ namespace AutoFlight{
 		reachX = std::abs(targetX - currX) < 0.1;
 		reachY = std::abs(targetY - currY) < 0.1;
 		reachZ = std::abs(targetZ - currZ) < 0.1;
-		reachYaw = std::abs(targetYaw - currYaw) < 0.1;
+		reachYaw = std::abs(targetYaw - currYaw) < 0.05;
 		// cout << reachX << reachY << reachZ << reachYaw << endl;
 		if (reachX and reachY and reachZ and reachYaw){
 			return true;
