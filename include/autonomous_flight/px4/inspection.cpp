@@ -98,14 +98,12 @@ namespace AutoFlight{
 
 		this->lookAround();
 
-		octomap::point3d pI = this->findInspectionStartPoint();
-		cout << "inspection point: " << pI << endl;
 
 		// check surroundings and dimensions of the surface
 		this->checkSurroundings();
 
 		// inspect the surface by zig-zag path
-		this->inspect();
+		// this->inspect();
 	
 		// go back to the start position
 		this->backward();
@@ -211,7 +209,10 @@ namespace AutoFlight{
 		this->rrtPlanner_->updateStart(startVec);
 		this->rrtPlanner_->updateGoal(goalVec);
 		this->rrtPlanner_->makePlan(backPath);
+		// modify back path to make it rotate at the start location
 		this->pwlPlanner_->updatePath(backPath);
+		this->pwlPlanner_->adjustHeading(this->odom_.pose.pose.orientation);
+
 
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
