@@ -10,10 +10,19 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/Quaternion.h>
+#include <random>
 
 #define PI_const 3.1415926
 
 namespace AutoFlight{
+    std::random_device rd;
+    std::mt19937 mt(rd());
+    // Helper Function: Random Number
+    inline double randomNumber(double min, double max){
+        std::uniform_real_distribution<double> distribution(min, max);
+        return distribution(mt);
+    }
+
     inline geometry_msgs::Quaternion quaternion_from_rpy(double roll, double pitch, double yaw)
     {
     	if (yaw > PI_const){

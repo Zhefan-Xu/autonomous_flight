@@ -24,6 +24,7 @@ namespace AutoFlight{
 	private:
 		ros::Subscriber mapSub_;
 		ros::Publisher targetVisPub_;
+		ros::Publisher pathPub_; // visualization
 
 		// parameters
 		std::vector<double> collisionBox_;
@@ -32,6 +33,9 @@ namespace AutoFlight{
 		double maxTargetHgt_; // max range of inspection target height
 		double maxTargetWidth_; // max range of inspection target width
 		double descendHgt_;
+		double desiredVel_;
+		double desiredAngularVel_;
+		int nbvSampleNum_;
 
 		// map
 		std::shared_ptr<octomap::OcTree> map_;
@@ -39,14 +43,16 @@ namespace AutoFlight{
 
 		// planner
 		trajPlanner::pwlTraj* pwlPlanner_;
-		globalPlanner::rrtStarOctomap<3>* rrtPlanner_;
+		globalPlanner::rrtOctomap<3>* rrtPlanner_;
 
 		// visualization
 		std::vector<visualization_msgs::Marker> targetVisVec_;
 		visualization_msgs::MarkerArray targetVisMsg_; 
+		nav_msgs::Path inspectionPath_;
 
 	public:
 		std::thread targetVisWorker_;
+		std::thread pathVisWorker_;
 
 		inspector(const ros::NodeHandle& nh);
 		void loadParam();
@@ -54,6 +60,7 @@ namespace AutoFlight{
 		void run();
 		void lookAround();
 		void forward(); // get forward towards the wall
+		void forwardNBV(); // forward by Next Best View Criteria
 		void moveUp(); // move up to the maximum inspection height
 		void checkSurroundings(); // check the surrounding dimensions of the target surface
 		void inspect(); // generate zig-zag path to inspect the wall
@@ -64,11 +71,17 @@ namespace AutoFlight{
 		// Visualziation
 		visualization_msgs::Marker getLineMarker(double x1, double y1, double z1, double x2, double y2, double z2, int id, bool hasReachTarget);
 		void updateTargetVis(const std::vector<double>& range, bool hasReachTarget);
+		void updatePathVis(const nav_msgs::Path& path);
 		void publishTargetVis();
+		void publishPathVis();
 
 		// helper functions
 		geometry_msgs::PoseStamped getForwardGoal();
 		nav_msgs::Path getForwardPath();
+		octomap::point3d sampleNBVGoal();
+		int evaluateSample(const octomap::point3d& p);
+		bool checkPointSafe(const octomap::point3d& p);
+		octomap::point3d randomSample(const std::vector<double>& bbox);
 		octomap::point3d getPoint3dPos();
 		std::vector<double> getVecPos();
 		bool checkCollision(const octomap::point3d &p, bool ignoreUnknown=false);
@@ -80,6 +93,7 @@ namespace AutoFlight{
 		std::vector<octomap::point3d> getInspectionLimit(const octomap::point3d& p);
 		nav_msgs::Path generateZigZagPath();
 		geometry_msgs::PoseStamped pointToPose(const octomap::point3d& p); // this will keep current orientation. Be careful
+		void moveToAngle(const geometry_msgs::Quaternion& quat);
 	};
 }
 

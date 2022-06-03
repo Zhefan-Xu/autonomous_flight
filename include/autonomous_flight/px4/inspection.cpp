@@ -16,6 +16,10 @@ namespace AutoFlight{
 		this->targetVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("/inspection_target", 1);
 		this->targetVisWorker_ = std::thread(&inspector::publishTargetVis, this);
 		this->targetVisWorker_.detach();
+
+		this->pathPub_ = this->nh_.advertise<nav_msgs::Path>("/inspector/path", 1);
+		this->pathVisWorker_ = std::thread(&inspector::publishPathVis, this);
+		this->pathVisWorker_.detach();
 		cout << "init succeed" << endl;
 	}
 
@@ -77,11 +81,38 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Descend height for inspection: " << this->descendHgt_ << "m" << endl;
 		}
+
+		// desired velocity
+		if (not this->nh_.getParam("desired_velocity", this->desiredVel_)){
+			this->desiredVel_ = 0.3;
+			cout << "[AutoFlight]: No desired velocity. Use default: 0.3 m/s" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Desired velocity: " << this->desiredVel_ << " m/s." << endl;
+		}
+
+		// desired angular velocity
+		if (not this->nh_.getParam("desired_angular_velocity", this->desiredAngularVel_)){
+			this->desiredAngularVel_ = 0.3;
+			cout << "[AutoFlight]: No desired angular velocity. Use default: 0.3 rad/s" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Desired angular velocity: " << this->desiredAngularVel_ << " rad/s." << endl;
+		}
+
+		// NBV sample number
+		if (not this->nh_.getParam("nbv_sample_num", this->nbvSampleNum_)){
+			this->nbvSampleNum_ = 10;
+			cout << "[AutoFlight]: No NBV sample number. Use default: 10" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: NBV sample number: " << this->nbvSampleNum_ << endl;
+		}
 	}
 
 	void inspector::initPlanner(){
 		this->pwlPlanner_ = new trajPlanner::pwlTraj (this->nh_);
-		this->rrtPlanner_ = new globalPlanner::rrtStarOctomap<3> (this->nh_);
+		this->rrtPlanner_ = new globalPlanner::rrtOctomap<3> (this->nh_);
 	}
 
 	void inspector::run(){
@@ -103,7 +134,7 @@ namespace AutoFlight{
 		this->checkSurroundings();
 
 		// inspect the surface by zig-zag path
-		// this->inspect();
+		this->inspect();
 	
 		// go back to the start position
 		this->backward();
@@ -126,6 +157,8 @@ namespace AutoFlight{
 		lookAroundPath.poses = lookAroundPathVec;
 		this->pwlPlanner_->updatePath(lookAroundPath, true); // true: use yaw angle in the message
 
+		this->updatePathVis(lookAroundPath);
+
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
 		ros::Time tStart = ros::Time::now();
@@ -143,6 +176,8 @@ namespace AutoFlight{
 		nav_msgs::Path forwardPath = this->getForwardPath();
 		this->pwlPlanner_->updatePath(forwardPath);
 
+		this->updatePathVis(forwardPath);
+
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
 		ros::Time tStart = ros::Time::now();
@@ -156,6 +191,12 @@ namespace AutoFlight{
 		}
 	}
 
+	void inspector::forwardNBV(){
+		// first sample goal point
+
+		// then use RRT to find path
+	}
+
 	void inspector::moveUp(){
 		nav_msgs::Path upwardPath;
 		geometry_msgs::PoseStamped pCurr;
@@ -166,6 +207,8 @@ namespace AutoFlight{
 		std::vector<geometry_msgs::PoseStamped> upwardPathVec {pCurr, pHgt};
 		upwardPath.poses = upwardPathVec;
 		this->pwlPlanner_->updatePath(upwardPath);
+
+		this->updatePathVis(upwardPath);
 
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
@@ -189,6 +232,8 @@ namespace AutoFlight{
 		nav_msgs::Path zigZagPath = this->generateZigZagPath();
 		this->pwlPlanner_->updatePath(zigZagPath, true);
 		
+		this->updatePathVis(zigZagPath);
+
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
 		ros::Time tStart = ros::Time::now();
@@ -211,8 +256,11 @@ namespace AutoFlight{
 		this->rrtPlanner_->makePlan(backPath);
 		// modify back path to make it rotate at the start location
 		this->pwlPlanner_->updatePath(backPath);
-		this->pwlPlanner_->adjustHeading(this->odom_.pose.pose.orientation);
 
+		this->updatePathVis(backPath);
+
+		// adjust heading first
+		this->moveToAngle(this->pwlPlanner_->getFirstPose().pose.orientation);
 
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
@@ -329,11 +377,25 @@ namespace AutoFlight{
 		this->targetVisVec_ = visVec;
 	}
 
+	void inspector::updatePathVis(const nav_msgs::Path& path){
+		this->inspectionPath_ = path;
+	}
+
 	void inspector::publishTargetVis(){
 		ros::Rate r (1);
 		while (ros::ok()){
 			this->targetVisMsg_.markers = this->targetVisVec_;
 			this->targetVisPub_.publish(this->targetVisMsg_);
+			r.sleep();
+		}
+	}
+
+	void inspector::publishPathVis(){
+		ros::Rate r (10);
+		while (ros::ok()){
+			this->inspectionPath_.header.stamp = ros::Time::now(); 
+			this->inspectionPath_.header.frame_id = "map";
+			this->pathPub_.publish(this->inspectionPath_);
 			r.sleep();
 		}
 	}
@@ -378,6 +440,72 @@ namespace AutoFlight{
 		forwardPath.header.stamp = ros::Time::now();
 		forwardPath.poses = forwardPathVec;
 		return forwardPath;
+	}
+
+	octomap::point3d inspector::sampleNBVGoal(){
+		std::vector<octomap::point3d> candidates;
+		octomap::point3d bestPoint;
+		// sample points in the space in front of current position
+		double xmin, xmax, ymin, ymax, zmin, zmax;
+		this->map_->getMetricMax(xmax, ymax, zmax);
+		this->map_->getMetricMin(xmin, ymin, zmin);
+
+		double xcurr = this->odom_.pose.pose.position.x;
+		std::vector<double> bbox {xcurr, xmax, ymin, ymax, this->takeoffHgt_, this->takeoffHgt_};
+		for (int i=0; i < this->nbvSampleNum_; ++i){
+			octomap::point3d pSample = this->randomSample(bbox);
+			candidates.push_back(pSample);
+		}
+
+
+
+		return bestPoint;
+	}
+
+	int inspector::evaluateSample(const octomap::point3d& p){
+		int countUnknown = 0;
+		return countUnknown;
+	}
+
+	bool inspector::checkPointSafe(const octomap::point3d& p){
+		bool hasCollision = this->checkCollision(p);
+		if (hasCollision){
+			return false;
+		}
+
+		// check positive x
+		int countXPlus = 0;
+		double xPlusForward = 0.0;
+		octomap::point3d pXPlusCheck = p;
+		while (ros::ok() and xPlusForward <= this->safeDist_ + this->mapRes_){
+			xPlusForward += countXPlus * this->mapRes_;
+			pXPlusCheck.x() += xPlusForward;
+			bool hasCollisionXPlus = this->checkCollision(pXPlusCheck);
+			if (hasCollisionXPlus){
+				return false;
+			}
+			++countXPlus;
+		}
+		return true;
+	}
+
+	octomap::point3d inspector::randomSample(const std::vector<double>& bbox){
+		double xmin, xmax, ymin, ymax, zmin, zmax;
+		xmin = bbox[0]; xmax = bbox[1];
+		ymin = bbox[2]; ymax = bbox[3];
+		zmin = bbox[4]; zmax = bbox[5];
+
+		octomap::point3d safePoint;
+		bool hasSafePoint = false;
+		while (ros::ok() and not hasSafePoint){
+			safePoint.x() = randomNumber(xmin, xmax);
+			safePoint.y() = randomNumber(ymin, ymax);
+			safePoint.z() = randomNumber(zmin, zmax);
+
+			// check safety of current point
+			hasSafePoint = this->checkPointSafe(safePoint);
+		}
+		return safePoint;
 	}
 
 	octomap::point3d inspector::getPoint3dPos(){
@@ -641,7 +769,7 @@ namespace AutoFlight{
 
 		octomap::point3d pInspectionHgt = pInspection;
 		double height = pInspectionHgt.z();
-		while (ros::ok() and not (height <= this->takeoffHgt_)){
+		while (ros::ok() and not (height <= this->takeoffHgt_+this->mapRes_)){
 			std::vector<octomap::point3d> pLimitCheck = this->getInspectionLimit(pInspectionHgt);
 			geometry_msgs::PoseStamped psLimit1 = this->pointToPose(pLimitCheck[0]);
 			geometry_msgs::PoseStamped psLimit2 = this->pointToPose(pLimitCheck[1]);
@@ -665,5 +793,52 @@ namespace AutoFlight{
 		ps.pose.position.y = p.y();
 		ps.pose.position.z = p.z();
 		return ps;
+	}
+
+	void inspector::moveToAngle(const geometry_msgs::Quaternion& quat){
+		double yawTgt = AutoFlight::rpy_from_quaternion(quat);
+		double yawCurr = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		ps.pose.orientation = quat;
+
+		double yawDiff = yawTgt - yawCurr; // difference between yaw
+		double direction;
+		double yawDiffAbs = std::abs(yawDiff);
+		if ((yawDiffAbs <= PI_const) and (yawDiff>0)){
+			direction = 1.0; // counter clockwise
+		} 
+		else if ((yawDiffAbs <= PI_const) and (yawDiff<0)){
+			direction = -1.0; // clockwise
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff>0)){
+			direction = -1.0; // rotate in clockwise direction
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff<0)){
+			direction = 1.0; // counter clockwise
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+
+
+		double t = 0.0;
+		double startTime = 0.0; double endTime = yawDiffAbs/this->desiredAngularVel_;
+		ros::Time tStart = ros::Time::now();
+		ros::Rate r (1/this->sampleTime_);
+		while (ros::ok() and not this->isReach(ps)){
+			if (t >= endTime){
+				this->updateTarget(ps);
+				continue;
+			}
+
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			double currYawTgt = yawCurr + (double) direction * (t-startTime)/(endTime-startTime) * yawDiffAbs;
+			geometry_msgs::Quaternion quatT = trajPlanner::quaternion_from_rpy(0, 0, currYawTgt);
+			geometry_msgs::PoseStamped psT = ps;
+			psT.pose.orientation = quatT;
+			this->updateTarget(psT);
+			r.sleep();
+		}
 	}
 }

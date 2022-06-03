@@ -60,6 +60,7 @@ namespace AutoFlight{
 		void odomCB(const nav_msgs::Odometry::ConstPtr& odom);
 
 		bool isReach(const geometry_msgs::PoseStamped& poseTgt);
+		void moveToYaw(const geometry_msgs::PoseStamped& poseTgt);
 	};
 
 	flightBase::flightBase(const ros::NodeHandle& nh) : nh_(nh){
@@ -94,6 +95,8 @@ namespace AutoFlight{
 
 	void flightBase::updateTarget(const geometry_msgs::PoseStamped& ps){
 		this->poseTgt_ = ps;
+		this->poseTgt_.header.frame_id = "map";
+		this->poseTgt_.header.stamp = ros::Time::now();
 	}
 
 	void flightBase::takeoff(){
@@ -241,7 +244,7 @@ namespace AutoFlight{
 		reachY = std::abs(targetY - currY) < 0.1;
 		reachZ = std::abs(targetZ - currZ) < 0.1;
 		reachYaw = std::abs(targetYaw - currYaw) < 0.05;
-		// cout << reachX << reachY << reachZ << reachYaw << endl;
+		cout << reachX << reachY << reachZ << reachYaw << endl;
 		if (reachX and reachY and reachZ and reachYaw){
 			return true;
 		}
