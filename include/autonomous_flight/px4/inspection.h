@@ -36,6 +36,8 @@ namespace AutoFlight{
 		double desiredVel_;
 		double desiredAngularVel_;
 		int nbvSampleNum_;
+		double sensorRange_;
+		double sensorVerticalAngle_;
 
 		// map
 		std::shared_ptr<octomap::OcTree> map_;
@@ -79,6 +81,8 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped getForwardGoal();
 		nav_msgs::Path getForwardPath();
 		octomap::point3d sampleNBVGoal();
+		bool inSensorRange(const octomap::point3d& p, const octomap::point3d& pCheck);
+		bool hasOcclusion(const octomap::point3d& p, const octomap::point3d& pCheck);
 		int evaluateSample(const octomap::point3d& p);
 		bool checkPointSafe(const octomap::point3d& p);
 		octomap::point3d randomSample(const std::vector<double>& bbox);

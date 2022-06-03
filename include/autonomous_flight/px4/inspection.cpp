@@ -108,6 +108,25 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: NBV sample number: " << this->nbvSampleNum_ << endl;
 		}
+
+		// Sensor Range
+		if (not this->nh_.getParam("sensor_range", this->sensorRange_)){
+			this->sensorRange_ = 5.0;
+			cout << "[AutoFlight]: No sensor range parameter. Use default: 5.0m" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Sensor range: " << this->sensorRange_ << "m." << endl;
+		}
+
+		// Sensor vertical angle
+		if (not this->nh_.getParam("sensor_vertical_angle", this->sensorVerticalAngle_)){
+			this->sensorVerticalAngle_ = PI_const/4;
+			cout << "[AutoFlight]: No sensor range parameter. Use default: 45 degree." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Sensor range: " << this->sensorVerticalAngle_ << "degree." << endl;
+			this->sensorVerticalAngle_ *= PI_const/180.0;
+		}
 	}
 
 	void inspector::initPlanner(){
@@ -462,8 +481,40 @@ namespace AutoFlight{
 		return bestPoint;
 	}
 
+	bool inspector::inSensorRange(const octomap::point3d& p, const octomap::point3d& pCheck){
+		return true;
+	}
+
+	bool inspector::hasOcclusion(const octomap::point3d& p, const octomap::point3d& pCheck){
+		return true;
+	}
+
 	int inspector::evaluateSample(const octomap::point3d& p){
 		int countUnknown = 0;
+		// count number of unknowns in the +x direction
+		double xmin, xmax, ymin, ymax, zmin, zmax;
+		xmin = p.x(); xmax = xmin + this->sensorRange_;
+		ymin = p.y() - this->sensorRange_; ymax = p.y() + this->sensorRange_;
+		double zRange = this->sensorRange_ * tan(this->sensorVerticalAngle_);
+		zmin = p.z(); zmax = p.z() + zRange;
+		int xCount = (int) (this->sensorRange_/this->mapRes_) + 1;
+		int yCount = (int) (2 * this->sensorRange_/this->mapRes_) + 1;
+		int zCount = (int) (zRange/this->mapRes_) + 1;
+
+		for (int xID=0; xID < xCount; ++xID){
+			for (int yID=0; yID < yCount; ++yID){
+				for (int zID=0; zID < zCount; ++zID){
+					octomap::point3d pCheck (xmin + xID * this->mapRes_,
+											 ymin + yID * this->mapRes_,
+											 zmin + zID * this->mapRes_);
+					if (this->inSensorRange(p, pCheck)){
+						if (not this->hasOcclusion(p, pCheck)){
+							++countUnknown;
+						}
+					}
+				}
+			}
+		}
 		return countUnknown;
 	}
 
