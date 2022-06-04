@@ -59,7 +59,7 @@ namespace AutoFlight{
 		void stateCB(const mavros_msgs::State::ConstPtr& state);
 		void odomCB(const nav_msgs::Odometry::ConstPtr& odom);
 
-		bool isReach(const geometry_msgs::PoseStamped& poseTgt);
+		bool isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw=true);
 		void moveToYaw(const geometry_msgs::PoseStamped& poseTgt);
 	};
 
@@ -86,7 +86,7 @@ namespace AutoFlight{
     		ROS_INFO("No sample time param. Use default: 0.1s.");
     	}
 
-		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 1000);
 		this->posePubWorker_ = std::thread(&flightBase::pubPose, this);
 		this->posePubWorker_.detach();
 	}
@@ -228,7 +228,7 @@ namespace AutoFlight{
 		}
 	}
 
-	bool flightBase::isReach(const geometry_msgs::PoseStamped& poseTgt){
+	bool flightBase::isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw){
 		double targetX, targetY, targetZ, targetYaw, currX, currY, currZ, currYaw;
 		targetX = poseTgt.pose.position.x;
 		targetY = poseTgt.pose.position.y;
@@ -243,8 +243,13 @@ namespace AutoFlight{
 		reachX = std::abs(targetX - currX) < 0.1;
 		reachY = std::abs(targetY - currY) < 0.1;
 		reachZ = std::abs(targetZ - currZ) < 0.1;
-		reachYaw = std::abs(targetYaw - currYaw) < 0.05;
-		cout << reachX << reachY << reachZ << reachYaw << endl;
+		if (useYaw){
+			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
+		}
+		else{
+			reachYaw = true;
+		}
+		// cout << reachX << reachY << reachZ << reachYaw << endl;
 		if (reachX and reachY and reachZ and reachYaw){
 			return true;
 		}

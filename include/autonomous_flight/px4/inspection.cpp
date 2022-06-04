@@ -13,11 +13,11 @@ namespace AutoFlight{
 		this->mapSub_ = this->nh_.subscribe("/octomap_full", 1, &inspector::mapCB, this);
 			
 		// visualization
-		this->targetVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("/inspection_target", 1);
+		this->targetVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("/inspection_target", 100);
 		this->targetVisWorker_ = std::thread(&inspector::publishTargetVis, this);
 		this->targetVisWorker_.detach();
 
-		this->pathPub_ = this->nh_.advertise<nav_msgs::Path>("/inspector/path", 1);
+		this->pathPub_ = this->nh_.advertise<nav_msgs::Path>("/inspector/path", 100);
 		this->pathVisWorker_ = std::thread(&inspector::publishPathVis, this);
 		this->pathVisWorker_.detach();
 		cout << "init succeed" << endl;
@@ -121,10 +121,10 @@ namespace AutoFlight{
 		// Sensor vertical angle
 		if (not this->nh_.getParam("sensor_vertical_angle", this->sensorVerticalAngle_)){
 			this->sensorVerticalAngle_ = PI_const/4;
-			cout << "[AutoFlight]: No sensor range parameter. Use default: 45 degree." << endl;
+			cout << "[AutoFlight]: No sensor vertical angle parameter. Use default: 45 degree." << endl;
 		}
 		else{
-			cout << "[AutoFlight]: Sensor range: " << this->sensorVerticalAngle_ << "degree." << endl;
+			cout << "[AutoFlight]: Sensor vertical angle: " << this->sensorVerticalAngle_ << " degree." << endl;
 			this->sensorVerticalAngle_ *= PI_const/180.0;
 		}
 	}
@@ -137,25 +137,38 @@ namespace AutoFlight{
 	void inspector::run(){
 		this->lookAround();
 
-		this->forward();
+		bool targetReach = false;
+		while (ros::ok() and not targetReach){
+			bool forwardSuccess = this->forward();
+			if (not forwardSuccess){
+				this->forwardNBV();
+			}
+			else{
+				this->lookAround(); // check the wall condition	
+			}
+			
 
-		this->lookAround(); // check the wall condition
-
-		bool targetReach = this->hasReachTarget();
-		cout << "reach target: " << targetReach << endl;
+			targetReach = this->hasReachTarget();
+			if (targetReach){
+				cout << "[AutoFlight]: Reach Inspection Target!" << endl;
+			}
+			else{
+				cout << "[AutoFlight]: Not reach inspection target. Continue forwarding..." << endl; 
+			}
+		}
 
 		this->moveUp();
 
 		this->lookAround();
 
 
-		// check surroundings and dimensions of the surface
-		this->checkSurroundings();
+	// 	// check surroundings and dimensions of the surface
+	// 	this->checkSurroundings();
 
-		// inspect the surface by zig-zag path
+	// 	// inspect the surface by zig-zag path
 		this->inspect();
 	
-		// go back to the start position
+	// 	// go back to the start position
 		this->backward();
 	}
 
@@ -191,8 +204,14 @@ namespace AutoFlight{
 	}
 
 
-	void inspector::forward(){
-		nav_msgs::Path forwardPath = this->getForwardPath();
+	bool inspector::forward(){
+		bool success;
+		nav_msgs::Path forwardPath = this->getForwardPath(success);
+		if (not success){
+			cout << "[AutoFlight]: Cannot directly forward..." << endl;
+			return false;
+		}
+
 		this->pwlPlanner_->updatePath(forwardPath);
 
 		this->updatePathVis(forwardPath);
@@ -208,12 +227,44 @@ namespace AutoFlight{
 			this->updateTarget(ps);
 			r.sleep();
 		}
+		cout << "[AutoFlight]: Direct Forward Succeed." << endl;
+		return true;
 	}
 
 	void inspector::forwardNBV(){
+		cout << "[AutoFlight]: NBV Forward for obstacle avoidance!" << endl; 
+		nav_msgs::Path forwardNBVPath;
 		// first sample goal point
+		octomap::point3d pBestView = this->sampleNBVGoal();
+		geometry_msgs::Quaternion quatStart = this->odom_.pose.pose.orientation;
 
 		// then use RRT to find path
+		std::vector<double> startVec = this->getVecPos();
+		std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
+		this->rrtPlanner_->updateStart(startVec);
+		this->rrtPlanner_->updateGoal(goalVec);
+		this->rrtPlanner_->makePlan(forwardNBVPath);
+		this->pwlPlanner_->updatePath(forwardNBVPath);
+
+		this->updatePathVis(forwardNBVPath);
+
+		// adjust angle
+		this->moveToAngle(this->pwlPlanner_->getFirstPose().pose.orientation);
+
+		double t = 0.0;
+		ros::Rate r (1.0/this->sampleTime_);
+		ros::Time tStart = ros::Time::now();
+		geometry_msgs::PoseStamped pGoal = forwardNBVPath.poses.back();
+		while (ros::ok() and not this->isReach(pGoal, false)){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
+			this->updateTarget(ps);
+			r.sleep();
+		}
+
+		this->moveToAngle(quatStart);
+		cout << "[AutoFlight]: NBV Forward Succeed!" << endl; 
 	}
 
 	void inspector::moveUp(){
@@ -285,7 +336,7 @@ namespace AutoFlight{
 		ros::Rate r (1.0/this->sampleTime_);
 		ros::Time tStart = ros::Time::now();
 		geometry_msgs::PoseStamped pGoal = backPath.poses.back();
-		while (ros::ok() and not this->isReach(pGoal)){
+		while (ros::ok() and not this->isReach(pGoal, false)){
 			ros::Time tCurr = ros::Time::now();
 			t = (tCurr - tStart).toSec();
 			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
@@ -297,18 +348,21 @@ namespace AutoFlight{
 	bool inspector::hasReachTarget(){
 		std::vector<double> range;
 		double area = this->findTargetRange(range);
+		
+		double distance = std::abs(range[0] - this->odom_.pose.pose.position.x);
+
 		cout << "Area is: " << area << endl; 
-		cout << "x: " << range[0] << " " << range[1] << endl;
-		cout << "y: " << range[2] << " " << range[3] << endl;
-		cout << "z: " << range[4] << " " << range[5] << endl;
+		cout << "Distance to: " << distance << endl;
 
  		bool hasReachTarget;
-		if (area >= this->minTargetArea_){
+		if (area >= this->minTargetArea_ and distance <= this->safeDist_ + 2*this->mapRes_){
 			hasReachTarget = true;
 		}
 		else{
 			hasReachTarget = false;
 		}
+
+
 
 		this->updateTargetVis(range, hasReachTarget);
 		return hasReachTarget;
@@ -419,7 +473,7 @@ namespace AutoFlight{
 		}
 	}
 
-	geometry_msgs::PoseStamped inspector::getForwardGoal(){
+	geometry_msgs::PoseStamped inspector::getForwardGoal(bool& success){
 		octomap::point3d p = this->getPoint3dPos();
 	
 		// cast a ray along the x direction and check collision
@@ -435,6 +489,10 @@ namespace AutoFlight{
 		pGoal.x() -= this->safeDist_;
 		if (pGoal.x() <= p.x()){ // we don't let the robot move backward somehow
 			pGoal.x() = p.x(); // at least stay at the same position
+			success = false;
+		}
+		else{
+			success = true;
 		}
 
 		geometry_msgs::PoseStamped ps;
@@ -444,11 +502,12 @@ namespace AutoFlight{
 		ps.pose.position.y = pGoal.y();
 		ps.pose.position.z = pGoal.z();
 		ps.pose.orientation = this->odom_.pose.pose.orientation;
+		
 		return ps;
 	}
 
-	nav_msgs::Path inspector::getForwardPath(){
-		geometry_msgs::PoseStamped goalPs = this->getForwardGoal();
+	nav_msgs::Path inspector::getForwardPath(bool& success){
+		geometry_msgs::PoseStamped goalPs = this->getForwardGoal(success);
 		geometry_msgs::PoseStamped startPs; 
 		startPs.pose = this->odom_.pose.pose;
 		std::vector<geometry_msgs::PoseStamped> forwardPathVec;
@@ -463,29 +522,64 @@ namespace AutoFlight{
 
 	octomap::point3d inspector::sampleNBVGoal(){
 		std::vector<octomap::point3d> candidates;
-		octomap::point3d bestPoint;
+		
 		// sample points in the space in front of current position
 		double xmin, xmax, ymin, ymax, zmin, zmax;
 		this->map_->getMetricMax(xmax, ymax, zmax);
 		this->map_->getMetricMin(xmin, ymin, zmin);
 
 		double xcurr = this->odom_.pose.pose.position.x;
-		std::vector<double> bbox {xcurr, xmax, ymin, ymax, this->takeoffHgt_, this->takeoffHgt_};
+		std::vector<double> bbox {xcurr + this->safeDist_, xmax, ymin, ymax, this->takeoffHgt_, this->takeoffHgt_};
 		for (int i=0; i < this->nbvSampleNum_; ++i){
 			octomap::point3d pSample = this->randomSample(bbox);
 			candidates.push_back(pSample);
 		}
 
-
+		int bestUnknownNum = 0;
+		octomap::point3d bestPoint;
+		for (octomap::point3d pCandidate : candidates){
+			int unknownNum = this->evaluateSample(pCandidate);
+			cout << "P candidate: " << pCandidate << endl;
+			cout << "unknownNum: " << unknownNum << endl;
+			if (unknownNum > bestUnknownNum){
+				bestPoint = pCandidate;
+				bestUnknownNum = unknownNum;
+			}
+		}
+		cout << "bestPoint: " << bestPoint << endl;
+		cout << "best Unknown: " << bestUnknownNum << endl;
 
 		return bestPoint;
 	}
 
 	bool inspector::inSensorRange(const octomap::point3d& p, const octomap::point3d& pCheck){
+		// first check distance
+		if (p.distance(pCheck) >= this->sensorRange_){
+			return false;
+		}
+
+		// then check angle for vertical plane
+		octomap::point3d pCheckRay = pCheck - p;
+		octomap::point3d pPlaneRay = pCheckRay;
+		pPlaneRay.z() = p.z();
+		double angleVertical = pCheckRay.angleTo(pPlaneRay);
+		if (angleVertical >= this->sensorVerticalAngle_){
+			return false;
+		}
+
 		return true;
 	}
 
 	bool inspector::hasOcclusion(const octomap::point3d& p, const octomap::point3d& pCheck){
+		std::vector<octomap::point3d> ray;
+		bool success = this->map_->computeRay(p, pCheck, ray); // success does not indicate something
+		for (octomap::point3d pRay: ray){
+			bool hasCollision = this->checkCollision(pRay);
+			if (hasCollision){
+				return false;
+			}
+		}
+
 		return true;
 	}
 
@@ -508,8 +602,11 @@ namespace AutoFlight{
 											 ymin + yID * this->mapRes_,
 											 zmin + zID * this->mapRes_);
 					if (this->inSensorRange(p, pCheck)){
-						if (not this->hasOcclusion(p, pCheck)){
-							++countUnknown;
+						octomap::OcTreeNode* nptr = this->map_->search(pCheck);
+						if (nptr == NULL){ // we only care about unknowns
+							if (not this->hasOcclusion(p, pCheck)){
+								++countUnknown;
+							}
 						}
 					}
 				}
@@ -537,6 +634,38 @@ namespace AutoFlight{
 			}
 			++countXPlus;
 		}
+
+		// check positive y direction
+		int countYPlus = 0;
+		double yPlusForward = 0.0;
+		octomap::point3d pYPlusCheck = p;
+		while (ros::ok() and yPlusForward <= this->safeDist_ + 2 * this->mapRes_){
+			yPlusForward += countYPlus * this->mapRes_;
+			pYPlusCheck.y() += yPlusForward;
+			bool hasCollisionYPlus = this->checkCollision(pYPlusCheck);
+			if (hasCollisionYPlus){
+				return false;
+			}
+			++countYPlus;
+		}
+
+
+		// check negative y direction
+		int countYMinus = 0;
+		double yMinusForward = 0.0;
+		octomap::point3d pYMinusCheck = p;
+		while (ros::ok() and yMinusForward <= this->safeDist_ + 2 * this->mapRes_){
+			yMinusForward += countYMinus * this->mapRes_;
+			pYMinusCheck.y() -= yMinusForward;
+			bool hasCollisionYMinus = this->checkCollision(pYMinusCheck);
+			if (hasCollisionYMinus){
+				return false;
+			}
+			++countYMinus;
+		}
+
+
+
 		return true;
 	}
 
@@ -695,6 +824,12 @@ namespace AutoFlight{
 		octomap::point3d pCollision;
 		bool hitTarget = this->map_->castRay(pCurr, xPlusDirection, pCollision);
 		if (not hitTarget){
+			range.push_back(0.0);
+			range.push_back(0.0);
+			range.push_back(0.0);
+			range.push_back(0.0);
+			range.push_back(0.0);
+			range.push_back(0.0);
 			return 0.0; // this means the front is unknown
 		}
 		else{

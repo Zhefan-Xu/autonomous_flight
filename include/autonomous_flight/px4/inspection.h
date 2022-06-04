@@ -61,7 +61,7 @@ namespace AutoFlight{
 		void initPlanner();
 		void run();
 		void lookAround();
-		void forward(); // get forward towards the wall
+		bool forward(); // get forward towards the wall
 		void forwardNBV(); // forward by Next Best View Criteria
 		void moveUp(); // move up to the maximum inspection height
 		void checkSurroundings(); // check the surrounding dimensions of the target surface
@@ -78,8 +78,8 @@ namespace AutoFlight{
 		void publishPathVis();
 
 		// helper functions
-		geometry_msgs::PoseStamped getForwardGoal();
-		nav_msgs::Path getForwardPath();
+		geometry_msgs::PoseStamped getForwardGoal(bool& success);
+		nav_msgs::Path getForwardPath(bool& success);
 		octomap::point3d sampleNBVGoal();
 		bool inSensorRange(const octomap::point3d& p, const octomap::point3d& pCheck);
 		bool hasOcclusion(const octomap::point3d& p, const octomap::point3d& pCheck);
