@@ -38,6 +38,7 @@ namespace AutoFlight{
 		int nbvSampleNum_;
 		double sensorRange_;
 		double sensorVerticalAngle_;
+		double forwardMinDist_;
 
 		// map
 		std::shared_ptr<octomap::OcTree> map_;

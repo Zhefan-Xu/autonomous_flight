@@ -114,6 +114,8 @@ namespace AutoFlight{
 		ps.header.stamp = ros::Time::now();
 		ps.pose.position.x = 0.0;
 		ps.pose.position.y = 0.0;
+		// ps.pose.position.x = this->odom_.pose.pose.position.x;
+		// ps.pose.position.y = this->odom_.pose.pose.position.y;
 		ps.pose.position.z = this->takeoffHgt_;
 		ps.pose.orientation.x = 0.0;
 		ps.pose.orientation.y = 0.0;

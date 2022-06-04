@@ -127,6 +127,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Sensor vertical angle: " << this->sensorVerticalAngle_ << " degree." << endl;
 			this->sensorVerticalAngle_ *= PI_const/180.0;
 		}
+
+		// minimum forward distance
+		if (not this->nh_.getParam("forward_min_distance", this->forwardMinDist_)){
+			this->forwardMinDist_ = 0.5;
+			cout << "[AutoFlight]: No minumum forward distance param. Use default: 0.5 m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Minumum Forward Distance: " << this->forwardMinDist_ << endl;
+		}
 	}
 
 	void inspector::initPlanner(){
@@ -235,7 +244,9 @@ namespace AutoFlight{
 		cout << "[AutoFlight]: NBV Forward for obstacle avoidance!" << endl; 
 		nav_msgs::Path forwardNBVPath;
 		// first sample goal point
+		cout << "[AutoFlight]: start sampling goal." << endl;
 		octomap::point3d pBestView = this->sampleNBVGoal();
+		cout << "[AutoFlight]: finish sampling goal." << endl;
 		geometry_msgs::Quaternion quatStart = this->odom_.pose.pose.orientation;
 
 		// then use RRT to find path
@@ -243,7 +254,9 @@ namespace AutoFlight{
 		std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
 		this->rrtPlanner_->updateStart(startVec);
 		this->rrtPlanner_->updateGoal(goalVec);
+		cout << "[AutoFlight]: start make plan rrt." << endl;
 		this->rrtPlanner_->makePlan(forwardNBVPath);
+		cout << "[AutoFlight]: finish make plan rrt." << endl;
 		this->pwlPlanner_->updatePath(forwardNBVPath);
 
 		this->updatePathVis(forwardNBVPath);
@@ -492,7 +505,12 @@ namespace AutoFlight{
 			success = false;
 		}
 		else{
-			success = true;
+			if (std::abs(pGoal.x() - p.x()) <= this->forwardMinDist_){ // 
+				success = false;
+			}
+			else{
+				success = true;
+			}
 		}
 
 		geometry_msgs::PoseStamped ps;
@@ -635,34 +653,34 @@ namespace AutoFlight{
 			++countXPlus;
 		}
 
-		// check positive y direction
-		int countYPlus = 0;
-		double yPlusForward = 0.0;
-		octomap::point3d pYPlusCheck = p;
-		while (ros::ok() and yPlusForward <= this->safeDist_ + 2 * this->mapRes_){
-			yPlusForward += countYPlus * this->mapRes_;
-			pYPlusCheck.y() += yPlusForward;
-			bool hasCollisionYPlus = this->checkCollision(pYPlusCheck);
-			if (hasCollisionYPlus){
-				return false;
-			}
-			++countYPlus;
-		}
+		// // check positive y direction
+		// int countYPlus = 0;
+		// double yPlusForward = 0.0;
+		// octomap::point3d pYPlusCheck = p;
+		// while (ros::ok() and yPlusForward <= this->safeDist_ + 2 * this->mapRes_){
+		// 	yPlusForward += countYPlus * this->mapRes_;
+		// 	pYPlusCheck.y() += yPlusForward;
+		// 	bool hasCollisionYPlus = this->checkCollision(pYPlusCheck);
+		// 	if (hasCollisionYPlus){
+		// 		return false;
+		// 	}
+		// 	++countYPlus;
+		// }
 
 
-		// check negative y direction
-		int countYMinus = 0;
-		double yMinusForward = 0.0;
-		octomap::point3d pYMinusCheck = p;
-		while (ros::ok() and yMinusForward <= this->safeDist_ + 2 * this->mapRes_){
-			yMinusForward += countYMinus * this->mapRes_;
-			pYMinusCheck.y() -= yMinusForward;
-			bool hasCollisionYMinus = this->checkCollision(pYMinusCheck);
-			if (hasCollisionYMinus){
-				return false;
-			}
-			++countYMinus;
-		}
+		// // check negative y direction
+		// int countYMinus = 0;
+		// double yMinusForward = 0.0;
+		// octomap::point3d pYMinusCheck = p;
+		// while (ros::ok() and yMinusForward <= this->safeDist_ + 2 * this->mapRes_){
+		// 	yMinusForward += countYMinus * this->mapRes_;
+		// 	pYMinusCheck.y() -= yMinusForward;
+		// 	bool hasCollisionYMinus = this->checkCollision(pYMinusCheck);
+		// 	if (hasCollisionYMinus){
+		// 		return false;
+		// 	}
+		// 	++countYMinus;
+		// }
 
 
 
@@ -904,7 +922,7 @@ namespace AutoFlight{
 		bool hasCollisionPlus = false;
 		int countPlus = 0;
 		while (ros::ok() and not hasCollisionPlus){
-			pCheckPlus.y() += countPlus * this->mapRes_;
+			pCheckPlus.y() += countPlus * this->mapRes_/2;
 			hasCollisionPlus = this->checkCollision(pCheckPlus);
 			++countPlus;
 		}
@@ -917,7 +935,7 @@ namespace AutoFlight{
 		bool hasCollisionMinus = false;
 		int countMinus = 0;
 		while (ros::ok() and not hasCollisionMinus){
-			pCheckMinus.y() -= countMinus * this->mapRes_;
+			pCheckMinus.y() -= countMinus * this->mapRes_/2;
 			hasCollisionMinus = this->checkCollision(pCheckMinus);
 			++countMinus;
 		}
@@ -936,8 +954,8 @@ namespace AutoFlight{
 			limitVec.push_back(pLimitPlus);
 			limitVec.push_back(pLimitMinus);
 		}
-		// cout << "P Limit Plus: " << pLimitPlus << endl;
-		// cout << "p Limit Minus: " << pLimitMinus << endl;
+		cout << "P Limit Plus: " << pLimitPlus << endl;
+		cout << "p Limit Minus: " << pLimitMinus << endl;
 		return limitVec;
 	}
 
@@ -1010,10 +1028,11 @@ namespace AutoFlight{
 		double t = 0.0;
 		double startTime = 0.0; double endTime = yawDiffAbs/this->desiredAngularVel_;
 		ros::Time tStart = ros::Time::now();
-		ros::Rate r (1/this->sampleTime_);
+		ros::Rate r (1.0/this->sampleTime_);
 		while (ros::ok() and not this->isReach(ps)){
 			if (t >= endTime){
 				this->updateTarget(ps);
+				r.sleep();
 				continue;
 			}
 
