@@ -136,6 +136,7 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Minumum Forward Distance: " << this->forwardMinDist_ << endl;
 		}
+
 	}
 
 	void inspector::initPlanner(){
@@ -308,6 +309,62 @@ namespace AutoFlight{
 	}
 
 	void inspector::checkSurroundings(){
+		// check surroundings and go back to center position
+		octomap::point3d pLeftOrigin = this->getPoint3dPos();
+		octomap::point3d leftDirection (0.0, 1.0, 0.0);
+		octomap::point3d leftEnd;
+
+		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const/4));
+		bool leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
+		while (ros::ok() and not leftDone){
+			// find left most point to go which keeps safe distance
+			nav_msgs::Path leftCheckPath = this->checkSurroundingsLeft();
+
+			this->pwlPlanner_->updatePath(leftCheckPath);
+
+			double t = 0.0;
+			ros::Rate r (1.0/this->sampleTime_);
+			ros::Time tStart = ros::Time::now();
+			geometry_msgs::PoseStamped pGoal = leftCheckPath.poses.back();
+			while (ros::ok() and not this->isReach(pGoal)){
+				ros::Time tCurr = ros::Time::now();
+				t = (tCurr - tStart).toSec();
+				geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
+				this->updateTarget(ps);
+				r.sleep();
+			}	
+
+			leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
+		}
+
+
+		// Right
+		octomap::point3d pRightOrigin = this->getPoint3dPos();
+		octomap::point3d rightDirection (0.0, -1.0, 0.0);
+		octomap::point3d rightEnd;
+
+		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, -PI_const/4));
+		bool rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
+		while (ros::ok() and not rightDone){
+			// find left most point to go which keeps safe distance
+			nav_msgs::Path rightCheckPath = this->checkSurroundingsRight();
+
+			this->pwlPlanner_->updatePath(rightCheckPath);
+
+			double t = 0.0;
+			ros::Rate r (1.0/this->sampleTime_);
+			ros::Time tStart = ros::Time::now();
+			geometry_msgs::PoseStamped pGoal = rightCheckPath.poses.back();
+			while (ros::ok() and not this->isReach(pGoal)){
+				ros::Time tCurr = ros::Time::now();
+				t = (tCurr - tStart).toSec();
+				geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
+				this->updateTarget(ps);
+				r.sleep();
+			}	
+
+			rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
+		}
 
 	}
 
@@ -316,6 +373,7 @@ namespace AutoFlight{
 		this->pwlPlanner_->updatePath(zigZagPath, true);
 		
 		this->updatePathVis(zigZagPath);
+
 
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
@@ -640,47 +698,42 @@ namespace AutoFlight{
 		}
 
 		// check positive x
-		int countXPlus = 0;
+		double res = this->mapRes_;
 		double xPlusForward = 0.0;
 		octomap::point3d pXPlusCheck = p;
 		while (ros::ok() and xPlusForward <= this->safeDist_ + this->mapRes_){
-			xPlusForward += countXPlus * this->mapRes_;
-			pXPlusCheck.x() += xPlusForward;
+			xPlusForward += res;
+			pXPlusCheck.x() = p.x() + xPlusForward;
 			bool hasCollisionXPlus = this->checkCollision(pXPlusCheck);
 			if (hasCollisionXPlus){
 				return false;
 			}
-			++countXPlus;
 		}
 
-		// // check positive y direction
-		// int countYPlus = 0;
-		// double yPlusForward = 0.0;
-		// octomap::point3d pYPlusCheck = p;
-		// while (ros::ok() and yPlusForward <= this->safeDist_ + 2 * this->mapRes_){
-		// 	yPlusForward += countYPlus * this->mapRes_;
-		// 	pYPlusCheck.y() += yPlusForward;
-		// 	bool hasCollisionYPlus = this->checkCollision(pYPlusCheck);
-		// 	if (hasCollisionYPlus){
-		// 		return false;
-		// 	}
-		// 	++countYPlus;
-		// }
+		// check positive y direction
+		double yPlusForward = 0.0;
+		octomap::point3d pYPlusCheck = p;
+		while (ros::ok() and yPlusForward <= this->safeDist_ + 2 * this->mapRes_){
+			yPlusForward += res;
+			pYPlusCheck.y() = p.y() + yPlusForward;
+			bool hasCollisionYPlus = this->checkCollision(pYPlusCheck);
+			if (hasCollisionYPlus){
+				return false;
+			}
+		}
 
 
-		// // check negative y direction
-		// int countYMinus = 0;
-		// double yMinusForward = 0.0;
-		// octomap::point3d pYMinusCheck = p;
-		// while (ros::ok() and yMinusForward <= this->safeDist_ + 2 * this->mapRes_){
-		// 	yMinusForward += countYMinus * this->mapRes_;
-		// 	pYMinusCheck.y() -= yMinusForward;
-		// 	bool hasCollisionYMinus = this->checkCollision(pYMinusCheck);
-		// 	if (hasCollisionYMinus){
-		// 		return false;
-		// 	}
-		// 	++countYMinus;
-		// }
+		// check negative y direction
+		double yMinusForward = 0.0;
+		octomap::point3d pYMinusCheck = p;
+		while (ros::ok() and yMinusForward <= this->safeDist_ + 2 * this->mapRes_){
+			yMinusForward += res;
+			pYMinusCheck.y() = p.y() - yMinusForward;
+			bool hasCollisionYMinus = this->checkCollision(pYMinusCheck);
+			if (hasCollisionYMinus){
+				return false;
+			}
+		}
 
 
 
@@ -899,13 +952,10 @@ namespace AutoFlight{
 
 		// check along +y axis
 		bool hasCollision = false;
-		octomap::point3d pCheck;
-		int count = 0;
+		octomap::point3d pCheck = pCurr;
 		while (ros::ok() and not hasCollision){
-			pCheck = pCurr;
-			pCheck.y() += count * this->mapRes_;
+			pCheck.y() += this->mapRes_;
 			hasCollision = this->checkCollision(pCheck);
-			++count;
 		}
 		octomap::point3d pChecklimit = pCheck;
 		pChecklimit.y() -= this->mapRes_;
@@ -920,27 +970,24 @@ namespace AutoFlight{
 		// Plus Y direction
 		octomap::point3d pCheckPlus = p;
 		bool hasCollisionPlus = false;
-		int countPlus = 0;
+		double res = this->mapRes_;
 		while (ros::ok() and not hasCollisionPlus){
-			pCheckPlus.y() += countPlus * this->mapRes_/2;
+			pCheckPlus.y() += res;
 			hasCollisionPlus = this->checkCollision(pCheckPlus);
-			++countPlus;
 		}
 		octomap::point3d pLimitPlus = pCheckPlus;
-		pLimitPlus.y() -= this->mapRes_;
+		pLimitPlus.y() -= res;
 		pLimitPlus.y() -= this->safeDist_;
 
 		// Minus Y direction
 		octomap::point3d pCheckMinus = p;
 		bool hasCollisionMinus = false;
-		int countMinus = 0;
 		while (ros::ok() and not hasCollisionMinus){
-			pCheckMinus.y() -= countMinus * this->mapRes_/2;
+			pCheckMinus.y() -=  res;
 			hasCollisionMinus = this->checkCollision(pCheckMinus);
-			++countMinus;
 		}
 		octomap::point3d pLimitMinus = pCheckMinus;
-		pLimitMinus.y() += this->mapRes_;
+		pLimitMinus.y() += res;
 		pLimitMinus.y() += this->safeDist_;
 
 		// check the distance between two limits and the closer one gets first in the vec
@@ -1045,5 +1092,67 @@ namespace AutoFlight{
 			this->updateTarget(psT);
 			r.sleep();
 		}
+	}
+
+	nav_msgs::Path inspector::checkSurroundingsLeft(){
+		octomap::point3d pLeftOrigin = this->getPoint3dPos();
+		bool hasCollision = false;
+		double res = this->mapRes_;
+		octomap::point3d pCheck = pLeftOrigin;
+		while (ros::ok() and not hasCollision){ 
+			pCheck.y() += res;
+			hasCollision = this->checkCollision(pCheck); 
+		}
+		octomap::point3d pLeftGoal = pCheck;
+		pLeftGoal.y() -= res;
+		pLeftGoal.y() -= this->safeDist_;
+
+		if (pLeftGoal.y() <= pLeftOrigin.y()){
+			pLeftGoal.y() = pLeftOrigin.y();
+		}
+
+		nav_msgs::Path leftCheckPath;
+		std::vector<geometry_msgs::PoseStamped> leftCheckPathVec;
+		geometry_msgs::PoseStamped psStart, psGoal;
+		psStart.pose = this->odom_.pose.pose;
+		psGoal.pose = this->odom_.pose.pose;
+		psGoal.pose.position.x = pLeftGoal.x();
+		psGoal.pose.position.y = pLeftGoal.y();
+		psGoal.pose.position.z = pLeftGoal.z();
+		leftCheckPathVec.push_back(psStart);
+		leftCheckPathVec.push_back(psGoal);
+		leftCheckPath.poses = leftCheckPathVec;
+		return leftCheckPath;
+	}
+
+	nav_msgs::Path inspector::checkSurroundingsRight(){
+		octomap::point3d pRightOrigin = this->getPoint3dPos();
+		bool hasCollision = false;
+		double res = this->mapRes_;
+		octomap::point3d pCheck = pRightOrigin;
+		while (ros::ok() and not hasCollision){ 
+			pCheck.y() -= res;
+			hasCollision = this->checkCollision(pCheck); 
+		}
+		octomap::point3d pRightGoal = pCheck;
+		pRightGoal.y() += res;
+		pRightGoal.y() += this->safeDist_;
+
+		if (pRightGoal.y() <= pRightOrigin.y()){
+			pRightGoal.y() = pRightOrigin.y();
+		}
+
+		nav_msgs::Path rightCheckPath;
+		std::vector<geometry_msgs::PoseStamped> rightCheckPathVec;
+		geometry_msgs::PoseStamped psStart, psGoal;
+		psStart.pose = this->odom_.pose.pose;
+		psGoal.pose = this->odom_.pose.pose;
+		psGoal.pose.position.x = pRightGoal.x();
+		psGoal.pose.position.y = pRightGoal.y();
+		psGoal.pose.position.z = pRightGoal.z();
+		rightCheckPathVec.push_back(psStart);
+		rightCheckPathVec.push_back(psGoal);
+		rightCheckPath.poses = rightCheckPathVec;
+		return rightCheckPath;
 	}
 }

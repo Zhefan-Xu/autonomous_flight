@@ -22,7 +22,7 @@ sensor_vertical_angle: 45
 
 #========================================RRT Param==========================================
 # Environment:
-env_box: [-100, 100, -100, 100, 0, 5] # xmin, xmax, ymin, ymax, zmin, zmax
+env_box: [-100, 100, -100, 100, 1, 1] # xmin, xmax, ymin, ymax, zmin, zmax
 
 
 # Planner parameters:

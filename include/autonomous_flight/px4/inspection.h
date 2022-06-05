@@ -99,6 +99,8 @@ namespace AutoFlight{
 		nav_msgs::Path generateZigZagPath();
 		geometry_msgs::PoseStamped pointToPose(const octomap::point3d& p); // this will keep current orientation. Be careful
 		void moveToAngle(const geometry_msgs::Quaternion& quat);
+		nav_msgs::Path checkSurroundingsLeft();
+		nav_msgs::Path checkSurroundingsRight();
 	};
 }
 
