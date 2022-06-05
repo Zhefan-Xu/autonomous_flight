@@ -85,7 +85,7 @@ namespace AutoFlight{
 		bool inSensorRange(const octomap::point3d& p, const octomap::point3d& pCheck);
 		bool hasOcclusion(const octomap::point3d& p, const octomap::point3d& pCheck);
 		int evaluateSample(const octomap::point3d& p);
-		bool checkPointSafe(const octomap::point3d& p);
+		bool checkPointSafe(const octomap::point3d& p, double sideSafeReduceFactor=1.0);
 		octomap::point3d randomSample(const std::vector<double>& bbox);
 		octomap::point3d getPoint3dPos();
 		std::vector<double> getVecPos();
@@ -98,6 +98,7 @@ namespace AutoFlight{
 		std::vector<octomap::point3d> getInspectionLimit(const octomap::point3d& p);
 		nav_msgs::Path generateZigZagPath();
 		geometry_msgs::PoseStamped pointToPose(const octomap::point3d& p); // this will keep current orientation. Be careful
+		void moveToPos(const geometry_msgs::Point& position); // only translation movement
 		void moveToAngle(const geometry_msgs::Quaternion& quat);
 		nav_msgs::Path checkSurroundingsLeft();
 		nav_msgs::Path checkSurroundingsRight();

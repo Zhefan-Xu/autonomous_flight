@@ -167,13 +167,16 @@ namespace AutoFlight{
 			}
 		}
 
+		// 	// check surroundings and dimensions of the surface
+		this->checkSurroundings();
+
 		this->moveUp();
 
 		this->lookAround();
 
+		// 	// check surroundings and dimensions of the surface
+		this->checkSurroundings();
 
-	// 	// check surroundings and dimensions of the surface
-	// 	this->checkSurroundings();
 
 	// 	// inspect the surface by zig-zag path
 		this->inspect();
@@ -221,6 +224,7 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Cannot directly forward..." << endl;
 			return false;
 		}
+		cout << "[AutoFlight]: Start Direct Forward!" << endl;
 
 		this->pwlPlanner_->updatePath(forwardPath);
 
@@ -236,6 +240,7 @@ namespace AutoFlight{
 			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
 			this->updateTarget(ps);
 			r.sleep();
+			cout << "FORWARD not reach" << endl;
 		}
 		cout << "[AutoFlight]: Direct Forward Succeed." << endl;
 		return true;
@@ -314,13 +319,15 @@ namespace AutoFlight{
 		octomap::point3d leftDirection (0.0, 1.0, 0.0);
 		octomap::point3d leftEnd;
 
-		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const/4));
+		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const/2));
 		bool leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
 		while (ros::ok() and not leftDone){
 			// find left most point to go which keeps safe distance
 			nav_msgs::Path leftCheckPath = this->checkSurroundingsLeft();
 
 			this->pwlPlanner_->updatePath(leftCheckPath);
+
+			this->updatePathVis(leftCheckPath);
 
 			double t = 0.0;
 			ros::Rate r (1.0/this->sampleTime_);
@@ -337,19 +344,24 @@ namespace AutoFlight{
 			leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
 		}
 
+		// back to origin angle
+		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, 0));
+
 
 		// Right
 		octomap::point3d pRightOrigin = this->getPoint3dPos();
 		octomap::point3d rightDirection (0.0, -1.0, 0.0);
 		octomap::point3d rightEnd;
 
-		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, -PI_const/4));
+		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, -PI_const/2));
 		bool rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
 		while (ros::ok() and not rightDone){
 			// find left most point to go which keeps safe distance
 			nav_msgs::Path rightCheckPath = this->checkSurroundingsRight();
 
 			this->pwlPlanner_->updatePath(rightCheckPath);
+
+			this->updatePathVis(rightCheckPath);
 
 			double t = 0.0;
 			ros::Rate r (1.0/this->sampleTime_);
@@ -366,6 +378,16 @@ namespace AutoFlight{
 			rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
 		}
 
+		cout << "[AutoFlight]: Left Target Limit: " << leftEnd.y() << " m, Right Target Limit: " << rightEnd.y() << " m." << endl;
+
+
+		double centerY = (leftEnd.y() + rightEnd.y())/2.0;
+		cout << "[AutoFlight]: Going to the center of the target: " <<  centerY << endl;
+		geometry_msgs::Point pos;
+		pos = this->odom_.pose.pose.position;
+		pos.y = centerY;
+		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, 0));
+		this->moveToPos(pos);
 	}
 
 	void inspector::inspect(){
@@ -691,18 +713,18 @@ namespace AutoFlight{
 		return countUnknown;
 	}
 
-	bool inspector::checkPointSafe(const octomap::point3d& p){
+	bool inspector::checkPointSafe(const octomap::point3d& p, double sideSafeReduceFactor){
 		bool hasCollision = this->checkCollision(p);
 		if (hasCollision){
 			return false;
 		}
 
 		// check positive x
-		double res = this->mapRes_;
+		double xPlusRes = this->mapRes_;
 		double xPlusForward = 0.0;
 		octomap::point3d pXPlusCheck = p;
-		while (ros::ok() and xPlusForward <= this->safeDist_ + this->mapRes_){
-			xPlusForward += res;
+		while (ros::ok() and xPlusForward <= this->safeDist_ + xPlusRes){
+			xPlusForward += xPlusRes;
 			pXPlusCheck.x() = p.x() + xPlusForward;
 			bool hasCollisionXPlus = this->checkCollision(pXPlusCheck);
 			if (hasCollisionXPlus){
@@ -710,11 +732,14 @@ namespace AutoFlight{
 			}
 		}
 
-		// check positive y direction
+
+		// check positive y direction (If timeout we have to reduce the criteria for two sides)
+		double yPlusRes = this->mapRes_ * sideSafeReduceFactor;
 		double yPlusForward = 0.0;
 		octomap::point3d pYPlusCheck = p;
-		while (ros::ok() and yPlusForward <= this->safeDist_ + 2 * this->mapRes_){
-			yPlusForward += res;
+		ros::Time yPlusStart = ros::Time::now();
+		while (ros::ok() and yPlusForward <= this->safeDist_ + yPlusRes){
+			yPlusForward += yPlusRes;
 			pYPlusCheck.y() = p.y() + yPlusForward;
 			bool hasCollisionYPlus = this->checkCollision(pYPlusCheck);
 			if (hasCollisionYPlus){
@@ -724,10 +749,12 @@ namespace AutoFlight{
 
 
 		// check negative y direction
+		double yMinusRes = this->mapRes_ * sideSafeReduceFactor;
 		double yMinusForward = 0.0;
 		octomap::point3d pYMinusCheck = p;
-		while (ros::ok() and yMinusForward <= this->safeDist_ + 2 * this->mapRes_){
-			yMinusForward += res;
+		ros::Time yMinusStart = ros::Time::now();
+		while (ros::ok() and yMinusForward <= this->safeDist_ + yMinusRes){
+			yMinusForward += yMinusRes;
 			pYMinusCheck.y() = p.y() - yMinusForward;
 			bool hasCollisionYMinus = this->checkCollision(pYMinusCheck);
 			if (hasCollisionYMinus){
@@ -746,15 +773,28 @@ namespace AutoFlight{
 		ymin = bbox[2]; ymax = bbox[3];
 		zmin = bbox[4]; zmax = bbox[5];
 
+		double totalReduceFactor = 1.0;
+		double sampleTimeout = 1.0;
+		double reduceFactor = 0.5;
 		octomap::point3d safePoint;
 		bool hasSafePoint = false;
+		ros::Time sampleStart = ros::Time::now();
 		while (ros::ok() and not hasSafePoint){
+			ros::Time sampleCurr = ros::Time::now();
+			double t = (sampleCurr - sampleStart).toSec();
+			if (t >= sampleTimeout){
+				totalReduceFactor *= reduceFactor;
+				sampleStart = ros::Time::now();
+				t = (sampleCurr - sampleStart).toSec(); 
+				cout << "[AutoFlight]: Sample timeout. Reduce side safety constraint to " << totalReduceFactor*100 << "%." << endl; 
+			}
+
 			safePoint.x() = randomNumber(xmin, xmax);
 			safePoint.y() = randomNumber(ymin, ymax);
 			safePoint.z() = randomNumber(zmin, zmax);
 
 			// check safety of current point
-			hasSafePoint = this->checkPointSafe(safePoint);
+			hasSafePoint = this->checkPointSafe(safePoint, totalReduceFactor);
 		}
 		return safePoint;
 	}
@@ -1028,9 +1068,12 @@ namespace AutoFlight{
 			zzPathVec.push_back(psLimit2);
 			pInspectionHgt = pLimitCheck[1];
 			pInspectionHgt.z() -= this->descendHgt_;
-			geometry_msgs::PoseStamped psLimit2Lower = this->pointToPose(pInspectionHgt);
-			zzPathVec.push_back(psLimit2Lower); 
+
 			height = pInspectionHgt.z();
+			geometry_msgs::PoseStamped psLimit2Lower = this->pointToPose(pInspectionHgt);
+			if (not (height <= this->takeoffHgt_+this->mapRes_)){
+				zzPathVec.push_back(psLimit2Lower); 
+			}
 		}
 		
 		zzPath.poses = zzPathVec;
@@ -1044,6 +1087,33 @@ namespace AutoFlight{
 		ps.pose.position.y = p.y();
 		ps.pose.position.z = p.z();
 		return ps;
+	}
+
+	void inspector::moveToPos(const geometry_msgs::Point& position){
+		geometry_msgs::PoseStamped psStart, psGoal;
+		psGoal.pose.position = position;
+		psGoal.pose.orientation = this->odom_.pose.pose.orientation;
+		psStart.pose = this->odom_.pose.pose;
+
+		std::vector<geometry_msgs::PoseStamped> linePathVec;
+		linePathVec.push_back(psStart);
+		linePathVec.push_back(psGoal);
+		nav_msgs::Path linePath;
+		linePath.poses = linePathVec;
+		this->pwlPlanner_->updatePath(linePath, true);
+
+		this->updatePathVis(linePath);
+
+		double t = 0.0;
+		ros::Time tStart = ros::Time::now();
+		ros::Rate r (1.0/this->sampleTime_);
+		while (ros::ok() and not this->isReach(psGoal)){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
+			this->updateTarget(psT);
+			r.sleep();
+		}
 	}
 
 	void inspector::moveToAngle(const geometry_msgs::Quaternion& quat){
