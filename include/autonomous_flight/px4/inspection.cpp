@@ -219,6 +219,7 @@ namespace AutoFlight{
 	
 		// STEP 4: RETURN
 		this->backward();
+		cout << "[AutoFlight]: Mission Complete. PRESS CTRL+C to land." << endl;
 	}
 
 
