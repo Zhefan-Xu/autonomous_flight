@@ -20,7 +20,6 @@ namespace AutoFlight{
 		this->pathPub_ = this->nh_.advertise<nav_msgs::Path>("/inspector/path", 100);
 		this->pathVisWorker_ = std::thread(&inspector::publishPathVis, this);
 		this->pathVisWorker_.detach();
-		cout << "init succeed" << endl;
 	}
 
 	void inspector::loadParam(){
@@ -171,6 +170,14 @@ namespace AutoFlight{
 	}
 
 	void inspector::run(){
+		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.get();
+		this->takeoff();
+		
+
+		cout << "[AutoFlight]: Ready to start please check hover conditions. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.get();
+
 		// STEP 1: APPROACH TARGET
 		this->lookAround();
 		bool targetReach = false;
@@ -185,14 +192,10 @@ namespace AutoFlight{
 			
 
 			targetReach = this->hasReachTarget();
-			if (targetReach){
-				cout << "[AutoFlight]: Reach Inspection Target!" << endl;
-			}
-			else{
-				cout << "[AutoFlight]: Not reach inspection target. Continue forwarding..." << endl; 
-			}
 		}
 
+		cout << "[AutoFlight]: Please make sure UAV arrive the target. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.get();
 		// STEP 2: EXPLORE TARGET
 		double height = this->takeoffHgt_; // current height
 		bool reachTargetHgt = false;
@@ -208,15 +211,9 @@ namespace AutoFlight{
 			this->moveUp(height);
 			this->lookAround();
 			targetReach = this->hasReachTarget();
-			if (targetReach){
-				cout << "[AutoFlight]: Update Inspection Target!" << endl;
-			}
-			else{
-				cout << "[AutoFlight]: GET CONFUSED in target determination! Please DEBUG!!!" << endl; 
-			}
 		}
 
-
+		
 		// STEP 3: INSPECTION
 		this->inspect(); // inspect the surface by zig-zag path
 	
@@ -243,6 +240,7 @@ namespace AutoFlight{
 
 		this->updatePathVis(lookAroundPath);
 
+		cout << "[AutoFlight]: Start looking around..." << endl;
 		double t = 0.0;
 		ros::Rate r (1.0/this->sampleTime_);
 		ros::Time tStart = ros::Time::now();
@@ -253,6 +251,7 @@ namespace AutoFlight{
 			this->updateTarget(targetPose);
 			r.sleep();
 		}
+		cout << "[AutoFlight]: Done." << endl;
 	}
 
 
@@ -263,34 +262,20 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Cannot directly forward..." << endl;
 			return false;
 		}
-		cout << "[AutoFlight]: Start Direct Forward!" << endl;
-
-		this->pwlPlanner_->updatePath(forwardPath);
+		
 
 		this->updatePathVis(forwardPath);
 
-		double t = 0.0;
-		ros::Rate r (1.0/this->sampleTime_);
-		ros::Time tStart = ros::Time::now();
-		geometry_msgs::PoseStamped pGoal = forwardPath.poses.back();
-		while (ros::ok() and not this->isReach(pGoal)){
-			ros::Time tCurr = ros::Time::now();
-			t = (tCurr - tStart).toSec();
-			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
-			this->updateTarget(ps);
-			r.sleep();
-		}
-		cout << "[AutoFlight]: Direct Forward Succeed." << endl;
+		cout << "[AutoFlight]: Start direct forwarding..." << endl;
+		this->executeWaypointPath(forwardPath);
+		cout << "[AutoFlight]: Done." << endl;
 		return true;
 	}
 
 	void inspector::forwardNBV(){
-		cout << "[AutoFlight]: NBV Forward for obstacle avoidance!" << endl; 
 		nav_msgs::Path forwardNBVPath;
 		// first sample goal point
-		cout << "[AutoFlight]: start sampling goal." << endl;
 		octomap::point3d pBestView = this->sampleNBVGoal();
-		cout << "[AutoFlight]: finish sampling goal." << endl;
 		geometry_msgs::Quaternion quatStart = this->odom_.pose.pose.orientation;
 
 		// then use RRT to find path
@@ -298,13 +283,12 @@ namespace AutoFlight{
 		std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
 		this->rrtPlanner_->updateStart(startVec);
 		this->rrtPlanner_->updateGoal(goalVec);
-		cout << "[AutoFlight]: start make plan rrt." << endl;
 		this->rrtPlanner_->makePlan(forwardNBVPath);
-		cout << "[AutoFlight]: finish make plan rrt." << endl;
 		this->pwlPlanner_->updatePath(forwardNBVPath);
 
 		this->updatePathVis(forwardNBVPath);
 
+		cout << "[AutoFlight]: NBV Forward for obstacle avoidance..." << endl; 
 		// adjust angle
 		this->moveToAngle(this->pwlPlanner_->getFirstPose().pose.orientation);
 
@@ -321,7 +305,7 @@ namespace AutoFlight{
 		}
 
 		this->moveToAngle(quatStart);
-		cout << "[AutoFlight]: NBV Forward Succeed!" << endl; 
+		cout << "[AutoFlight]: Done." << endl;
 	}
 
 	void inspector::moveUp(double height){
@@ -333,25 +317,17 @@ namespace AutoFlight{
 		pHgt.pose.position.z = height;
 		std::vector<geometry_msgs::PoseStamped> upwardPathVec {pCurr, pHgt};
 		upwardPath.poses = upwardPathVec;
-		this->pwlPlanner_->updatePath(upwardPath);
 
 		this->updatePathVis(upwardPath);
 
-		double t = 0.0;
-		ros::Rate r (1.0/this->sampleTime_);
-		ros::Time tStart = ros::Time::now();
-		geometry_msgs::PoseStamped pGoal = upwardPath.poses.back();
-		while (ros::ok() and not this->isReach(pGoal)){
-			ros::Time tCurr = ros::Time::now();
-			t = (tCurr - tStart).toSec();
-			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
-			this->updateTarget(ps);
-			r.sleep();
-		}
-
+		cout << "[AutoFlight]: Moving up..." << endl;
+		this->executeWaypointPath(upwardPath);
+		cout << "[AutoFlight]: Done." << endl;
 	}
 
 	void inspector::checkSurroundings(){
+		cout << "[AutoFlight]: Start checking inspection target dimensions..." << endl;
+		cout << "[AutoFlight]: Check Left Side..." << endl;
 		// check surroundings and go back to center position
 		octomap::point3d pLeftOrigin = this->getPoint3dPos();
 		octomap::point3d leftDirection (0.0, 1.0, 0.0);
@@ -360,13 +336,13 @@ namespace AutoFlight{
 		bool leftFirstTime = true;
 		bool leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
 		while (ros::ok() and not leftDone){
+
 			if (leftFirstTime){
 				this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const/2));
 				leftFirstTime = false;
 			}
 			// find left most point to go which keeps safe distance
 			nav_msgs::Path leftCheckPath = this->checkSurroundingsLeft();
-
 			this->pwlPlanner_->updatePath(leftCheckPath);
 
 			this->updatePathVis(leftCheckPath);
@@ -381,16 +357,16 @@ namespace AutoFlight{
 				geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
 				this->updateTarget(ps);
 				r.sleep();
-			}	
-
+			}
 			leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
 		}
-
+		cout << "[AutoFlight]: Left is Okay!" << endl;
 		// back to origin angle
 		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, 0));
 
 
 		// Right
+		cout << "[AutoFlight]: Check Right Side..." << endl;
 		octomap::point3d pRightOrigin = this->getPoint3dPos();
 		octomap::point3d rightDirection (0.0, -1.0, 0.0);
 		octomap::point3d rightEnd;
@@ -398,16 +374,12 @@ namespace AutoFlight{
 		bool rightFirstTime = true;
 		bool rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
 		while (ros::ok() and not rightDone){
-			cout << "here" << endl;
 			if (rightFirstTime){
 				this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, -PI_const/2));
 				rightFirstTime = false;
 			}
-			cout << "try get path" << endl;
 			// find left most point to go which keeps safe distance
 			nav_msgs::Path rightCheckPath = this->checkSurroundingsRight();
-			cout << "got path" << endl;
-
 			this->pwlPlanner_->updatePath(rightCheckPath);
 
 			this->updatePathVis(rightCheckPath);
@@ -422,41 +394,34 @@ namespace AutoFlight{
 				geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
 				this->updateTarget(ps);
 				r.sleep();
-			}	
+			}
 
 			rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
 		}
-
+		cout << "[AutoFlight]: Right is Okay!" << endl;
 		cout << "[AutoFlight]: Left Target Limit: " << leftEnd.y() << " m, Right Target Limit: " << rightEnd.y() << " m." << endl;
 
 
 		double centerY = (leftEnd.y() + rightEnd.y())/2.0;
-		cout << "[AutoFlight]: Going to the center of the target: " <<  centerY << endl;
+		cout << "[AutoFlight]: Going to the center of the target: " <<  centerY  << "..." << endl;
 		geometry_msgs::Point pos;
 		pos = this->odom_.pose.pose.position;
 		pos.y = centerY;
 		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, 0));
 		this->moveToPos(pos);
+		cout << "[AutoFlight]: Done." << endl;
 	}
 
 	void inspector::inspect(){
 		nav_msgs::Path zigZagPath = this->generateZigZagPath();
-		this->pwlPlanner_->updatePath(zigZagPath, true);
 		
 		this->updatePathVis(zigZagPath);
 
-
-		double t = 0.0;
-		ros::Rate r (1.0/this->sampleTime_);
-		ros::Time tStart = ros::Time::now();
-		geometry_msgs::PoseStamped pGoal = zigZagPath.poses.back();
-		while (ros::ok() and not this->isReach(pGoal)){
-			ros::Time tCurr = ros::Time::now();
-			t = (tCurr - tStart).toSec();
-			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
-			this->updateTarget(ps);
-			r.sleep();
-		}	
+		cout << "[AutoFlight]: Ready for Inpsection please check the zig-zag path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.get();
+		cout << "[AutoFlight]: Start Inpection..." << endl;
+		this->executeWaypointPath(zigZagPath, true);
+		cout << "[AutoFlight]: Done." << endl;
 	}
 
 	void inspector::backward(){
@@ -467,24 +432,16 @@ namespace AutoFlight{
 		this->rrtPlanner_->updateGoal(goalVec);
 		this->rrtPlanner_->makePlan(backPath);
 		// modify back path to make it rotate at the start location
-		this->pwlPlanner_->updatePath(backPath);
 
 		this->updatePathVis(backPath);
 
+		cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.get();
+		cout << "[AutoFlight]: Start Returning..." << endl;;
 		// adjust heading first
 		this->moveToAngle(this->pwlPlanner_->getFirstPose().pose.orientation);
-
-		double t = 0.0;
-		ros::Rate r (1.0/this->sampleTime_);
-		ros::Time tStart = ros::Time::now();
-		geometry_msgs::PoseStamped pGoal = backPath.poses.back();
-		while (ros::ok() and not this->isReach(pGoal, false)){
-			ros::Time tCurr = ros::Time::now();
-			t = (tCurr - tStart).toSec();
-			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
-			this->updateTarget(ps);
-			r.sleep();
-		}
+		this->executeWaypointPath(backPath);
+		cout << "[AutoFlight]: Done." << endl;
 	}
 
 	bool inspector::hasReachTarget(){
@@ -493,14 +450,15 @@ namespace AutoFlight{
 		
 		double distance = std::abs(range[0] - this->odom_.pose.pose.position.x);
 
-		cout << "Area is: " << area << endl; 
-		cout << "Distance to: " << distance << endl;
+		cout << "[AutoFlight]: Potential Area is: " << area << " m^2"<< endl; 
+		cout << "[AutoFlight]: Distance to potential target is: " << distance << " m." << endl;
 
  		bool hasReachTarget;
 		if (area >= this->minTargetArea_ and distance <= this->safeDist_ + 2*this->mapRes_){
 			hasReachTarget = true;
 			if (this->targetRange_.size() == 0){
 				this->targetRange_ = range;
+				cout << "[AutoFlight]: Inspection Target Found!" << endl;
 			}
 			else{
 				this->targetRange_[0] = std::min(range[0], this->targetRange_[0]);
@@ -510,10 +468,17 @@ namespace AutoFlight{
 				this->targetRange_[4] = std::min(range[4], this->targetRange_[4]);
 				this->targetRange_[5] = std::max(range[5], this->targetRange_[5]);
 				range = this->targetRange_;
+				cout << "[AutoFlight]: Updated target dimensions..." << endl;
 			}
 		}
 		else{
 			hasReachTarget = false;
+			if (area >= this->minTargetArea_){
+				cout << "[AutoFlight]: Potential Target Found! Need to get closer and check dimensions." << endl;
+			}
+			else{
+				cout << "[AutoFlight]: This is not the inspection target. Continue..." << endl;
+			}
 		}
 
 
@@ -680,6 +645,7 @@ namespace AutoFlight{
 	}
 
 	octomap::point3d inspector::sampleNBVGoal(){
+		cout << "[AutoFlight]: Start NBV sampling..." << endl;
 		std::vector<octomap::point3d> candidates;
 		
 		// sample points in the space in front of current position
@@ -689,8 +655,9 @@ namespace AutoFlight{
 
 		double xcurr = this->odom_.pose.pose.position.x;
 		std::vector<double> bbox {xcurr + this->safeDist_, xmax, ymin, ymax, this->takeoffHgt_, this->takeoffHgt_};
+		double totalReduceFactor = 1.0;
 		for (int i=0; i < this->nbvSampleNum_; ++i){
-			octomap::point3d pSample = this->randomSample(bbox);
+			octomap::point3d pSample = this->randomSample(bbox, totalReduceFactor);
 			candidates.push_back(pSample);
 		}
 
@@ -698,16 +665,16 @@ namespace AutoFlight{
 		octomap::point3d bestPoint;
 		for (octomap::point3d pCandidate : candidates){
 			int unknownNum = this->evaluateSample(pCandidate);
-			cout << "P candidate: " << pCandidate << endl;
-			cout << "unknownNum: " << unknownNum << endl;
+			// cout << "P candidate: " << pCandidate << endl;
+			// cout << "unknownNum: " << unknownNum << endl;
 			if (unknownNum > bestUnknownNum){
 				bestPoint = pCandidate;
 				bestUnknownNum = unknownNum;
 			}
 		}
-		cout << "bestPoint: " << bestPoint << endl;
-		cout << "best Unknown: " << bestUnknownNum << endl;
-
+		// cout << "bestPoint: " << bestPoint << endl;
+		// cout << "best Unknown: " << bestUnknownNum << endl;
+		cout << "[AutoFlight]: sampling done!" << endl;
 		return bestPoint;
 	}
 
@@ -828,13 +795,12 @@ namespace AutoFlight{
 		return true;
 	}
 
-	octomap::point3d inspector::randomSample(const std::vector<double>& bbox){
+	octomap::point3d inspector::randomSample(const std::vector<double>& bbox, double& totalReduceFactor){
 		double xmin, xmax, ymin, ymax, zmin, zmax;
 		xmin = bbox[0]; xmax = bbox[1];
 		ymin = bbox[2]; ymax = bbox[3];
 		zmin = bbox[4]; zmax = bbox[5];
 
-		double totalReduceFactor = 1.0;
 		octomap::point3d safePoint;
 		bool hasSafePoint = false;
 		ros::Time sampleStart = ros::Time::now();
@@ -843,8 +809,8 @@ namespace AutoFlight{
 			ros::Time sampleCurr = ros::Time::now();
 			double t = (sampleCurr - sampleStart).toSec();
 			if (t >= this->sampleTimeout_){
-				cout << "total enter: " << count << endl;
-				cout << "total reduce factor: " << totalReduceFactor << endl;
+				// cout << "total enter: " << count << endl;
+				// cout << "total reduce factor: " << totalReduceFactor << endl;
 				totalReduceFactor *= this->reduceFactor_;
 				sampleStart = ros::Time::now();
 				++count;
@@ -1113,8 +1079,8 @@ namespace AutoFlight{
 			pLimitMinus.y() += diff/2;
 		}
 
-		cout << "P Limit Plus: " << pLimitPlus << endl;
-		cout << "p Limit Minus: " << pLimitMinus << endl;
+		// cout << "P Limit Plus: " << pLimitPlus << endl;
+		// cout << "p Limit Minus: " << pLimitMinus << endl;
 		return limitVec;
 	}
 
@@ -1172,20 +1138,10 @@ namespace AutoFlight{
 		linePathVec.push_back(psGoal);
 		nav_msgs::Path linePath;
 		linePath.poses = linePathVec;
-		this->pwlPlanner_->updatePath(linePath, true);
 
 		this->updatePathVis(linePath);
 
-		double t = 0.0;
-		ros::Time tStart = ros::Time::now();
-		ros::Rate r (1.0/this->sampleTime_);
-		while (ros::ok() and not this->isReach(psGoal)){
-			ros::Time tCurr = ros::Time::now();
-			t = (tCurr - tStart).toSec();
-			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
-			this->updateTarget(psT);
-			r.sleep();
-		}
+		this->executeWaypointPath(linePath, true);
 	}
 
 	void inspector::moveToAngle(const geometry_msgs::Quaternion& quat){
@@ -1297,4 +1253,21 @@ namespace AutoFlight{
 		rightCheckPath.poses = rightCheckPathVec;
 		return rightCheckPath;
 	}
+
+	void inspector::executeWaypointPath(const nav_msgs::Path& path, bool useYaw){
+		this->pwlPlanner_->updatePath(path, useYaw);
+
+		double t = 0.0;
+		ros::Time tStart = ros::Time::now();
+		ros::Rate r (1.0/this->sampleTime_);
+		geometry_msgs::PoseStamped psGoal = path.poses.back();
+		while (ros::ok() and not this->isReach(psGoal)){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
+			this->updateTarget(psT);
+			r.sleep();
+		}
+	}
 }
+

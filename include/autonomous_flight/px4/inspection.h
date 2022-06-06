@@ -92,7 +92,7 @@ namespace AutoFlight{
 		bool hasOcclusion(const octomap::point3d& p, const octomap::point3d& pCheck);
 		int evaluateSample(const octomap::point3d& p);
 		bool checkPointSafe(const octomap::point3d& p, double sideSafeReduceFactor=1.0);
-		octomap::point3d randomSample(const std::vector<double>& bbox);
+		octomap::point3d randomSample(const std::vector<double>& bbox, double& totalReduceFactor);
 		octomap::point3d getPoint3dPos();
 		std::vector<double> getVecPos();
 		bool checkCollision(const octomap::point3d &p, bool ignoreUnknown=false);
@@ -108,6 +108,7 @@ namespace AutoFlight{
 		void moveToAngle(const geometry_msgs::Quaternion& quat);
 		nav_msgs::Path checkSurroundingsLeft();
 		nav_msgs::Path checkSurroundingsRight();
+		void executeWaypointPath(const nav_msgs::Path& path, bool useYaw=false);
 	};
 }
 

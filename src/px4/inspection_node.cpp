@@ -7,7 +7,6 @@ int main(int argc, char** argv){
 	ros::NodeHandle nh;
 
 	AutoFlight::inspector ip (nh);
-	ip.takeoff();
 	ip.run();
 
 	ros::spin();
