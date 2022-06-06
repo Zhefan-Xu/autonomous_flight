@@ -244,7 +244,7 @@ namespace AutoFlight{
 		bool reachX, reachY, reachZ, reachYaw;
 		reachX = std::abs(targetX - currX) < 0.1;
 		reachY = std::abs(targetY - currY) < 0.1;
-		reachZ = std::abs(targetZ - currZ) < 0.1;
+		reachZ = std::abs(targetZ - currZ) < 0.15;
 		if (useYaw){
 			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
 		}

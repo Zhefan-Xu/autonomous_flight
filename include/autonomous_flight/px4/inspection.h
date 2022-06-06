@@ -39,6 +39,12 @@ namespace AutoFlight{
 		double sensorRange_;
 		double sensorVerticalAngle_;
 		double forwardMinDist_;
+		double stepAscendDelta_;
+		double sampleTimeout_;
+		double reduceFactor_;
+
+		// target
+		std::vector<double> targetRange_;
 
 		// map
 		std::shared_ptr<octomap::OcTree> map_;
@@ -64,7 +70,7 @@ namespace AutoFlight{
 		void lookAround();
 		bool forward(); // get forward towards the wall
 		void forwardNBV(); // forward by Next Best View Criteria
-		void moveUp(); // move up to the maximum inspection height
+		void moveUp(double height); // move up to the maximum inspection height
 		void checkSurroundings(); // check the surrounding dimensions of the target surface
 		void inspect(); // generate zig-zag path to inspect the wall
 		void backward(); // go back to the starting position

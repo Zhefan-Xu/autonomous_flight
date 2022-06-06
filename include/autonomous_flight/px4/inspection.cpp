@@ -137,6 +137,32 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Minumum Forward Distance: " << this->forwardMinDist_ << endl;
 		}
 
+		// step ascend distance
+		if (not this->nh_.getParam("step_ascend_delta", this->stepAscendDelta_)){
+			this->stepAscendDelta_ = 3.0;
+			cout << "[AutoFlight]: No step ascend delta param. Use default: 3.0 m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Step Ascend Delta: " << this->stepAscendDelta_ << " m." << endl;
+		}
+
+		// NBV sample timeout
+		if (not this->nh_.getParam("nbv_sample_time_out", this->sampleTimeout_)){
+			this->sampleTimeout_ = 1.0;
+			cout << "[AutoFlight]: No NBV sample timeout param. Use default: 1.0 s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: NBV sample timeout: " << this->sampleTimeout_ << " s." << endl;  
+		}
+
+		// NBV safety reduce factor
+		if (not this->nh_.getParam("safe_reduce_factor", this->reduceFactor_)){
+			this->reduceFactor_ = 0.5;
+			cout << "[AutoFlight]: No safe reduce factor: Use default: 0.5." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Safe reduce factor: " << this->reduceFactor_ << endl;
+		}
 	}
 
 	void inspector::initPlanner(){
@@ -145,8 +171,8 @@ namespace AutoFlight{
 	}
 
 	void inspector::run(){
+		// STEP 1: APPROACH TARGET
 		this->lookAround();
-
 		bool targetReach = false;
 		while (ros::ok() and not targetReach){
 			bool forwardSuccess = this->forward();
@@ -167,21 +193,34 @@ namespace AutoFlight{
 			}
 		}
 
-		// 	// check surroundings and dimensions of the surface
-		this->checkSurroundings();
+		// STEP 2: EXPLORE TARGET
+		double height = this->takeoffHgt_; // current height
+		bool reachTargetHgt = false;
+		while (ros::ok() and not reachTargetHgt){
+			this->checkSurroundings(); // check surroundings and dimensions of the surface and back to center
 
-		this->moveUp();
+			height += this->stepAscendDelta_;
+			if (height >= this->maxTargetHgt_){
+				height = this->maxTargetHgt_;
+				reachTargetHgt = true;
+			}
 
-		this->lookAround();
+			this->moveUp(height);
+			this->lookAround();
+			targetReach = this->hasReachTarget();
+			if (targetReach){
+				cout << "[AutoFlight]: Update Inspection Target!" << endl;
+			}
+			else{
+				cout << "[AutoFlight]: GET CONFUSED in target determination! Please DEBUG!!!" << endl; 
+			}
+		}
 
-		// 	// check surroundings and dimensions of the surface
-		this->checkSurroundings();
 
-
-	// 	// inspect the surface by zig-zag path
-		this->inspect();
+		// STEP 3: INSPECTION
+		this->inspect(); // inspect the surface by zig-zag path
 	
-	// 	// go back to the start position
+		// STEP 4: RETURN
 		this->backward();
 	}
 
@@ -240,7 +279,6 @@ namespace AutoFlight{
 			geometry_msgs::PoseStamped ps = this->pwlPlanner_->getPose(t);
 			this->updateTarget(ps);
 			r.sleep();
-			cout << "FORWARD not reach" << endl;
 		}
 		cout << "[AutoFlight]: Direct Forward Succeed." << endl;
 		return true;
@@ -286,13 +324,13 @@ namespace AutoFlight{
 		cout << "[AutoFlight]: NBV Forward Succeed!" << endl; 
 	}
 
-	void inspector::moveUp(){
+	void inspector::moveUp(double height){
 		nav_msgs::Path upwardPath;
 		geometry_msgs::PoseStamped pCurr;
 		geometry_msgs::PoseStamped pHgt;
 		pCurr.pose = this->odom_.pose.pose;
 		pHgt = pCurr;
-		pHgt.pose.position.z = this->maxTargetHgt_;
+		pHgt.pose.position.z = height;
 		std::vector<geometry_msgs::PoseStamped> upwardPathVec {pCurr, pHgt};
 		upwardPath.poses = upwardPathVec;
 		this->pwlPlanner_->updatePath(upwardPath);
@@ -319,9 +357,13 @@ namespace AutoFlight{
 		octomap::point3d leftDirection (0.0, 1.0, 0.0);
 		octomap::point3d leftEnd;
 
-		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const/2));
+		bool leftFirstTime = true;
 		bool leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
 		while (ros::ok() and not leftDone){
+			if (leftFirstTime){
+				this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const/2));
+				leftFirstTime = false;
+			}
 			// find left most point to go which keeps safe distance
 			nav_msgs::Path leftCheckPath = this->checkSurroundingsLeft();
 
@@ -353,11 +395,18 @@ namespace AutoFlight{
 		octomap::point3d rightDirection (0.0, -1.0, 0.0);
 		octomap::point3d rightEnd;
 
-		this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, -PI_const/2));
+		bool rightFirstTime = true;
 		bool rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
 		while (ros::ok() and not rightDone){
+			cout << "here" << endl;
+			if (rightFirstTime){
+				this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, -PI_const/2));
+				rightFirstTime = false;
+			}
+			cout << "try get path" << endl;
 			// find left most point to go which keeps safe distance
 			nav_msgs::Path rightCheckPath = this->checkSurroundingsRight();
+			cout << "got path" << endl;
 
 			this->pwlPlanner_->updatePath(rightCheckPath);
 
@@ -450,6 +499,18 @@ namespace AutoFlight{
  		bool hasReachTarget;
 		if (area >= this->minTargetArea_ and distance <= this->safeDist_ + 2*this->mapRes_){
 			hasReachTarget = true;
+			if (this->targetRange_.size() == 0){
+				this->targetRange_ = range;
+			}
+			else{
+				this->targetRange_[0] = std::min(range[0], this->targetRange_[0]);
+				this->targetRange_[1] = std::max(range[1], this->targetRange_[1]);
+				this->targetRange_[2] = std::min(range[2], this->targetRange_[2]);
+				this->targetRange_[3] = std::max(range[3], this->targetRange_[3]);
+				this->targetRange_[4] = std::min(range[4], this->targetRange_[4]);
+				this->targetRange_[5] = std::max(range[5], this->targetRange_[5]);
+				range = this->targetRange_;
+			}
 		}
 		else{
 			hasReachTarget = false;
@@ -774,18 +835,19 @@ namespace AutoFlight{
 		zmin = bbox[4]; zmax = bbox[5];
 
 		double totalReduceFactor = 1.0;
-		double sampleTimeout = 1.0;
-		double reduceFactor = 0.5;
 		octomap::point3d safePoint;
 		bool hasSafePoint = false;
 		ros::Time sampleStart = ros::Time::now();
+		int count = 0;
 		while (ros::ok() and not hasSafePoint){
 			ros::Time sampleCurr = ros::Time::now();
 			double t = (sampleCurr - sampleStart).toSec();
-			if (t >= sampleTimeout){
-				totalReduceFactor *= reduceFactor;
+			if (t >= this->sampleTimeout_){
+				cout << "total enter: " << count << endl;
+				cout << "total reduce factor: " << totalReduceFactor << endl;
+				totalReduceFactor *= this->reduceFactor_;
 				sampleStart = ros::Time::now();
-				t = (sampleCurr - sampleStart).toSec(); 
+				++count;
 				cout << "[AutoFlight]: Sample timeout. Reduce side safety constraint to " << totalReduceFactor*100 << "%." << endl; 
 			}
 
@@ -1013,7 +1075,7 @@ namespace AutoFlight{
 		double res = this->mapRes_;
 		while (ros::ok() and not hasCollisionPlus){
 			pCheckPlus.y() += res;
-			hasCollisionPlus = this->checkCollision(pCheckPlus);
+			hasCollisionPlus = this->checkCollision(pCheckPlus, true);
 		}
 		octomap::point3d pLimitPlus = pCheckPlus;
 		pLimitPlus.y() -= res;
@@ -1024,7 +1086,7 @@ namespace AutoFlight{
 		bool hasCollisionMinus = false;
 		while (ros::ok() and not hasCollisionMinus){
 			pCheckMinus.y() -=  res;
-			hasCollisionMinus = this->checkCollision(pCheckMinus);
+			hasCollisionMinus = this->checkCollision(pCheckMinus, true);
 		}
 		octomap::point3d pLimitMinus = pCheckMinus;
 		pLimitMinus.y() += res;
@@ -1041,6 +1103,16 @@ namespace AutoFlight{
 			limitVec.push_back(pLimitPlus);
 			limitVec.push_back(pLimitMinus);
 		}
+
+		// Check whether it is larger than our predefined space
+		double width = std::abs(pLimitPlus.y() - pLimitMinus.y());
+		if (width >= this->maxTargetWidth_){
+			cout << "[AutoFlight]: Manually entered width is less than actual width. Will adjust limits." << endl;
+			double diff = width - this->maxTargetWidth_;
+			pLimitPlus.y() -= diff/2;
+			pLimitMinus.y() += diff/2;
+		}
+
 		cout << "P Limit Plus: " << pLimitPlus << endl;
 		cout << "p Limit Minus: " << pLimitMinus << endl;
 		return limitVec;
@@ -1208,7 +1280,7 @@ namespace AutoFlight{
 		pRightGoal.y() += res;
 		pRightGoal.y() += this->safeDist_;
 
-		if (pRightGoal.y() <= pRightOrigin.y()){
+		if (pRightGoal.y() >= pRightOrigin.y()){
 			pRightGoal.y() = pRightOrigin.y();
 		}
 
