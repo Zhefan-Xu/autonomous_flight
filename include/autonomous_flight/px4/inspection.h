@@ -28,7 +28,8 @@ namespace AutoFlight{
 
 		// parameters
 		std::vector<double> collisionBox_;
-		double safeDist_;
+		double frontSafeDist_;
+		double sideSafeDist_;
 		double minTargetArea_; // min area to be considered as the target
 		double maxTargetHgt_; // max range of inspection target height
 		double maxTargetWidth_; // max range of inspection target width
@@ -59,6 +60,7 @@ namespace AutoFlight{
 		visualization_msgs::MarkerArray targetVisMsg_; 
 		nav_msgs::Path inspectionPath_;
 
+
 	public:
 		std::thread targetVisWorker_;
 		std::thread pathVisWorker_;
@@ -73,7 +75,7 @@ namespace AutoFlight{
 		void moveUp(double height); // move up to the maximum inspection height
 		void checkSurroundings(); // check the surrounding dimensions of the target surface
 		void inspect(); // generate zig-zag path to inspect the wall
-		void backward(); // go back to the starting position
+		bool backward(); // go back to the starting position
 		bool hasReachTarget(); // check whether the target has been reached
 		void mapCB(const octomap_msgs::Octomap &msg);
 
@@ -108,7 +110,13 @@ namespace AutoFlight{
 		void moveToAngle(const geometry_msgs::Quaternion& quat);
 		nav_msgs::Path checkSurroundingsLeft();
 		nav_msgs::Path checkSurroundingsRight();
-		void executeWaypointPath(const nav_msgs::Path& path, bool useYaw=false);
+		bool executeWaypointPath(const nav_msgs::Path& path, bool useYaw=false, bool onlineCollisionCheck=true);
+		bool executeWaypointPathHeading(const nav_msgs::Path& path, bool onlineCollisionCheck=true);
+
+		// Collision avoidance
+		bool onlineFrontCollisionCheck(); // collision checking in positive x direction
+		bool onlineHeadingCollisionCheck();
+
 	};
 }
 
