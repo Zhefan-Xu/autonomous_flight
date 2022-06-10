@@ -2,6 +2,7 @@ sample_time: 0.1
 collision_box: [0.8, 0.8, 0.3]
 front_safe_distance: 1.0 #m. Distance for inspection and obstacles
 side_safe_distance: 1.0 #m
+zig_zag_safe_distance: 1.0 #
 takeoff_height: 1.0 #m
 
 # Trajectory Planner (piecewise linear)
@@ -16,6 +17,8 @@ max_inspection_target_width: 5.0 # IMPORTANT: maximum width
 inspection_descend_height: 0.5 #m
 forward_min_distance: 0.5 #m
 step_ascend_delta: 2 #m
+look_around_angle: 90 # degree
+start_free_range: [1.0, 1.0, 1.0]
 
 # NBV Parameters
 nbv_sample_num: 10

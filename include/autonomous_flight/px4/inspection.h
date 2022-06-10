@@ -30,6 +30,7 @@ namespace AutoFlight{
 		std::vector<double> collisionBox_;
 		double frontSafeDist_;
 		double sideSafeDist_;
+		double zigZagSafeDist_;
 		double minTargetArea_; // min area to be considered as the target
 		double maxTargetHgt_; // max range of inspection target height
 		double maxTargetWidth_; // max range of inspection target width
@@ -41,6 +42,9 @@ namespace AutoFlight{
 		double sensorVerticalAngle_;
 		double forwardMinDist_;
 		double stepAscendDelta_;
+		double lookAroundAngle_;
+		std::vector<double> startFreeRange_;
+
 		double sampleTimeout_;
 		double reduceFactor_;
 
@@ -99,7 +103,8 @@ namespace AutoFlight{
 		std::vector<double> getVecPos();
 		bool checkCollision(const octomap::point3d &p, bool ignoreUnknown=false);
 		bool checkCollisionPoint(const octomap::point3d &p, bool ignoreUnknown=false);
-		void setSurroundingFree(const octomap::point3d& p);
+		void setSurroundingFree(const octomap::point3d& p, const std::vector<double>& range);
+		void setStartFree();
 		double findTargetRangeAxis(const octomap::point3d& pStart, const octomap::point3d& direction, std::vector<octomap::point3d>& resultVec);
 		double findTargetRange(std::vector<double>& range);
 		octomap::point3d findInspectionStartPoint();

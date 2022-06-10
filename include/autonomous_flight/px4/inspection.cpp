@@ -52,6 +52,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Side safe distance to wall is set to: " << this->sideSafeDist_ << "m." << endl;
 		}
 
+		// Zig Zag Safe distance
+		if (not this->nh_.getParam("zig_zag_safe_distance", this->zigZagSafeDist_)){
+			this->zigZagSafeDist_ = 1.5;
+			cout << "[AutoFlight]: No zig zag safe distance param. Use default 1.5m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Zig zag safe distance to wall is set to: " << this->zigZagSafeDist_ << "m." << endl;
+		}
+
 		// min target area
 		if (not this->nh_.getParam("min_target_area", this->minTargetArea_)){
 			this->minTargetArea_ = 10;
@@ -154,6 +163,27 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Step Ascend Delta: " << this->stepAscendDelta_ << " m." << endl;
 		}
 
+		// look around angle
+		if (not this->nh_.getParam("look_around_angle", this->lookAroundAngle_)){
+			this->lookAroundAngle_ = PI_const/2;
+			cout << "[AutoFlight]: No look around angle param. Use default: 90 degree." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Look around angle: " << this->lookAroundAngle_ << " degree." << endl;
+			this->lookAroundAngle_ *= PI_const/180.0;
+		}
+
+		// start free range
+		if (not this->nh_.getParam("start_free_range", this->startFreeRange_)){
+			this->startFreeRange_ = std::vector<double> {1.0, 1.0, 1.0};
+			cout << "[AutoFlight]: No start free range param. Use default: [1.0, 1.0, 1.0]." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Start free range: " << this->startFreeRange_[0] 
+				 << ", " << this->startFreeRange_[1]
+			 	 << ", " << this->startFreeRange_[2] << "]" << endl; 
+		}
+
 		// NBV sample timeout
 		if (not this->nh_.getParam("nbv_sample_time_out", this->sampleTimeout_)){
 			this->sampleTimeout_ = 1.0;
@@ -244,8 +274,8 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped ps;
 		ps.pose = this->odom_.pose.pose;
 		double currYaw = trajPlanner::rpy_from_quaternion(ps.pose.orientation);
-		double targetYaw1 = currYaw + M_PI/2;
-		double targetYaw2 = currYaw - M_PI/2;
+		double targetYaw1 = currYaw + this->lookAroundAngle_;
+		double targetYaw2 = currYaw - this->lookAroundAngle_;
 		geometry_msgs::PoseStamped ps1, ps2;
 		ps1.pose.position = ps.pose.position;
 		ps2.pose.position = ps.pose.position;
@@ -482,7 +512,8 @@ namespace AutoFlight{
     	octomap::OcTree* treePtr = dynamic_cast<octomap::OcTree*>(octomap_msgs::msgToMap(msg));
    	 	this->map_ = std::shared_ptr<octomap::OcTree>(treePtr);
    	 	this->mapRes_ = this->map_->getResolution();
-   	 	this->setSurroundingFree(this->getPoint3dPos());
+   	 	this->setSurroundingFree(this->getPoint3dPos(), this->collisionBox_);
+   	 	this->setStartFree();
    	 	// cout << "here" << endl;
 	}
 
@@ -871,12 +902,12 @@ namespace AutoFlight{
 		return this->map_->isNodeOccupied(nptr);
 	}
 
-	void inspector::setSurroundingFree(const octomap::point3d& p){
+	void inspector::setSurroundingFree(const octomap::point3d& p, const std::vector<double>& range){
 		const float logOddsFree = octomap::logodds(0.1);
 		double xmin, xmax, ymin, ymax, zmin, zmax; // bounding box for collision checking
-		xmin = p.x() - this->collisionBox_[0]/2; xmax = p.x() + this->collisionBox_[0]/2;
-		ymin = p.y() - this->collisionBox_[1]/2; ymax = p.y() + this->collisionBox_[1]/2;
-		zmin = p.z() - this->collisionBox_[2]/2; zmax = p.z() + this->collisionBox_[2]/2;
+		xmin = p.x() - range[0]/2; xmax = p.x() + range[0]/2;
+		ymin = p.y() - range[1]/2; ymax = p.y() + range[1]/2;
+		zmin = p.z() - range[2]/2; zmax = p.z() + range[2]/2;
 
 		int xNum = (xmax - xmin)/this->mapRes_;
 		int yNum = (ymax - ymin)/this->mapRes_;
@@ -895,6 +926,13 @@ namespace AutoFlight{
 			}
 		}		
 	}
+
+
+	void inspector::setStartFree(){
+		octomap::point3d pStart (0.0, 0.0, this->takeoffHgt_);
+		this->setSurroundingFree(pStart, this->startFreeRange_);
+	}
+
 
 
 	double inspector::findTargetRangeAxis(const octomap::point3d& pStart, const octomap::point3d& direction, std::vector<octomap::point3d>& resultVec){
@@ -1036,7 +1074,7 @@ namespace AutoFlight{
 		}
 		octomap::point3d pLimitPlus = pCheckPlus;
 		pLimitPlus.y() -= res;
-		pLimitPlus.y() -= this->sideSafeDist_;
+		pLimitPlus.y() -= this->zigZagSafeDist_;
 
 		// Minus Y direction
 		octomap::point3d pCheckMinus = p;
@@ -1047,7 +1085,7 @@ namespace AutoFlight{
 		}
 		octomap::point3d pLimitMinus = pCheckMinus;
 		pLimitMinus.y() += res;
-		pLimitMinus.y() += this->sideSafeDist_;
+		pLimitMinus.y() += this->zigZagSafeDist_;
 
 		// check the distance between two limits and the closer one gets first in the vec
 		double distPlus = p.distance(pLimitPlus);
