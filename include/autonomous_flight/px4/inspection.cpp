@@ -284,7 +284,7 @@ namespace AutoFlight{
 		this->updatePathVis(forwardPath);
 
 		cout << "[AutoFlight]: Start direct forwarding..." << endl;
-		this->executeWaypointPath(forwardPath, false, false);
+		this->executeWaypointPath(forwardPath, false, true);
 		cout << "[AutoFlight]: Done." << endl;
 		return true;
 	}
@@ -308,7 +308,7 @@ namespace AutoFlight{
 		cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
 		// adjust angle
 		
-		this->executeWaypointPathHeading(forwardNBVPath);
+		this->executeWaypointPathHeading(forwardNBVPath, true);
 		this->moveToAngle(quatStart);
 		cout << "[AutoFlight]: Done." << endl;
 	}
@@ -351,7 +351,7 @@ namespace AutoFlight{
 
 			this->updatePathVis(leftCheckPath);
 
-			this->executeWaypointPathHeading(leftCheckPath);
+			this->executeWaypointPathHeading(leftCheckPath, true);
 			leftDone = this->map_->castRay(pLeftOrigin, leftDirection, leftEnd);
 		}
 		cout << "[AutoFlight]: Left is Okay!" << endl;
@@ -378,7 +378,7 @@ namespace AutoFlight{
 
 			this->updatePathVis(rightCheckPath);
 
-			this->executeWaypointPathHeading(rightCheckPath);
+			this->executeWaypointPathHeading(rightCheckPath, true);
 
 			rightDone = this->map_->castRay(pRightOrigin, rightDirection, rightEnd);
 		}
@@ -404,7 +404,7 @@ namespace AutoFlight{
 		cout << "[AutoFlight]: Ready for Inpsection please check the zig-zag path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 		std::cin.get();
 		cout << "[AutoFlight]: Start Inpection..." << endl;
-		this->executeWaypointPath(zigZagPath, true);
+		this->executeWaypointPath(zigZagPath, true, false);
 		cout << "[AutoFlight]: Done." << endl;
 	}
 
@@ -422,7 +422,7 @@ namespace AutoFlight{
 		std::cin.get();
 		cout << "[AutoFlight]: Start Returning..." << endl;;
 		// adjust heading first
-		bool succeed = this->executeWaypointPathHeading(backPath);	
+		bool succeed = this->executeWaypointPathHeading(backPath, true);	
 		if (succeed){
 			this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const));
 			cout << "[AutoFlight]: Done." << endl;
