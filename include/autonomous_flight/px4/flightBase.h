@@ -89,6 +89,14 @@ namespace AutoFlight{
 		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 1000);
 		this->posePubWorker_ = std::thread(&flightBase::pubPose, this);
 		this->posePubWorker_.detach();
+
+		if (not this->nh_.getParam("takeoff_height", this->takeoffHgt_)){
+			this->takeoffHgt_ = 1.0;
+			ROS_INFO("No takeoff height param found. Use default: 1.0 m.");
+		}
+		else{
+			cout << "[AutoFlight]: Takeoff Height: " << this->takeoffHgt_ << "m." << endl;
+		}
 	}
 
 	flightBase::~flightBase(){}
@@ -100,14 +108,6 @@ namespace AutoFlight{
 	}
 
 	void flightBase::takeoff(){
-		if (not this->nh_.getParam("takeoff_height", this->takeoffHgt_)){
-			this->takeoffHgt_ = 1.0;
-			ROS_INFO("No takeoff height param found. Use default: 1.0 m.");
-		}
-		else{
-			cout << "[AutoFlight]: Takeoff Height: " << this->takeoffHgt_ << "m." << endl;
-		}
-
 		// from cfg yaml read the flight height
 		geometry_msgs::PoseStamped ps;
 		ps.header.frame_id = "map";

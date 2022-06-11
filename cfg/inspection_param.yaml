@@ -1,23 +1,23 @@
 sample_time: 0.1
 collision_box: [0.8, 0.8, 0.3]
-front_safe_distance: 1.0 #m. Distance for inspection and obstacles
-side_safe_distance: 1.0 #m
-zig_zag_safe_distance: 1.0 #
+front_safe_distance: 1.5 #m. Distance for inspection and obstacles
+side_safe_distance: 1.5 #m
+zig_zag_safe_distance: 1.5 #
 takeoff_height: 1.0 #m
 
 # Trajectory Planner (piecewise linear)
 desired_velocity: 0.3
-desired_angular_velocity: 0.3
+desired_angular_velocity: 0.2
 
 
 # Inspection Target Parameters
 min_target_area: 10 # m^2. the minimum area to be considered as the target area
-max_inspection_target_height: 2.0 # IMPORTANT: maximum height uav start inspection
+max_inspection_target_height: 2.5 # IMPORTANT: maximum height uav start inspection
 max_inspection_target_width: 5.0 # IMPORTANT: maximum width
-inspection_descend_height: 0.5 #m
+inspection_descend_height: 0.3 #m
 forward_min_distance: 0.5 #m
 step_ascend_delta: 2 #m
-look_around_angle: 90 # degree
+look_around_angle: 45 # degree
 start_free_range: [1.0, 1.0, 1.0]
 
 # NBV Parameters

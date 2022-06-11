@@ -452,7 +452,7 @@ namespace AutoFlight{
 		std::cin.get();
 		cout << "[AutoFlight]: Start Returning..." << endl;;
 		// adjust heading first
-		bool succeed = this->executeWaypointPathHeading(backPath, true);	
+		bool succeed = this->executeWaypointPathHeading(backPath, false);	
 		if (succeed){
 			this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const));
 			cout << "[AutoFlight]: Done." << endl;
