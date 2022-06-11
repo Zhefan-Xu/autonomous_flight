@@ -309,12 +309,25 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Cannot directly forward..." << endl;
 			return false;
 		}
-		
-
 		this->updatePathVis(forwardPath);
-
+		
 		cout << "[AutoFlight]: Start direct forwarding..." << endl;
-		this->executeWaypointPath(forwardPath, false, true);
+		geometry_msgs::PoseStamped psTargetCurr;
+		while (ros::ok()){
+			bool forwardSuccess = this->executeWaypointPathToTime(forwardPath, this->sampleTime_, psTargetCurr, true);
+			if (not forwardSuccess){
+				break;
+			}
+
+			forwardPath = this->getForwardPathFromPose(psTargetCurr, success);
+			this->updatePathVis(forwardPath);
+
+			double pathLength = this->findPathLength(forwardPath);
+			cout << "path length: " << pathLength << endl;
+			if (pathLength <= 0.2){
+				break;
+			}
+		}
 		cout << "[AutoFlight]: Done." << endl;
 		return true;
 	}
@@ -651,6 +664,59 @@ namespace AutoFlight{
 		
 		return ps;
 	}
+
+	geometry_msgs::PoseStamped inspector::getForwardGoalFromPose(const geometry_msgs::PoseStamped& psTarget, bool& success){
+		octomap::point3d p (psTarget.pose.position.x, psTarget.pose.position.y, psTarget.pose.position.z);
+
+		// cast a ray along the x direction and check collision
+		float res = this->mapRes_;
+		octomap::point3d pForward = p;
+		while (ros::ok() and not this->checkCollision(pForward)){
+			pForward.x() += res;
+			// cout << res << endl;
+			// cout << pForward << endl;
+		}
+		octomap::point3d pGoal = pForward;
+		pGoal.x() -= res;
+		pGoal.x() -= this->frontSafeDist_;
+		if (pGoal.x() <= p.x()){ // we don't let the robot move backward somehow
+			pGoal.x() = p.x(); // at least stay at the same position
+			success = false;
+		}
+		else{
+			if (std::abs(pGoal.x() - p.x()) <= this->forwardMinDist_){ // 
+				success = false;
+			}
+			else{
+				success = true;
+			}
+		}
+
+		geometry_msgs::PoseStamped ps;
+		ps.header.frame_id = "map";
+		ps.header.stamp = ros::Time::now();
+		ps.pose.position.x = pGoal.x();
+		ps.pose.position.y = pGoal.y();
+		ps.pose.position.z = pGoal.z();
+		ps.pose.orientation = this->odom_.pose.pose.orientation;
+		
+		return ps;		
+	}
+
+
+	nav_msgs::Path inspector::getForwardPathFromPose(const geometry_msgs::PoseStamped& psTarget, bool& success){
+		geometry_msgs::PoseStamped goalPs = this->getForwardGoalFromPose(psTarget, success);
+		geometry_msgs::PoseStamped startPs = psTarget; 
+		std::vector<geometry_msgs::PoseStamped> forwardPathVec;
+		forwardPathVec.push_back(startPs);
+		forwardPathVec.push_back(goalPs);
+		nav_msgs::Path forwardPath;
+		forwardPath.header.frame_id = "map";
+		forwardPath.header.stamp = ros::Time::now();
+		forwardPath.poses = forwardPathVec;
+		return forwardPath;
+	}
+
 
 	nav_msgs::Path inspector::getForwardPath(bool& success){
 		geometry_msgs::PoseStamped goalPs = this->getForwardGoal(success);
@@ -1127,7 +1193,7 @@ namespace AutoFlight{
 
 		octomap::point3d pInspectionHgt = pInspection;
 		double height = pInspectionHgt.z();
-		while (ros::ok() and not (height <= this->takeoffHgt_+this->mapRes_)){
+		while (ros::ok() and not (height <= this->takeoffHgt_)){
 			std::vector<octomap::point3d> pLimitCheck = this->getInspectionLimit(pInspectionHgt);
 			geometry_msgs::PoseStamped psLimit1 = this->pointToPose(pLimitCheck[0]);
 			geometry_msgs::PoseStamped psLimit2 = this->pointToPose(pLimitCheck[1]);
@@ -1138,11 +1204,19 @@ namespace AutoFlight{
 
 			height = pInspectionHgt.z();
 			geometry_msgs::PoseStamped psLimit2Lower = this->pointToPose(pInspectionHgt);
-			if (not (height <= this->takeoffHgt_+this->mapRes_)){
+			if (not (height <= this->takeoffHgt_)){
 				zzPathVec.push_back(psLimit2Lower); 
 			}
 		}
 		
+		// return to the center of zig zig at takeoff height
+		geometry_msgs::PoseStamped psFinal = psCurr;
+		psFinal.pose.position.x = pCurr.x();
+		psFinal.pose.position.y = 0.0;
+		psFinal.pose.position.z = this->takeoffHgt_;
+		psFinal.pose.orientation = psCurr.pose.orientation;
+		zzPathVec.push_back(psFinal);
+
 		zzPath.poses = zzPathVec;
 		return zzPath;
 	}
@@ -1335,6 +1409,55 @@ namespace AutoFlight{
 			r.sleep();
 		}
 		return true;
+	}
+
+	bool inspector::executeWaypointPathToTime(const nav_msgs::Path& path, double time, geometry_msgs::PoseStamped& psTargetCurr, bool onlineCollisionCheck){
+		this->pwlPlanner_->updatePath(path);
+
+		double t = 0.0;
+		ros::Time tStart = ros::Time::now();
+		ros::Rate r (1.0/this->sampleTime_);
+		geometry_msgs::PoseStamped psGoal = path.poses.back();
+		while (ros::ok() and not this->isReach(psGoal) and t <= time){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
+			this->updateTarget(psT);
+			// ros::Time tCollision = ros::Time::now();
+			if (onlineCollisionCheck){
+				if (this->onlineFrontCollisionCheck()){
+					cout << "[AutoFlight]: Online future collision detected! Stop motion and continue with next action..." << endl;
+					return false;
+					break;
+				}
+			}	
+			psTargetCurr = psT;
+			r.sleep();
+		}
+		return true;		
+	}
+
+	double inspector::poseDistance(const geometry_msgs::PoseStamped& ps1, const geometry_msgs::PoseStamped& ps2){
+		double x1, y1, z1, x2, y2, z2;
+		x1 = ps1.pose.position.x;
+		y1 = ps1.pose.position.y;
+		z1 = ps1.pose.position.z;
+		x2 = ps2.pose.position.x;
+		y2 = ps2.pose.position.y;
+		z2 = ps2.pose.position.z;
+		double dist = sqrt( pow(x1-x2, 2) + pow(y1-y2, 2) + pow(z1-z2, 2));
+	}
+
+
+	double inspector::findPathLength(const nav_msgs::Path& path){
+		double totalLength = 0.0;
+		for (int i=0; i<path.poses.size()-1; ++i){
+			geometry_msgs::PoseStamped psCurr = path.poses[i];
+			geometry_msgs::PoseStamped psNext = path.poses[i+1];
+			double dist = this->poseDistance(psCurr, psNext);
+			totalLength += dist;
+		}
+		return totalLength;
 	}
 
 	bool inspector::onlineFrontCollisionCheck(){

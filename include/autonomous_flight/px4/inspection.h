@@ -92,6 +92,8 @@ namespace AutoFlight{
 
 		// helper functions
 		geometry_msgs::PoseStamped getForwardGoal(bool& success);
+		geometry_msgs::PoseStamped getForwardGoalFromPose(const geometry_msgs::PoseStamped& psTarget, bool& success);
+		nav_msgs::Path getForwardPathFromPose(const geometry_msgs::PoseStamped& psTarget, bool& success);
 		nav_msgs::Path getForwardPath(bool& success);
 		octomap::point3d sampleNBVGoal();
 		bool inSensorRange(const octomap::point3d& p, const octomap::point3d& pCheck);
@@ -117,6 +119,9 @@ namespace AutoFlight{
 		nav_msgs::Path checkSurroundingsRight();
 		bool executeWaypointPath(const nav_msgs::Path& path, bool useYaw=false, bool onlineCollisionCheck=true);
 		bool executeWaypointPathHeading(const nav_msgs::Path& path, bool onlineCollisionCheck=true);
+		bool executeWaypointPathToTime(const nav_msgs::Path& path, double time, geometry_msgs::PoseStamped& psTargetCurr, bool onlineCollisionCheck);
+		double poseDistance(const geometry_msgs::PoseStamped& ps1, const geometry_msgs::PoseStamped& ps2);
+		double findPathLength(const nav_msgs::Path& path);
 
 		// Collision avoidance
 		bool onlineFrontCollisionCheck(); // collision checking in positive x direction
