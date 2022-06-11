@@ -15,7 +15,7 @@ min_target_area: 10 # m^2. the minimum area to be considered as the target area
 max_inspection_target_height: 2.5 # IMPORTANT: maximum height uav start inspection
 max_inspection_target_width: 5.0 # IMPORTANT: maximum width
 inspection_descend_height: 0.3 #m
-forward_min_distance: 0.5 #m
+forward_min_distance: 0.2 #m
 step_ascend_delta: 2 #m
 look_around_angle: 45 # degree
 start_free_range: [1.0, 1.0, 1.0]

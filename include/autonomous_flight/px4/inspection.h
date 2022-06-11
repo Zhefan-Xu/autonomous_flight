@@ -74,7 +74,7 @@ namespace AutoFlight{
 		void initPlanner();
 		void run();
 		void lookAround();
-		bool forward(); // get forward towards the wall
+		void forward(); // get forward towards the wall
 		void forwardNBV(); // forward by Next Best View Criteria
 		void moveUp(double height); // move up to the maximum inspection height
 		void checkSurroundings(); // check the surrounding dimensions of the target surface

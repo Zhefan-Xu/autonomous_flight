@@ -225,16 +225,13 @@ namespace AutoFlight{
 
 		bool targetReach = false;
 		while (ros::ok() and not targetReach){
-			bool forwardSuccess = this->forward();
-			if (not forwardSuccess){
-				this->forwardNBV();
-			}
-			else{
-				this->lookAround(); // check the wall condition	
-			}
-			
+			this->forward();
+			this->lookAround(); // check the wall condition	
 
 			targetReach = this->hasReachTarget();
+			if (not targetReach){
+				this->forwardNBV();
+			}	
 		}
 
 		cout << "[AutoFlight]: Please make sure UAV arrive the target. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
@@ -302,12 +299,12 @@ namespace AutoFlight{
 	}
 
 
-	bool inspector::forward(){
+	void inspector::forward(){
 		bool success;
 		nav_msgs::Path forwardPath = this->getForwardPath(success);
 		if (not success){
 			cout << "[AutoFlight]: Cannot directly forward..." << endl;
-			return false;
+			return;
 		}
 		this->updatePathVis(forwardPath);
 		
@@ -320,16 +317,17 @@ namespace AutoFlight{
 			}
 
 			forwardPath = this->getForwardPathFromPose(psTargetCurr, success);
+			if (not success){
+				break;
+			}
 			this->updatePathVis(forwardPath);
 
 			double pathLength = this->findPathLength(forwardPath);
-			cout << "path length: " << pathLength << endl;
 			if (pathLength <= 0.2){
 				break;
 			}
 		}
 		cout << "[AutoFlight]: Done." << endl;
-		return true;
 	}
 
 	void inspector::forwardNBV(){
