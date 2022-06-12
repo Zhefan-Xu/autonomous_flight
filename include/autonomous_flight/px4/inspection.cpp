@@ -348,9 +348,13 @@ namespace AutoFlight{
 
 		cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
 		// adjust angle
-		
-		this->executeWaypointPathHeading(forwardNBVPath, true);
-		this->moveToAngle(quatStart);
+		for (int i=0; i<forwardNBVPath.poses.size(); ++i){
+			forwardNBVPath.poses[i].pose.orientation = quatStart;
+		}
+		this->executeWaypointPath(forwardNBVPath, true, false);
+
+		// this->executeWaypointPathHeading(forwardNBVPath, true);
+		// this->moveToAngle(quatStart);
 		cout << "[AutoFlight]: Done." << endl;
 	}
 
@@ -463,7 +467,15 @@ namespace AutoFlight{
 		std::cin.get();
 		cout << "[AutoFlight]: Start Returning..." << endl;;
 		// adjust heading first
-		bool succeed = this->executeWaypointPathHeading(backPath, false);	
+		geometry_msgs::Quaternion quatBack = AutoFlight::quaternion_from_rpy(0, 0, PI_const);
+		this->moveToAngle(quatBack);
+		for (int i=0; i<backPath.poses.size(); ++i){
+			backPath.poses[i].pose.orientation = quatBack;
+		}
+		bool succeed = this->executeWaypointPath(backPath, true, false);
+
+
+		// bool succeed = this->executeWaypointPathHeading(backPath, false);	
 		if (succeed){
 			this->moveToAngle(AutoFlight::quaternion_from_rpy(0, 0, PI_const));
 			cout << "[AutoFlight]: Done." << endl;
