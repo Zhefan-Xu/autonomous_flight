@@ -214,14 +214,14 @@ namespace AutoFlight{
 		this->takeoff();
 		
 
-		cout << "[AutoFlight]: Ready to start please check hover conditions. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
-		std::cin.get();
+		// cout << "[AutoFlight]: Ready to start please check hover conditions. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		// std::cin.get();
+		// this->lookAround();
 
 		// STEP 1: APPROACH TARGET
-		this->lookAround();
+		
 		cout << "[AutoFlight]: Ready to forward. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 		std::cin.get();
-
 
 		bool targetReach = false;
 		while (ros::ok() and not targetReach){
@@ -1444,6 +1444,7 @@ namespace AutoFlight{
 		y2 = ps2.pose.position.y;
 		z2 = ps2.pose.position.z;
 		double dist = sqrt( pow(x1-x2, 2) + pow(y1-y2, 2) + pow(z1-z2, 2));
+		return dist;
 	}
 
 

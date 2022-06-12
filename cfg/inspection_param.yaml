@@ -40,6 +40,7 @@ rrt_incremental_distance: 0.5 #m
 rrt_connect_goal_ratio: 0.2
 goal_reach_distance: 0.5 #m
 map_resolution: 0.1 # this should be at least bigger or equal to the true map resolution
+ignore_unknown: true
 
 # Planner Visualization:
 vis_RRT: False # does not support for RRT*
