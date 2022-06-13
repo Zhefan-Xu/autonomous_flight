@@ -32,6 +32,8 @@ namespace AutoFlight{
 		double avoidSafeDist_;
 		double sideSafeDist_;
 		double zigZagSafeDist_;
+		double avoidanceOnlineCheck_;
+
 		double minTargetArea_; // min area to be considered as the target
 		double maxTargetHgt_; // max range of inspection target height
 		double maxTargetWidth_; // max range of inspection target width
@@ -44,6 +46,7 @@ namespace AutoFlight{
 		double forwardMinDist_;
 		double stepAscendDelta_;
 		double lookAroundAngle_;
+		double checkTargetLookAroundAngle_;
 		std::vector<double> startFreeRange_;
 
 		double sampleTimeout_;
@@ -74,7 +77,7 @@ namespace AutoFlight{
 		void loadParam();
 		void initPlanner();
 		void run();
-		void lookAround();
+		void lookAround(double angle);
 		void forward(); // get forward towards the wall
 		void forwardNBV(); // forward by Next Best View Criteria
 		void moveUp(double height); // move up to the maximum inspection height

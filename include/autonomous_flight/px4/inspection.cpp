@@ -70,6 +70,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Zig zag safe distance to wall is set to: " << this->zigZagSafeDist_ << "m." << endl;
 		}
 
+		// Avoidance Online Check
+		if (not this->nh_.getParam("avoidance_online_collision_check", this->avoidanceOnlineCheck_)){
+			this->avoidanceOnlineCheck_ = false;
+			cout << "[AutoFlight]: No NBV avoidance online check param. Use default false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: NBV avoidance online check is set to: " << this->avoidanceOnlineCheck_ << "m." << endl;
+		}
+
 		// min target area
 		if (not this->nh_.getParam("min_target_area", this->minTargetArea_)){
 			this->minTargetArea_ = 10;
@@ -182,6 +191,16 @@ namespace AutoFlight{
 			this->lookAroundAngle_ *= PI_const/180.0;
 		}
 
+		// check target look around angle
+		if (not this->nh_.getParam("check_target_look_around_angle", this->checkTargetLookAroundAngle_)){
+			this->checkTargetLookAroundAngle_ = PI_const/2;
+			cout << "[AutoFlight]: No check target look around angle param. Use default: 90 degree." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Check target look around angle: " << this->checkTargetLookAroundAngle_ << " degree." << endl;
+			this->checkTargetLookAroundAngle_ *= PI_const/180.0;
+		}
+
 		// start free range
 		if (not this->nh_.getParam("start_free_range", this->startFreeRange_)){
 			this->startFreeRange_ = std::vector<double> {1.0, 1.0, 1.0};
@@ -235,7 +254,7 @@ namespace AutoFlight{
 		bool targetReach = false;
 		while (ros::ok() and not targetReach){
 			this->forward();
-			this->lookAround(); // check the wall condition	
+			this->lookAround(this->lookAroundAngle_); // check the wall condition	
 
 			targetReach = this->hasReachTarget();
 			if (not targetReach){
@@ -258,7 +277,7 @@ namespace AutoFlight{
 			}
 
 			this->moveUp(height);
-			this->lookAround();
+			this->lookAround(this->checkTargetLookAroundAngle_);
 			targetReach = this->hasReachTarget();
 		}
 
@@ -275,13 +294,13 @@ namespace AutoFlight{
 	}
 
 
-	void inspector::lookAround(){
+	void inspector::lookAround(double angle){
 		nav_msgs::Path lookAroundPath;
 		geometry_msgs::PoseStamped ps;
 		ps.pose = this->odom_.pose.pose;
 		double currYaw = trajPlanner::rpy_from_quaternion(ps.pose.orientation);
-		double targetYaw1 = currYaw + this->lookAroundAngle_;
-		double targetYaw2 = currYaw - this->lookAroundAngle_;
+		double targetYaw1 = currYaw + angle;
+		double targetYaw2 = currYaw - angle;
 		geometry_msgs::PoseStamped ps1, ps2;
 		ps1.pose.position = ps.pose.position;
 		ps2.pose.position = ps.pose.position;
@@ -369,7 +388,7 @@ namespace AutoFlight{
 			forwardNBVPath.poses[i].pose.orientation = quatStart;
 		}
 		// this->executeWaypointPath(forwardNBVPath, true, true);
-		this->executeAvoidancePath(forwardNBVPath, false);
+		this->executeAvoidancePath(forwardNBVPath, this->avoidanceOnlineCheck_);
 
 		// this->executeWaypointPathHeading(forwardNBVPath, true);
 		// this->moveToAngle(quatStart);
@@ -1246,11 +1265,9 @@ namespace AutoFlight{
 		}
 		
 		// return to the center of zig zig at takeoff height
-		geometry_msgs::PoseStamped psFinal = psCurr;
-		psFinal.pose.position.x = pCurr.x();
-		psFinal.pose.position.y = 0.0;
-		psFinal.pose.position.z = this->takeoffHgt_;
-		psFinal.pose.orientation = psCurr.pose.orientation;
+		int pathSize = zzPathVec.size();
+		geometry_msgs::PoseStamped psFinal = zzPathVec.back();
+		psFinal.pose.position.y = (zzPathVec[pathSize-1].pose.position.y + zzPathVec[pathSize-2].pose.position.y)/2.0;
 		zzPathVec.push_back(psFinal);
 
 		zzPath.poses = zzPathVec;

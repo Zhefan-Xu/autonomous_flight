@@ -1,9 +1,10 @@
 sample_time: 0.1
 collision_box: [0.8, 0.8, 0.3]
 front_safe_distance: 1.5 #m. Distance for inspection and obstacles
-avoidance_front_safe_distance: 0.3 #m
+avoidance_front_safe_distance: 0.3 #m. Note: only useful when avoidance_online_collision_check is set to true
 side_safe_distance: 1.5 #m
 zig_zag_safe_distance: 1.5 #
+avoidance_online_collision_check: false
 takeoff_height: 1.0 #m
 
 # Trajectory Planner (piecewise linear)
@@ -19,6 +20,7 @@ inspection_descend_height: 0.3 #m
 forward_min_distance: 0.2 #m
 step_ascend_delta: 2 #m
 look_around_angle: 45 # degree
+check_target_look_around_angle: 90 #degree
 start_free_range: [1.0, 1.0, 1.0]
 
 # NBV Parameters
