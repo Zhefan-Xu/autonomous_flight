@@ -1417,7 +1417,7 @@ namespace AutoFlight{
 		ros::Time tStart = ros::Time::now();
 		ros::Rate r (1.0/this->sampleTime_);
 		geometry_msgs::PoseStamped psGoal = path.poses.back();
-		while (ros::ok() and not this->isReach(psGoal)){
+		while (ros::ok() and not this->isReach(psGoal) and t <= this->pwlPlanner_->getDuration()){
 			ros::Time tCurr = ros::Time::now();
 			t = (tCurr - tStart).toSec();
 			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
