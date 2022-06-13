@@ -29,6 +29,7 @@ namespace AutoFlight{
 		// parameters
 		std::vector<double> collisionBox_;
 		double frontSafeDist_;
+		double avoidSafeDist_;
 		double sideSafeDist_;
 		double zigZagSafeDist_;
 		double minTargetArea_; // min area to be considered as the target
@@ -120,11 +121,13 @@ namespace AutoFlight{
 		bool executeWaypointPath(const nav_msgs::Path& path, bool useYaw=false, bool onlineCollisionCheck=true);
 		bool executeWaypointPathHeading(const nav_msgs::Path& path, bool onlineCollisionCheck=true);
 		bool executeWaypointPathToTime(const nav_msgs::Path& path, double time, geometry_msgs::PoseStamped& psTargetCurr, bool onlineCollisionCheck);
+		bool executeAvoidancePath(const nav_msgs::Path& path);
 		double poseDistance(const geometry_msgs::PoseStamped& ps1, const geometry_msgs::PoseStamped& ps2);
 		double findPathLength(const nav_msgs::Path& path);
 
 		// Collision avoidance
 		bool onlineFrontCollisionCheck(); // collision checking in positive x direction
+		bool onlineFrontCollisionCheck(double safeDist);
 		bool onlineHeadingCollisionCheck();
 
 	};

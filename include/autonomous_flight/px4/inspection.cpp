@@ -43,6 +43,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Front safe distance to obstacle is set to: " << this->frontSafeDist_ << "m." << endl;
 		}
 
+		// Avoidance Safe distance
+		if (not this->nh_.getParam("avoidance_front_safe_distance", this->avoidSafeDist_)){
+			this->avoidSafeDist_ = 1.0;
+			cout << "[AutoFlight]: No avoidacne front safe distance. Use default: 1.0m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Avoidance front safe distance is set to: " << this->avoidSafeDist_ << "m." << endl;
+		}
+
 		// Side Safe distance
 		if (not this->nh_.getParam("side_safe_distance", this->sideSafeDist_)){
 			this->sideSafeDist_ = 1.5;
@@ -339,19 +348,28 @@ namespace AutoFlight{
 		// then use RRT to find path
 		std::vector<double> startVec = this->getVecPos();
 		std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
+		std::vector<double> range = this->rrtPlanner_->getEnvBox();
+		range[0] = startVec[0]; // xmin
+		range[1] = goalVec[0]; // xmax
+		this->rrtPlanner_->updateEnvBox(range);
 		this->rrtPlanner_->updateStart(startVec);
 		this->rrtPlanner_->updateGoal(goalVec);
 		this->rrtPlanner_->makePlan(forwardNBVPath);
+		this->rrtPlanner_->clearEnvBox();
 		// this->pwlPlanner_->updatePath(forwardNBVPath);
 
 		this->updatePathVis(forwardNBVPath);
 
+
 		cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
+		cout << "[AutoFlight]: Press ENTER To avoid." << endl;
+		std::cin.get();
 		// adjust angle
 		for (int i=0; i<forwardNBVPath.poses.size(); ++i){
 			forwardNBVPath.poses[i].pose.orientation = quatStart;
 		}
-		this->executeWaypointPath(forwardNBVPath, true, false);
+		// this->executeWaypointPath(forwardNBVPath, true, true);
+		this->executeAvoidancePath(forwardNBVPath);
 
 		// this->executeWaypointPathHeading(forwardNBVPath, true);
 		// this->moveToAngle(quatStart);
@@ -432,7 +450,7 @@ namespace AutoFlight{
 
 
 		double centerY = (leftEnd.y() + rightEnd.y())/2.0;
-		cout << "[AutoFlight]: Going to the center of the target: " <<  centerY  << "..." << endl;
+		cout << "[AutoFlight]: Going to checkPointSafethe center of the target: " <<  centerY  << "..." << endl;
 		geometry_msgs::Point pos;
 		pos = this->odom_.pose.pose.position;
 		pos.y = centerY;
@@ -757,21 +775,22 @@ namespace AutoFlight{
 		for (int i=0; i < this->nbvSampleNum_; ++i){
 			octomap::point3d pSample = this->randomSample(bbox, totalReduceFactor);
 			candidates.push_back(pSample);
+			cout << "candidate: " << pSample << endl;
 		}
 
 		int bestUnknownNum = 0;
 		octomap::point3d bestPoint;
 		for (octomap::point3d pCandidate : candidates){
 			int unknownNum = this->evaluateSample(pCandidate);
-			// cout << "P candidate: " << pCandidate << endl;
-			// cout << "unknownNum: " << unknownNum << endl;
+			cout << "P candidate: " << pCandidate << endl;
+			cout << "unknownNum: " << unknownNum << endl;
 			if (unknownNum > bestUnknownNum){
 				bestPoint = pCandidate;
 				bestUnknownNum = unknownNum;
 			}
 		}
-		// cout << "bestPoint: " << bestPoint << endl;
-		// cout << "best Unknown: " << bestUnknownNum << endl;
+		cout << "bestPoint: " << bestPoint << endl;
+		cout << "best Unknown: " << bestUnknownNum << endl;
 		cout << "[AutoFlight]: sampling done!" << endl;
 		return bestPoint;
 	}
@@ -1447,6 +1466,30 @@ namespace AutoFlight{
 		return true;		
 	}
 
+	bool inspector::executeAvoidancePath(const nav_msgs::Path& path){
+		this->pwlPlanner_->updatePath(path, true);
+
+		double t = 0.0;
+		ros::Time tStart = ros::Time::now();
+		ros::Rate r (1.0/this->sampleTime_);
+		geometry_msgs::PoseStamped psGoal = path.poses.back();
+		while (ros::ok() and not this->isReach(psGoal)){
+			ros::Time tCurr = ros::Time::now();
+			t = (tCurr - tStart).toSec();
+			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
+			this->updateTarget(psT);
+			// ros::Time tCollision = ros::Time::now();
+			if (this->onlineFrontCollisionCheck(this->avoidSafeDist_)){
+				cout << "[AutoFlight]: Online future collision detected! Stop motion and continue with next action..." << endl;
+				return false;
+				break;
+			}
+			
+			r.sleep();
+		}
+		return true;		
+	}
+
 	double inspector::poseDistance(const geometry_msgs::PoseStamped& ps1, const geometry_msgs::PoseStamped& ps2){
 		double x1, y1, z1, x2, y2, z2;
 		x1 = ps1.pose.position.x;
@@ -1469,6 +1512,23 @@ namespace AutoFlight{
 			totalLength += dist;
 		}
 		return totalLength;
+	}
+
+	bool inspector::onlineFrontCollisionCheck(double safeDist){
+		octomap::point3d pCurr = this->getPoint3dPos();
+		octomap::point3d pCheck = pCurr;
+		double frontIncrement = 0.0;
+		double res = this->mapRes_;
+		while (ros::ok() and frontIncrement <= safeDist + res){
+			frontIncrement += res;
+			pCheck.x() = pCurr.x() + frontIncrement;
+			bool hasCollision = this->checkCollision(pCheck);
+			if (hasCollision){
+				return true;
+			}
+		}
+
+		return false; // no collision
 	}
 
 	bool inspector::onlineFrontCollisionCheck(){

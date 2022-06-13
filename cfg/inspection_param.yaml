@@ -1,6 +1,7 @@
 sample_time: 0.1
 collision_box: [0.8, 0.8, 0.3]
 front_safe_distance: 1.5 #m. Distance for inspection and obstacles
+avoidance_front_safe_distance: 0.3 #m
 side_safe_distance: 1.5 #m
 zig_zag_safe_distance: 1.5 #
 takeoff_height: 1.0 #m
