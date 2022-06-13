@@ -1,3 +1,3 @@
 # autonomous_flight
 
-Need to fix back yaw
+1. go forward: no online collision check option
