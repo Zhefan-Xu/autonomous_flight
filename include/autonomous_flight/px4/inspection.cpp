@@ -516,7 +516,7 @@ namespace AutoFlight{
 		cout << "[AutoFlight]: Distance to potential target is: " << distance << " m." << endl;
 
  		bool hasReachTarget;
-		if (area >= this->minTargetArea_ and distance <= 2 * this->frontSafeDist_){
+		if (area >= this->minTargetArea_ and distance <= this->frontSafeDist_ + 2 * this->mapRes_){
 			hasReachTarget = true;
 			if (this->targetRange_.size() == 0){
 				this->targetRange_ = range;
@@ -844,14 +844,21 @@ namespace AutoFlight{
 					octomap::point3d pCheck (xmin + xID * this->mapRes_,
 											 ymin + yID * this->mapRes_,
 											 zmin + zID * this->mapRes_);
+					cout << "check sensor change" << endl;
+ 
 					if (this->inSensorRange(p, pCheck)){
+						cout << "search point" << endl;
 						octomap::OcTreeNode* nptr = this->map_->search(pCheck);
+						cout << "search point okay" << endl;
 						if (nptr == NULL){ // we only care about unknowns
+							cout << "check occlusion" << endl;
 							if (not this->hasOcclusion(p, pCheck)){
 								++countUnknown;
 							}
+							cout << "check occlusion okay" << endl;
 						}
 					}
+					cout << "all okay" << endl;
 				}
 			}
 		}
