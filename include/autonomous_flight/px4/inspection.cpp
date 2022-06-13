@@ -369,7 +369,7 @@ namespace AutoFlight{
 			forwardNBVPath.poses[i].pose.orientation = quatStart;
 		}
 		// this->executeWaypointPath(forwardNBVPath, true, true);
-		this->executeAvoidancePath(forwardNBVPath);
+		this->executeAvoidancePath(forwardNBVPath, false);
 
 		// this->executeWaypointPathHeading(forwardNBVPath, true);
 		// this->moveToAngle(quatStart);
@@ -817,7 +817,7 @@ namespace AutoFlight{
 		std::vector<octomap::point3d> ray;
 		bool success = this->map_->computeRay(p, pCheck, ray); // success does not indicate something
 		for (octomap::point3d pRay: ray){
-			bool hasCollision = this->checkCollision(pRay);
+			bool hasCollision = this->checkCollision(pRay, true);
 			if (hasCollision){
 				return false;
 			}
@@ -1466,7 +1466,7 @@ namespace AutoFlight{
 		return true;		
 	}
 
-	bool inspector::executeAvoidancePath(const nav_msgs::Path& path){
+	bool inspector::executeAvoidancePath(const nav_msgs::Path& path, bool onlineCollisionCheck){
 		this->pwlPlanner_->updatePath(path, true);
 
 		double t = 0.0;
@@ -1479,10 +1479,12 @@ namespace AutoFlight{
 			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
 			this->updateTarget(psT);
 			// ros::Time tCollision = ros::Time::now();
-			if (this->onlineFrontCollisionCheck(this->avoidSafeDist_)){
-				cout << "[AutoFlight]: Online future collision detected! Stop motion and continue with next action..." << endl;
-				return false;
-				break;
+			if (onlineCollisionCheck){
+				if (this->onlineFrontCollisionCheck(this->avoidSafeDist_)){
+					cout << "[AutoFlight]: Online future collision detected! Stop motion and continue with next action..." << endl;
+					return false;
+					break;
+				}
 			}
 			
 			r.sleep();
