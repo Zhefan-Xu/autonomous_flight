@@ -535,7 +535,7 @@ namespace AutoFlight{
 		cout << "[AutoFlight]: Distance to potential target is: " << distance << " m." << endl;
 
  		bool hasReachTarget;
-		if (area >= this->minTargetArea_ and distance <= this->frontSafeDist_ + 2 * this->mapRes_){
+		if (area >= this->minTargetArea_ and distance <= this->frontSafeDist_ + 1.0){
 			hasReachTarget = true;
 			if (this->targetRange_.size() == 0){
 				this->targetRange_ = range;
@@ -834,7 +834,10 @@ namespace AutoFlight{
 
 	bool inspector::hasOcclusion(const octomap::point3d& p, const octomap::point3d& pCheck){
 		std::vector<octomap::point3d> ray;
-		bool success = this->map_->computeRay(p, pCheck, ray); // success does not indicate something
+		bool success = this->map_->computeRay(p, pCheck, ray); // success indicates points are in range
+		if (not success){
+			return false;
+		}
 		for (octomap::point3d pRay: ray){
 			bool hasCollision = this->checkCollision(pRay, true);
 			if (hasCollision){
@@ -1417,7 +1420,7 @@ namespace AutoFlight{
 		ros::Time tStart = ros::Time::now();
 		ros::Rate r (1.0/this->sampleTime_);
 		geometry_msgs::PoseStamped psGoal = path.poses.back();
-		while (ros::ok() and not this->isReach(psGoal) and t <= this->pwlPlanner_->getDuration()){
+		while (ros::ok() and (not this->isReach(psGoal) or t <= this->pwlPlanner_->getDuration())){
 			ros::Time tCurr = ros::Time::now();
 			t = (tCurr - tStart).toSec();
 			geometry_msgs::PoseStamped psT = this->pwlPlanner_->getPose(t);
