@@ -238,6 +238,15 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Path regeneration is set to: " << this->pathRegenOption_ << endl;
 		}
+
+		// interacitve path regeneration option
+		if (not this->nh_.getParam("interactive_regeneration", this->interactivePathRegen_)){
+			this->interactivePathRegen_ = true;
+			cout << "[AutoFlight]: No interactive regeneration parameter. Use default: true." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: interactive regeneration is set to: " << this->interactivePathRegen_ << endl;
+		}
 	}
 
 	void inspector::initPlanner(){
@@ -512,25 +521,33 @@ namespace AutoFlight{
 
 	bool inspector::backward(){
 		nav_msgs::Path backPath;
-		std::vector<double> startVec = this->getVecPos();
-		std::vector<double> goalVec {0.0, 0.0, this->takeoffHgt_};
-		this->rrtPlanner_->updateStart(startVec);
-		this->rrtPlanner_->updateGoal(goalVec);
-		this->rrtPlanner_->makePlan(backPath);
+		if (this->pathRegenOption_){
+			std::vector<double> goalVec {0.0, 0.0, this->takeoffHgt_};
+			this->rrtPathRegenInteractive(goalVec, backPath);
+		}
+		else{
+			std::vector<double> startVec = this->getVecPos();
+			std::vector<double> goalVec {0.0, 0.0, this->takeoffHgt_};
+			this->rrtPlanner_->updateStart(startVec);
+			this->rrtPlanner_->updateGoal(goalVec);
+			this->rrtPlanner_->makePlan(backPath);
 
-		this->updatePathVis(backPath);
+			this->updatePathVis(backPath);
 
-		cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
-		std::cin.get();
-		cout << "[AutoFlight]: Start Returning..." << endl;;
+			cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+			std::cin.get();
+			cout << "[AutoFlight]: Start Returning..." << endl;;
+		}
+
+
 		// adjust heading first
 		geometry_msgs::Quaternion quatBack = AutoFlight::quaternion_from_rpy(0, 0, PI_const);
 		this->moveToAngle(quatBack);
 		for (int i=0; i<backPath.poses.size(); ++i){
 			backPath.poses[i].pose.orientation = quatBack;
 		}
-		bool succeed = this->executeWaypointPath(backPath, true, false);
-
+		this->executeWaypointPath(backPath, true, false);
+		bool succeed = this->isReach(backPath.poses.back(), false);// use distance to check whether we have reached the goal
 
 		// bool succeed = this->executeWaypointPathHeading(backPath, false);	
 		if (succeed){
@@ -539,7 +556,7 @@ namespace AutoFlight{
 			return true;
 		}
 		else{
-			cout << "[AutoFlight]: Find online future collision. Need to replan." << endl;
+			cout << "[AutoFlight]: Still have some distance to goal. Need to replan..." << endl;
 			return false;
 		}
 
@@ -886,21 +903,21 @@ namespace AutoFlight{
 					octomap::point3d pCheck (xmin + xID * this->mapRes_,
 											 ymin + yID * this->mapRes_,
 											 zmin + zID * this->mapRes_);
-					cout << "check sensor change" << endl;
+					// cout << "check sensor change" << endl;
  
 					if (this->inSensorRange(p, pCheck)){
-						cout << "search point" << endl;
+						// cout << "search point" << endl;
 						octomap::OcTreeNode* nptr = this->map_->search(pCheck);
-						cout << "search point okay" << endl;
+						// cout << "search point okay" << endl;
 						if (nptr == NULL){ // we only care about unknowns
-							cout << "check occlusion" << endl;
+							// cout << "check occlusion" << endl;
 							if (not this->hasOcclusion(p, pCheck)){
 								++countUnknown;
 							}
-							cout << "check occlusion okay" << endl;
+							// cout << "check occlusion okay" << endl;
 						}
 					}
-					cout << "all okay" << endl;
+					// cout << "all okay" << endl;
 				}
 			}
 		}
@@ -1449,6 +1466,7 @@ namespace AutoFlight{
 			if (onlineCollisionCheck){
 				if (this->onlineFrontCollisionCheck()){
 					cout << "[AutoFlight]: Online future collision detected! Stop motion and continue with next action..." << endl;
+					r.sleep();
 					return false;
 					break;
 				}
@@ -1564,45 +1582,6 @@ namespace AutoFlight{
 	}
 
 
-	void inspector::rrtPathRegenInteractive(const std::vector<double>& goalVec, nav_msgs::Path& path){
-		std::vector<double> range = this->rrtPlanner_->getEnvBox();
-		std::vector<double> startVec = this->getVecPos();	
-
-		range[0] = startVec[0]; // xmin
-		range[1] = goalVec[0]; // xmax
-		this->rrtPlanner_->updateEnvBox(range);
-		this->rrtPlanner_->updateGoal(goalVec);
-
-
-		bool pathAdmitted = false;
-		char type;
-		while (ros::ok() and not pathAdmitted){
-			startVec = this->getVecPos();	
-			this->rrtPlanner_->updateStart(startVec);
-			this->rrtPlanner_->makePlan(path);
-			this->updatePathVis(path);
-			do
-			{
-			    cout << "[AutoFlight]: Do you accept current path? [y/n]" << endl;
-			    std::cin >> type;
-			    if (type!='y' && type!='n'){
-					cout << "[AutoFlight]: Please ENTER y or n!!!" << endl;
-				}
-			}
-			while( !std::cin.fail() && type!='y' && type!='n' );
-
-			if (type=='y'){
-				cout << "[AutoFlight]: Current path admitted." << endl;
-				pathAdmitted = true;
-			}
-			if (type=='n'){
-				cout << "[AutoFlight]: Not admitted. Start path regeneration..." << endl; 
-			}
-		}
-
-		this->rrtPlanner_->clearEnvBox();
-	}
-
 	bool inspector::onlineFrontCollisionCheck(double safeDist){
 		octomap::point3d pCurr = this->getPoint3dPos();
 		octomap::point3d pCheck = pCurr;
@@ -1658,6 +1637,99 @@ namespace AutoFlight{
 		}
 
 		return false;
+	}
+
+	void inspector::rrtPathRegenInteractive(const std::vector<double>& goalVec, nav_msgs::Path& path){
+		std::vector<double> range = this->rrtPlanner_->getEnvBox();
+		std::vector<double> startVec = this->getVecPos();	
+
+		range[0] = startVec[0]; // xmin
+		range[1] = goalVec[0]; // xmax
+		this->rrtPlanner_->updateEnvBox(range);
+		this->rrtPlanner_->updateGoal(goalVec);
+
+
+		bool pathAdmitted = false;
+		char type;
+		while (ros::ok() and not pathAdmitted){
+			startVec = this->getVecPos();	
+			this->rrtPlanner_->updateStart(startVec);
+			this->rrtPlanner_->makePlan(path);
+			this->updatePathVis(path);
+			do
+			{
+			    cout << "[AutoFlight]: Do you accept current path? [y/n]" << endl;
+			    std::cin >> type;
+			    if (type!='y' && type!='n'){
+					cout << "[AutoFlight]: Please ENTER y or n!!!" << endl;
+				}
+			}
+			while( !std::cin.fail() && type!='y' && type!='n' );
+
+			if (type=='y'){
+				cout << "[AutoFlight]: Current path admitted." << endl;
+				pathAdmitted = true;
+			}
+			if (type=='n'){
+				cout << "[AutoFlight]: Not admitted. Start path regeneration..." << endl; 
+			}
+		}
+
+		this->rrtPlanner_->clearEnvBox();
+	}
+
+	double inspector::evaluatePointObstacleDist(const octomap::point3d& p){
+		std::vector<double> directions {0.0, PI_const/4, PI_const/2, 3*PI_const/4, PI_const, 5*PI_const/4, 3*PI_const/2, 7*PI_const/4};
+		double maxDist = std::max(this->frontSafeDist_, this->sideSafeDist_);
+		std::vector<double> distVec;
+		for (double direction : directions){
+			octomap::point3d pDirection (cos(direction), sin(direction), 0);
+			double forwardDist = 0.0;
+			int count = 0; 
+			while (ros::ok() and forwardDist < maxDist){
+				octomap::point3d pCheck;
+				pCheck.x() = p.x() + count * this->mapRes_ * pDirection.x();
+				pCheck.y() = p.y() + count * this->mapRes_ * pDirection.y();
+
+				bool hasCollision = this->checkCollision(pCheck, true);
+				if (hasCollision){
+					break;
+				}
+
+				forwardDist += this->mapRes_;
+				++count;
+			}
+			distVec.push_back(forwardDist);
+		}
+		return *std::min_element(std::begin(distVec), std::end(distVec));
+	}
+
+
+	double inspector::evaluatePathMinObstacleDist(const nav_msgs::Path& path){
+		std::vector<octomap::point3d> waypoints;
+		for (geometry_msgs::PoseStamped ps : path.poses){
+			octomap::point3d wp (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
+			waypoints.push_back(wp);
+		}
+
+		std::vector<octomap::point3d> intepolatedWaypoints;
+		for (int i=0; i<waypoints.size()-1; ++i){
+			std::vector<octomap::point3d> ray;
+			octomap::point3d origin = waypoints[i];
+			octomap::point3d end = waypoints[i+1];
+			this->map_->computeRay(origin, end, ray);
+			intepolatedWaypoints.insert(intepolatedWaypoints.end(), ray.begin(), ray.end());
+		}
+		intepolatedWaypoints.push_back(waypoints.back());
+
+		double minDist = 0.0;
+		std::vector<double> distVec;
+		for (octomap::point3d p : intepolatedWaypoints){
+			double dist = this->evaluatePointObstacleDist(p);
+			distVec.push_back(dist);
+		}
+
+		return *std::min_element(std::begin(distVec), std::end(distVec));
 	}
 }
 

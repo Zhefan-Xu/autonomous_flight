@@ -1,6 +1,6 @@
 sample_time: 0.1
 collision_box: [0.8, 0.8, 0.3]
-front_safe_distance: 1.8 #m. Distance for inspection and obstacles
+front_safe_distance: 1.0 #m. Distance for inspection and obstacles
 avoidance_front_safe_distance: 0.3 #m. Note: only useful when avoidance_online_collision_check is set to true
 side_safe_distance: 1.5 #m
 zig_zag_safe_distance: 1.5 #
@@ -9,7 +9,7 @@ takeoff_height: 1.0 #m
 
 # Trajectory Planner (piecewise linear)
 desired_velocity: 0.3
-desired_angular_velocity: 0.2
+desired_angular_velocity: 0.4
 
 
 # Inspection Target Parameters
@@ -25,6 +25,7 @@ start_free_range: [1.0, 1.0, 1.0]
 
 # Obstacle Avoidance
 path_regeneration: true
+interactive_regeneration: true 
 
 # NBV Parameters
 nbv_sample_num: 10
