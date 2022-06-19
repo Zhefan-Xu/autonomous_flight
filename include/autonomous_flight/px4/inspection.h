@@ -52,6 +52,9 @@ namespace AutoFlight{
 		double sampleTimeout_;
 		double reduceFactor_;
 
+		// obstacle avoidance:
+		bool pathRegenOption_;
+
 		// target
 		std::vector<double> targetRange_;
 
@@ -127,6 +130,7 @@ namespace AutoFlight{
 		bool executeAvoidancePath(const nav_msgs::Path& path, bool onlineCollisionCheck=false);
 		double poseDistance(const geometry_msgs::PoseStamped& ps1, const geometry_msgs::PoseStamped& ps2);
 		double findPathLength(const nav_msgs::Path& path);
+		void rrtPathRegenInteractive(const std::vector<double>& goalVec, nav_msgs::Path& path);
 
 		// Collision avoidance
 		bool onlineFrontCollisionCheck(); // collision checking in positive x direction

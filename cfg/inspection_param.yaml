@@ -23,6 +23,9 @@ look_around_angle: 45 # degree
 check_target_look_around_angle: 45 #degree
 start_free_range: [1.0, 1.0, 1.0]
 
+# Obstacle Avoidance
+path_regeneration: true
+
 # NBV Parameters
 nbv_sample_num: 10
 sensor_range: 5.0

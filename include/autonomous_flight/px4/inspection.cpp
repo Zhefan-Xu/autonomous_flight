@@ -224,10 +224,19 @@ namespace AutoFlight{
 		// NBV safety reduce factor
 		if (not this->nh_.getParam("safe_reduce_factor", this->reduceFactor_)){
 			this->reduceFactor_ = 0.5;
-			cout << "[AutoFlight]: No safe reduce factor: Use default: 0.5." << endl;
+			cout << "[AutoFlight]: No safe reduce factor. Use default: 0.5." << endl;
 		}
 		else{
 			cout << "[AutoFlight]: Safe reduce factor: " << this->reduceFactor_ << endl;
+		}
+
+		// path regeneration
+		if (not this->nh_.getParam("path_regeneration", this->pathRegenOption_)){
+			this->pathRegenOption_ = true;
+			cout << "[AutoFlight]: No path regeneration factor. Use default: true" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Path regeneration is set to: " << this->pathRegenOption_ << endl;
 		}
 	}
 
@@ -365,16 +374,23 @@ namespace AutoFlight{
 		geometry_msgs::Quaternion quatStart = this->odom_.pose.pose.orientation;
 
 		// then use RRT to find path
-		std::vector<double> startVec = this->getVecPos();
-		std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
-		std::vector<double> range = this->rrtPlanner_->getEnvBox();
-		range[0] = startVec[0]; // xmin
-		range[1] = goalVec[0]; // xmax
-		this->rrtPlanner_->updateEnvBox(range);
-		this->rrtPlanner_->updateStart(startVec);
-		this->rrtPlanner_->updateGoal(goalVec);
-		this->rrtPlanner_->makePlan(forwardNBVPath);
-		this->rrtPlanner_->clearEnvBox();
+		// new function: path regneration option
+		if (this->pathRegenOption_){
+			std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
+			this->rrtPathRegenInteractive(goalVec, forwardNBVPath);
+		}
+		else{
+			std::vector<double> startVec = this->getVecPos();
+			std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
+			std::vector<double> range = this->rrtPlanner_->getEnvBox();
+			range[0] = startVec[0]; // xmin
+			range[1] = goalVec[0]; // xmax
+			this->rrtPlanner_->updateEnvBox(range);
+			this->rrtPlanner_->updateStart(startVec);
+			this->rrtPlanner_->updateGoal(goalVec);
+			this->rrtPlanner_->makePlan(forwardNBVPath);
+			this->rrtPlanner_->clearEnvBox();
+		}
 		// this->pwlPlanner_->updatePath(forwardNBVPath);
 
 		this->updatePathVis(forwardNBVPath);
@@ -1541,6 +1557,46 @@ namespace AutoFlight{
 			totalLength += dist;
 		}
 		return totalLength;
+	}
+
+
+	void inspector::rrtPathRegenInteractive(const std::vector<double>& goalVec, nav_msgs::Path& path){
+		std::vector<double> range = this->rrtPlanner_->getEnvBox();
+		std::vector<double> startVec = this->getVecPos();	
+
+		range[0] = startVec[0]; // xmin
+		range[1] = goalVec[0]; // xmax
+		this->rrtPlanner_->updateEnvBox(range);
+		this->rrtPlanner_->updateGoal(goalVec);
+
+
+		bool pathAdmitted = false;
+		char type;
+		while (ros::ok() and not pathAdmitted){
+			startVec = this->getVecPos();	
+			this->rrtPlanner_->updateStart(startVec);
+			this->rrtPlanner_->makePlan(path);
+			this->updatePathVis(path);
+			do
+			{
+			    cout << "[AutoFlight]: Do you accept current path? [y/n]" << endl;
+			    std::cin >> type;
+			    if (type!='y' && type!='n'){
+					cout << "[AutoFlight]: Please ENTER y or n!!!" << endl;
+				}
+			}
+			while( !std::cin.fail() && type!='y' && type!='n' );
+
+			if (type=='y'){
+				cout << "[AutoFlight]: Current path admitted." << endl;
+				pathAdmitted = true;
+			}
+			if (type=='n'){
+				cout << "[AutoFlight]: Not admitted. Start path regeneration..." << endl; 
+			}
+		}
+
+		this->rrtPlanner_->clearEnvBox();
 	}
 
 	bool inspector::onlineFrontCollisionCheck(double safeDist){
