@@ -378,6 +378,8 @@ namespace AutoFlight{
 		if (this->pathRegenOption_){
 			std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
 			this->rrtPathRegenInteractive(goalVec, forwardNBVPath);
+			cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
+
 		}
 		else{
 			std::vector<double> startVec = this->getVecPos();
@@ -390,15 +392,17 @@ namespace AutoFlight{
 			this->rrtPlanner_->updateGoal(goalVec);
 			this->rrtPlanner_->makePlan(forwardNBVPath);
 			this->rrtPlanner_->clearEnvBox();
+			this->updatePathVis(forwardNBVPath);
+
+			cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
+			cout << "[AutoFlight]: Press ENTER To avoid." << endl;
+			std::cin.get();
 		}
 		// this->pwlPlanner_->updatePath(forwardNBVPath);
 
-		this->updatePathVis(forwardNBVPath);
 
 
-		cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
-		cout << "[AutoFlight]: Press ENTER To avoid." << endl;
-		std::cin.get();
+
 		// adjust angle
 		for (int i=0; i<forwardNBVPath.poses.size(); ++i){
 			forwardNBVPath.poses[i].pose.orientation = quatStart;
