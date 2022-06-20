@@ -269,6 +269,7 @@ namespace AutoFlight{
 
 	void inspector::run(){
 		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.clear();
 		std::cin.get();
 		this->takeoff();
 		
@@ -279,7 +280,8 @@ namespace AutoFlight{
 
 		// STEP 1: APPROACH TARGET
 		
-		cout << "[AutoFlight]: Ready to forward. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		cout << "[AutoFlight]: Ready to forward. Then PRESS ENTER to continue or PRclearEnvBoxSS CTRL+C to land." << endl;
+		std::cin.clear();
 		std::cin.get();
 
 		bool targetReach = false;
@@ -294,6 +296,7 @@ namespace AutoFlight{
 		}
 
 		cout << "[AutoFlight]: Please make sure UAV arrive the target. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.clear();
 		std::cin.get();
 		// STEP 2: EXPLORE TARGET
 		double height = this->takeoffHgt_; // current height
@@ -406,6 +409,7 @@ namespace AutoFlight{
 				this->rrtPathRegen(goalVec, forwardNBVPath);
 				this->pwlPlanner_->updatePath(forwardNBVPath);
 				cout << "[AutoFlight]: Press ENTER To avoid." << endl;
+				std::cin.clear();
 				std::cin.get();
 				
 			}
@@ -427,9 +431,10 @@ namespace AutoFlight{
 
 			cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
 			cout << "[AutoFlight]: Press ENTER To avoid." << endl;
+			std::cin.clear();
 			std::cin.get();
 		}
-
+		this->updatePathVis(forwardNBVPath);
 
 
 
@@ -552,6 +557,7 @@ namespace AutoFlight{
 				this->rrtPathRegen(goalVec, backPath);
 				this->updatePathVis(backPath);
 				cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+				std::cin.clear();
 				std::cin.get();
 			}
 			cout << "[AutoFlight]: Start Returning..." << endl;
@@ -566,9 +572,11 @@ namespace AutoFlight{
 			this->updatePathVis(backPath);
 
 			cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
 			std::cin.get();
 			cout << "[AutoFlight]: Start Returning..." << endl;;
 		}
+		this->updatePathVis(backPath);
 
 
 		// adjust heading first
@@ -1301,8 +1309,10 @@ namespace AutoFlight{
 		// check along +y axis
 		bool hasCollision = false;
 		octomap::point3d pCheck = pCurr;
+		// double res = this->mapRes_;
+		double res = 0.1;
 		while (ros::ok() and not hasCollision){
-			pCheck.y() += this->mapRes_;
+			pCheck.y() += res;
 			hasCollision = this->checkCollision(pCheck);
 		}
 		octomap::point3d pChecklimit = pCheck;
@@ -1318,13 +1328,14 @@ namespace AutoFlight{
 		// Plus Y direction
 		octomap::point3d pCheckPlus = p;
 		bool hasCollisionPlus = false;
-		double res = this->mapRes_;
+		// double res = this->mapRes_;
+		double res = 0.1; // use finer resolution
 		while (ros::ok() and not hasCollisionPlus){
 			pCheckPlus.y() += res;
 			hasCollisionPlus = this->checkCollision(pCheckPlus, true);
 		}
 		octomap::point3d pLimitPlus = pCheckPlus;
-		pLimitPlus.y() -= res;
+		pLimitPlus.y() -= this->mapRes_;
 		pLimitPlus.y() -= this->zigZagSafeDist_;
 
 		// Minus Y direction
@@ -1335,7 +1346,7 @@ namespace AutoFlight{
 			hasCollisionMinus = this->checkCollision(pCheckMinus, true);
 		}
 		octomap::point3d pLimitMinus = pCheckMinus;
-		pLimitMinus.y() += res;
+		pLimitMinus.y() += this->mapRes_;
 		pLimitMinus.y() += this->zigZagSafeDist_;
 
 		// check the distance between two limits and the closer one gets first in the vec
@@ -1795,7 +1806,9 @@ namespace AutoFlight{
 			pathVec.push_back(path);
 		}
 		// cout << "best i: " << bestIdx << endl;
+		cout << "[AutoFlight]: Best Path Index: " << bestIdx << ". with distance: " << maxMinObstacleDist << " m." <<  endl; 
 		path = bestPath;
+		this->rrtPlanner_->clearEnvBox();
 		this->updateAvoidancePathVis(pathVec, bestIdx);
 	}
 
@@ -1817,7 +1830,7 @@ namespace AutoFlight{
 				pCheck.y() = p.y() + count * checkRes * pDirection.y();
 				pCheck.z() = p.z();
 
-				bool hasCollision = this->checkCollision(pCheck, true);
+				bool hasCollision = this->checkCollisionPoint(pCheck, true);
 				if (hasCollision){
 					break;
 				}
