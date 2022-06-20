@@ -319,7 +319,7 @@ namespace AutoFlight{
 		// STEP 4: RETURN
 		bool returnSucceed = false;
 		while (ros::ok() and not returnSucceed){
-			this->backward();
+			returnSucceed = this->backward();
 		}
 		cout << "[AutoFlight]: Mission Complete. PRESS CTRL+C to land." << endl;
 	}
@@ -404,8 +404,13 @@ namespace AutoFlight{
 			}
 			else{
 				this->rrtPathRegen(goalVec, forwardNBVPath);
+				this->pwlPlanner_->updatePath(forwardNBVPath);
+				cout << "[AutoFlight]: Press ENTER To avoid." << endl;
+				std::cin.get();
+				
 			}
 			cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
+			
 		}
 		else{
 			std::vector<double> startVec = this->getVecPos();
@@ -424,7 +429,6 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Press ENTER To avoid." << endl;
 			std::cin.get();
 		}
-		// this->pwlPlanner_->updatePath(forwardNBVPath);
 
 
 
@@ -546,6 +550,9 @@ namespace AutoFlight{
 			}
 			else{
 				this->rrtPathRegen(goalVec, backPath);
+				this->updatePathVis(backPath);
+				cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+				std::cin.get();
 			}
 			cout << "[AutoFlight]: Start Returning..." << endl;
 		}
@@ -571,7 +578,7 @@ namespace AutoFlight{
 			backPath.poses[i].pose.orientation = quatBack;
 		}
 		this->executeWaypointPath(backPath, true, false);
-		bool succeed = this->isReach(backPath.poses.back(), false);// use distance to check whether we have reached the goal
+		bool succeed = (this->poseDistance(this->getCurrPose(), backPath.poses.back()) < 1.0);// use distance to check whether we have reached the goal
 
 		// bool succeed = this->executeWaypointPathHeading(backPath, false);	
 		if (succeed){
@@ -656,6 +663,7 @@ namespace AutoFlight{
 		lineMarker.type = visualization_msgs::Marker::LINE_LIST;
 		lineMarker.action = visualization_msgs::Marker::ADD;
 		lineMarker.points = lineVec;
+		lineMarker.lifetime = ros::Duration(2);
 		lineMarker.scale.x = 0.1;
 		lineMarker.scale.y = 0.1;
 		lineMarker.scale.z = 0.1;
@@ -736,10 +744,11 @@ namespace AutoFlight{
 				lineMarker.id = id;
 				lineMarker.type = visualization_msgs::Marker::LINE_LIST;
 				lineMarker.action = visualization_msgs::Marker::ADD;
+				lineMarker.lifetime = ros::Duration(1);
 				lineMarker.points = lineVec;
-				lineMarker.scale.x = 0.1;
-				lineMarker.scale.y = 0.1;
-				lineMarker.scale.z = 0.1;
+				lineMarker.scale.x = 0.02;
+				lineMarker.scale.y = 0.02;
+				lineMarker.scale.z = 0.02;
 				lineMarker.color.a = 1.0; // Don't forget to set the alpha!
 				if (pathIdx == bestIdx){
 					lineMarker.color.r = 0.0;
@@ -1100,6 +1109,12 @@ namespace AutoFlight{
 		z = this->odom_.pose.pose.position.z;
 		std::vector<double> vecPos {x, y, z};
 		return vecPos;
+	}
+
+	geometry_msgs::PoseStamped inspector::getCurrPose(){
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		return ps;
 	}
 
 	bool inspector::checkCollision(const octomap::point3d &p, bool ignoreUnknown){
@@ -1771,7 +1786,7 @@ namespace AutoFlight{
 			this->rrtPlanner_->updateStart(startVec);
 			this->rrtPlanner_->makePlan(path);
 			double obstacleDist = this->evaluatePathMinObstacleDist(path);
-			cout << "obstacle distance: " << obstacleDist << endl;
+			// cout << "obstacle distance: " << obstacleDist << endl;
 			if (obstacleDist > maxMinObstacleDist){
 				maxMinObstacleDist = obstacleDist;
 				bestPath = path;
@@ -1779,32 +1794,41 @@ namespace AutoFlight{
 			}
 			pathVec.push_back(path);
 		}
+		// cout << "best i: " << bestIdx << endl;
+		path = bestPath;
 		this->updateAvoidancePathVis(pathVec, bestIdx);
 	}
 
 	double inspector::evaluatePointObstacleDist(const octomap::point3d& p){
 		std::vector<double> directions {0.0, PI_const/4, PI_const/2, 3*PI_const/4, PI_const, 5*PI_const/4, 3*PI_const/2, 7*PI_const/4};
+		// std::vector<double> directions {0.0, PI_const/2, PI_const, 3*PI_const/2};
+
 		double maxDist = std::max(this->frontSafeDist_, this->sideSafeDist_);
 		std::vector<double> distVec;
+		double checkRes = 0.1;
+		// cout << "point start" << endl;
 		for (double direction : directions){
 			octomap::point3d pDirection (cos(direction), sin(direction), 0);
 			double forwardDist = 0.0;
 			int count = 0; 
 			while (ros::ok() and forwardDist < maxDist){
 				octomap::point3d pCheck;
-				pCheck.x() = p.x() + count * this->mapRes_ * pDirection.x();
-				pCheck.y() = p.y() + count * this->mapRes_ * pDirection.y();
+				pCheck.x() = p.x() + count * checkRes * pDirection.x();
+				pCheck.y() = p.y() + count * checkRes * pDirection.y();
+				pCheck.z() = p.z();
 
 				bool hasCollision = this->checkCollision(pCheck, true);
 				if (hasCollision){
 					break;
 				}
 
-				forwardDist += this->mapRes_;
+				forwardDist += checkRes;
 				++count;
 			}
+			// cout << forwardDist << endl;
 			distVec.push_back(forwardDist);
 		}
+		// cout << "point end" << endl;
 		return *std::min_element(std::begin(distVec), std::end(distVec));
 	}
 
@@ -1830,6 +1854,7 @@ namespace AutoFlight{
 		std::vector<double> distVec;
 		for (octomap::point3d p : intepolatedWaypoints){
 			double dist = this->evaluatePointObstacleDist(p);
+			// cout << dist << endl;
 			distVec.push_back(dist);
 		}
 

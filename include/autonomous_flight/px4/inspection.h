@@ -118,6 +118,7 @@ namespace AutoFlight{
 		octomap::point3d randomSample(const std::vector<double>& bbox, double& totalReduceFactor);
 		octomap::point3d getPoint3dPos();
 		std::vector<double> getVecPos();
+		geometry_msgs::PoseStamped getCurrPose();
 		bool checkCollision(const octomap::point3d &p, bool ignoreUnknown=false);
 		bool checkCollisionPoint(const octomap::point3d &p, bool ignoreUnknown=false);
 		void setSurroundingFree(const octomap::point3d& p, const std::vector<double>& range);
