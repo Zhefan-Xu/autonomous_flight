@@ -23,8 +23,9 @@ namespace AutoFlight{
 	class inspector : public flightBase{
 	private:
 		ros::Subscriber mapSub_;
-		ros::Publisher targetVisPub_;
+		ros::Publisher targetVisPub_; // visualization
 		ros::Publisher pathPub_; // visualization
+		ros::Publisher avoidancePathVisPub_; // visualization
 
 		// parameters
 		std::vector<double> collisionBox_;
@@ -55,6 +56,7 @@ namespace AutoFlight{
 		// obstacle avoidance:
 		bool pathRegenOption_;
 		bool interactivePathRegen_;
+		int pathRegenNum_;
 
 		// target
 		std::vector<double> targetRange_;
@@ -71,11 +73,14 @@ namespace AutoFlight{
 		std::vector<visualization_msgs::Marker> targetVisVec_;
 		visualization_msgs::MarkerArray targetVisMsg_; 
 		nav_msgs::Path inspectionPath_;
+		std::vector<visualization_msgs::Marker> avoidancePathVisVec_;
+		visualization_msgs::MarkerArray avoidancePathVisMsg_;
 
 
 	public:
 		std::thread targetVisWorker_;
 		std::thread pathVisWorker_;
+		std::thread avoidancePathVisWorker_;
 
 		inspector(const ros::NodeHandle& nh);
 		void loadParam();
@@ -95,8 +100,10 @@ namespace AutoFlight{
 		visualization_msgs::Marker getLineMarker(double x1, double y1, double z1, double x2, double y2, double z2, int id, bool hasReachTarget);
 		void updateTargetVis(const std::vector<double>& range, bool hasReachTarget);
 		void updatePathVis(const nav_msgs::Path& path);
+		void updateAvoidancePathVis(const std::vector<nav_msgs::Path>& pathVec, int bestIdx);
 		void publishTargetVis();
 		void publishPathVis();
+		void publishAvoidancePathVis();
 
 		// helper functions
 		geometry_msgs::PoseStamped getForwardGoal(bool& success);
@@ -137,6 +144,7 @@ namespace AutoFlight{
 		bool onlineFrontCollisionCheck(double safeDist);
 		bool onlineHeadingCollisionCheck();
 		void rrtPathRegenInteractive(const std::vector<double>& goalVec, nav_msgs::Path& path);
+		void rrtPathRegen(const std::vector<double>& goalVec, nav_msgs::Path& path);
 		double evaluatePointObstacleDist(const octomap::point3d& p);
 		double evaluatePathMinObstacleDist(const nav_msgs::Path& path);
 

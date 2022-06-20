@@ -26,6 +26,7 @@ start_free_range: [1.0, 1.0, 1.0]
 # Obstacle Avoidance
 path_regeneration: true
 interactive_regeneration: true 
+path_regeneration_num: 10 # will only be used if interactive_regeneration is false
 
 # NBV Parameters
 nbv_sample_num: 10

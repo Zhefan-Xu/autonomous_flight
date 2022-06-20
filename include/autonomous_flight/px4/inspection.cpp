@@ -20,6 +20,10 @@ namespace AutoFlight{
 		this->pathPub_ = this->nh_.advertise<nav_msgs::Path>("/inspector/path", 100);
 		this->pathVisWorker_ = std::thread(&inspector::publishPathVis, this);
 		this->pathVisWorker_.detach();
+
+		this->avoidancePathVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("/inspector/avoidance_path", 100);
+		this->avoidancePathVisWorker_ = std::thread(&inspector::publishAvoidancePathVis, this);
+		this->avoidancePathVisWorker_.detach();
 	}
 
 	void inspector::loadParam(){
@@ -245,7 +249,16 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: No interactive regeneration parameter. Use default: true." << endl;
 		}
 		else{
-			cout << "[AutoFlight]: interactive regeneration is set to: " << this->interactivePathRegen_ << endl;
+			cout << "[AutoFlight]: Interactive regeneration is set to: " << this->interactivePathRegen_ << endl;
+		}
+
+		// path regeneration number
+		if (not this->nh_.getParam("path_regeneration_num", this->pathRegenNum_)){
+			this->pathRegenNum_ = 10;
+			cout << "[AutoFlight]: No path regeneration number. Use default: 10." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Path regeneration number: " << this->pathRegenNum_ << endl;
 		}
 	}
 
@@ -386,9 +399,13 @@ namespace AutoFlight{
 		// new function: path regneration option
 		if (this->pathRegenOption_){
 			std::vector<double> goalVec {pBestView.x(), pBestView.y(), pBestView.z()};
-			this->rrtPathRegenInteractive(goalVec, forwardNBVPath);
+			if (this->interactivePathRegen_){
+				this->rrtPathRegenInteractive(goalVec, forwardNBVPath);
+			}
+			else{
+				this->rrtPathRegen(goalVec, forwardNBVPath);
+			}
 			cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
-
 		}
 		else{
 			std::vector<double> startVec = this->getVecPos();
@@ -521,9 +538,16 @@ namespace AutoFlight{
 
 	bool inspector::backward(){
 		nav_msgs::Path backPath;
+
 		if (this->pathRegenOption_){
 			std::vector<double> goalVec {0.0, 0.0, this->takeoffHgt_};
-			this->rrtPathRegenInteractive(goalVec, backPath);
+			if (this->interactivePathRegen_){
+				this->rrtPathRegenInteractive(goalVec, backPath);
+			}
+			else{
+				this->rrtPathRegen(goalVec, backPath);
+			}
+			cout << "[AutoFlight]: Start Returning..." << endl;
 		}
 		else{
 			std::vector<double> startVec = this->getVecPos();
@@ -692,6 +716,48 @@ namespace AutoFlight{
 		this->inspectionPath_ = path;
 	}
 
+	void inspector::updateAvoidancePathVis(const std::vector<nav_msgs::Path>& pathVec, int bestIdx){
+		this->avoidancePathVisVec_.clear();
+		int id = 0;
+		int pathIdx = 0;
+		for (nav_msgs::Path path : pathVec){
+			for (int i=0; i<path.poses.size()-1; ++i){
+				geometry_msgs::PoseStamped pCurr = path.poses[i];
+				geometry_msgs::PoseStamped pNext = path.poses[i+1];
+
+				std::vector<geometry_msgs::Point> lineVec;
+				lineVec.push_back(pCurr.pose.position);
+				lineVec.push_back(pNext.pose.position);
+
+				visualization_msgs::Marker lineMarker;
+				lineMarker.header.frame_id = "map";
+				lineMarker.header.stamp = ros::Time::now();
+				lineMarker.ns = "avoidance_path";
+				lineMarker.id = id;
+				lineMarker.type = visualization_msgs::Marker::LINE_LIST;
+				lineMarker.action = visualization_msgs::Marker::ADD;
+				lineMarker.points = lineVec;
+				lineMarker.scale.x = 0.1;
+				lineMarker.scale.y = 0.1;
+				lineMarker.scale.z = 0.1;
+				lineMarker.color.a = 1.0; // Don't forget to set the alpha!
+				if (pathIdx == bestIdx){
+					lineMarker.color.r = 0.0;
+					lineMarker.color.g = 1.0;
+				}
+				else{
+					lineMarker.color.r = 1.0;
+					lineMarker.color.g = 0.0;
+				}
+				lineMarker.color.b = 0.0;
+				++id;
+				this->avoidancePathVisVec_.push_back(lineMarker);
+			}
+			++pathIdx;
+		}		
+	}
+
+
 	void inspector::publishTargetVis(){
 		ros::Rate r (1);
 		while (ros::ok()){
@@ -707,6 +773,15 @@ namespace AutoFlight{
 			this->inspectionPath_.header.stamp = ros::Time::now(); 
 			this->inspectionPath_.header.frame_id = "map";
 			this->pathPub_.publish(this->inspectionPath_);
+			r.sleep();
+		}
+	}
+
+	void inspector::publishAvoidancePathVis(){
+		ros::Rate r (2);
+		while (ros::ok()){
+			this->avoidancePathVisMsg_.markers = this->avoidancePathVisVec_;
+			this->avoidancePathVisPub_.publish(this->avoidancePathVisMsg_);
 			r.sleep();
 		}
 	}
@@ -831,22 +906,22 @@ namespace AutoFlight{
 		for (int i=0; i < this->nbvSampleNum_; ++i){
 			octomap::point3d pSample = this->randomSample(bbox, totalReduceFactor);
 			candidates.push_back(pSample);
-			cout << "candidate: " << pSample << endl;
+			// cout << "candidate: " << pSample << endl;
 		}
 
 		int bestUnknownNum = 0;
 		octomap::point3d bestPoint;
 		for (octomap::point3d pCandidate : candidates){
 			int unknownNum = this->evaluateSample(pCandidate);
-			cout << "P candidate: " << pCandidate << endl;
-			cout << "unknownNum: " << unknownNum << endl;
+			// cout << "P candidate: " << pCandidate << endl;
+			// cout << "unknownNum: " << unknownNum << endl;
 			if (unknownNum > bestUnknownNum){
 				bestPoint = pCandidate;
 				bestUnknownNum = unknownNum;
 			}
 		}
-		cout << "bestPoint: " << bestPoint << endl;
-		cout << "best Unknown: " << bestUnknownNum << endl;
+		// cout << "bestPoint: " << bestPoint << endl;
+		// cout << "best Unknown: " << bestUnknownNum << endl;
 		cout << "[AutoFlight]: sampling done!" << endl;
 		return bestPoint;
 	}
@@ -1676,6 +1751,35 @@ namespace AutoFlight{
 		}
 
 		this->rrtPlanner_->clearEnvBox();
+	}
+
+	void inspector::rrtPathRegen(const std::vector<double>& goalVec, nav_msgs::Path& path){
+		nav_msgs::Path bestPath;
+		double maxMinObstacleDist = 0.0;
+		int bestIdx = 0;
+		std::vector<nav_msgs::Path> pathVec;
+
+		std::vector<double> range = this->rrtPlanner_->getEnvBox();
+		std::vector<double> startVec = this->getVecPos();	
+
+		range[0] = startVec[0]; // xmin
+		range[1] = goalVec[0]; // xmax
+		this->rrtPlanner_->updateEnvBox(range);
+		this->rrtPlanner_->updateGoal(goalVec);
+		for (int i=0; i<this->pathRegenNum_; ++i){
+			startVec = this->getVecPos();	
+			this->rrtPlanner_->updateStart(startVec);
+			this->rrtPlanner_->makePlan(path);
+			double obstacleDist = this->evaluatePathMinObstacleDist(path);
+			cout << "obstacle distance: " << obstacleDist << endl;
+			if (obstacleDist > maxMinObstacleDist){
+				maxMinObstacleDist = obstacleDist;
+				bestPath = path;
+				bestIdx = i;
+			}
+			pathVec.push_back(path);
+		}
+		this->updateAvoidancePathVis(pathVec, bestIdx);
 	}
 
 	double inspector::evaluatePointObstacleDist(const octomap::point3d& p){
