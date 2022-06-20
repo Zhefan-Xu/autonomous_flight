@@ -1760,10 +1760,12 @@ namespace AutoFlight{
 			do
 			{
 			    cout << "[AutoFlight]: Do you accept current path? [y/n]" << endl;
+
 			    std::cin >> type;
 			    if (type!='y' && type!='n'){
 					cout << "[AutoFlight]: Please ENTER y or n!!!" << endl;
 				}
+			    std::cin.clear();
 			}
 			while( !std::cin.fail() && type!='y' && type!='n' );
 
