@@ -270,6 +270,7 @@ namespace AutoFlight{
 	void inspector::run(){
 		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 		std::cin.clear();
+		fflush(stdin);
 		std::cin.get();
 		this->takeoff();
 		
@@ -280,8 +281,9 @@ namespace AutoFlight{
 
 		// STEP 1: APPROACH TARGET
 		
-		cout << "[AutoFlight]: Ready to forward. Then PRESS ENTER to continue or PRclearEnvBoxSS CTRL+C to land." << endl;
+		cout << "[AutoFlight]: Ready to forward. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 		std::cin.clear();
+		fflush(stdin);
 		std::cin.get();
 
 		bool targetReach = false;
@@ -297,7 +299,9 @@ namespace AutoFlight{
 
 		cout << "[AutoFlight]: Please make sure UAV arrive the target. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 		std::cin.clear();
+		fflush(stdin);
 		std::cin.get();
+
 		// STEP 2: EXPLORE TARGET
 		double height = this->takeoffHgt_; // current height
 		bool reachTargetHgt = false;
@@ -410,6 +414,7 @@ namespace AutoFlight{
 				this->pwlPlanner_->updatePath(forwardNBVPath);
 				cout << "[AutoFlight]: Press ENTER To avoid." << endl;
 				std::cin.clear();
+				fflush(stdin);
 				std::cin.get();
 				
 			}
@@ -432,6 +437,7 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: NBV forward for obstacle avoidance..." << endl; 
 			cout << "[AutoFlight]: Press ENTER To avoid." << endl;
 			std::cin.clear();
+			fflush(stdin);
 			std::cin.get();
 		}
 		this->updatePathVis(forwardNBVPath);
@@ -539,6 +545,8 @@ namespace AutoFlight{
 		this->updatePathVis(zigZagPath);
 
 		cout << "[AutoFlight]: Ready for Inpsection please check the zig-zag path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.clear();
+		fflush(stdin);
 		std::cin.get();
 		cout << "[AutoFlight]: Start Inpection..." << endl;
 		this->executeWaypointPath(zigZagPath, true, false);
@@ -558,6 +566,7 @@ namespace AutoFlight{
 				this->updatePathVis(backPath);
 				cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 				std::cin.clear();
+				fflush(stdin);
 				std::cin.get();
 			}
 			cout << "[AutoFlight]: Start Returning..." << endl;
@@ -573,6 +582,7 @@ namespace AutoFlight{
 
 			cout << "[AutoFlight]: Ready to return please check the back path. PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 			std::cin.clear();
+			fflush(stdin);
 			std::cin.get();
 			cout << "[AutoFlight]: Start Returning..." << endl;;
 		}
@@ -1761,11 +1771,15 @@ namespace AutoFlight{
 			{
 			    cout << "[AutoFlight]: Do you accept current path? [y/n]" << endl;
 
+			    std::cin.clear();
+				fflush(stdin);
+				// type = std::cin.get();
 			    std::cin >> type;
+			    std::cin.clear();
+				fflush(stdin);
 			    if (type!='y' && type!='n'){
 					cout << "[AutoFlight]: Please ENTER y or n!!!" << endl;
 				}
-			    std::cin.clear();
 			}
 			while( !std::cin.fail() && type!='y' && type!='n' );
 
@@ -1779,6 +1793,7 @@ namespace AutoFlight{
 		}
 
 		this->rrtPlanner_->clearEnvBox();
+		std::cin.get();
 	}
 
 	void inspector::rrtPathRegen(const std::vector<double>& goalVec, nav_msgs::Path& path){
