@@ -1,0 +1,5 @@
+<launch>
+	<rosparam file="$(find autonomous_flight)/cfg/test_bspline.yaml" />
+	<rosparam file="$(find autonomous_flight)/cfg/test_bspline_mapping.yaml" ns="/occupancy_map"  />
+	<node pkg="autonomous_flight" type="test_bspline_node" name="test_bspline_node" output="screen" />
+</launch>

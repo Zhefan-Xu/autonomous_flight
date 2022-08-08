@@ -54,6 +54,7 @@ namespace AutoFlight{
 		void switchClickMode(bool clickGoal);
 		void pubGoal();
 		std::vector<double> getGoal();
+		std::vector<double> getPosition();
 		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
 	};
@@ -84,7 +85,7 @@ namespace AutoFlight{
 	void quadCommand::takeoff(){
 		std_msgs::Empty msg;
 		ros::Rate r (10);
-		while (ros::ok() and this->odom_.pose.pose.position.z < 0.5){
+		while (ros::ok() and this->odom_.pose.pose.position.z < 0.1){
 			this->takeoffPub_.publish(msg);
 			ros::spinOnce();
 			r.sleep();
@@ -148,8 +149,14 @@ namespace AutoFlight{
 		}
 	}
 
+	std::vector<double> quadCommand::getPosition(){
+		std::vector<double> pos {this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z};
+		return pos;
+	}
+
+
 	std::vector<double> quadCommand::getGoal(){
-		ros::Rate r (1);
+		ros::Rate r (10);
 		while (ros::ok() and (this->clickGoalInit_ == false or this->clickCount_ % 2 != 0)){
 			ROS_INFO("Wait for clicked goal and start position...");
 			ros::spinOnce();
@@ -167,7 +174,7 @@ namespace AutoFlight{
 		x = (*cp).pose.position.x;
 		y = (*cp).pose.position.y;
 		z = 1.0;
-		if (this->clickGoal_){
+		if (not this->clickGoal_){
 			if (this->clickCount_ % 2 == 0){
 				this->clickGoalPos_ = std::vector<double> {x, y, z}; 
 				this->goalMsg_ = *cp;
@@ -184,7 +191,15 @@ namespace AutoFlight{
 			}
 		}
 		else{
-			this->resetPosition(x, y, z, 0);
+			this->clickGoalPos_ = std::vector<double> {x, y, z}; 
+			this->goalMsg_ = *cp;
+			this->goalMsg_.pose.position.x = x;
+			this->goalMsg_.pose.position.y = y;
+			this->goalMsg_.pose.position.z = 1.0;
+			if (this->clickGoalInit_ ==  false){  
+				this->clickGoalInit_ = true;
+			}
+			++this->clickCount_;
 		}
 		++this->clickCount_;
 	}

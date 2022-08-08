@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.0.2)
 project(autonomous_flight)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+# add_compile_options(-std=c++11)
+set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS} -O3 -Wall")
+
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -13,6 +15,9 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   onboard_vision
   reactive_planner
+  global_planner
+  trajectory_planner
+  map_manager
 )
 
 ## System dependencies are found with CMake's conventions
@@ -137,6 +142,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/autonomous_flight_node.cpp)
 add_executable(orca_node src/simulation/orca_node.cpp)
+add_executable(test_bspline_node src/simulation/test_bspline_node.cpp)
 
 
 ## Rename C++ executable without prefix
@@ -154,6 +160,7 @@ add_executable(orca_node src/simulation/orca_node.cpp)
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(orca_node ${catkin_LIBRARIES})
+target_link_libraries(test_bspline_node ${catkin_LIBRARIES})
 
 #############
 ## Install ##
