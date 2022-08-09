@@ -11,10 +11,10 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/Quaternion.h>
 
-#define PI_const 3.1415926
     
 
 namespace AutoFlight{    
+    const double PI_const = 3.1415926;
     struct pose{
         double x;
         double y;

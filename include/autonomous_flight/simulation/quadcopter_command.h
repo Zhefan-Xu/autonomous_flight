@@ -23,7 +23,7 @@ namespace AutoFlight{
 		ros::Publisher takeoffPub_;
 		ros::Publisher landPub_;
 		ros::Publisher velPub_;
-		ros::Publisher posPub_;
+		ros::Publisher posePub_;
 		ros::Publisher goalPub_;
 
 		ros::Subscriber odomSub_;
@@ -49,7 +49,8 @@ namespace AutoFlight{
 		void takeoff();
 		void land();
 		void setVelocity(double vx, double vy, double vz);
-		void setPosition(double x, double y, double z, double yaw=0);
+		void setPose(double x, double y, double z, double yaw=0);
+		void setPose(const geometry_msgs::PoseStamped& ps);
 		void resetPosition(double x, double y, double z=0, double yaw=0);
 		void switchClickMode(bool clickGoal);
 		void pubGoal();
@@ -57,6 +58,7 @@ namespace AutoFlight{
 		std::vector<double> getPosition();
 		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
+		bool isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw=true);
 	};
 
 
@@ -64,6 +66,7 @@ namespace AutoFlight{
 		this->takeoffPub_ = this->nh_.advertise<std_msgs::Empty>("/CERLAB/quadcopter/takeoff", 1000);
 		this->landPub_ = this->nh_.advertise<std_msgs::Empty>("/CERLAB/quadcopter/land", 1000);
 		this->velPub_ = this->nh_.advertise<geometry_msgs::TwistStamped>("/CERLAB/quadcopter/cmd_vel", 1000);
+		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/CERLAB/quadcopter/setpoint_pose", 1000);
 		this->goalPub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/quadCommand/goal", 1000);
 
 		this->odomSub_ = this->nh_.subscribe("/CERLAB/quadcopter/odom", 10, &quadCommand::odomCB, this);
@@ -85,8 +88,9 @@ namespace AutoFlight{
 	void quadCommand::takeoff(){
 		std_msgs::Empty msg;
 		ros::Rate r (10);
-		while (ros::ok() and this->odom_.pose.pose.position.z < 0.1){
-			this->takeoffPub_.publish(msg);
+		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - 1.0) >= 0.1 ){
+			// this->takeoffPub_.publish(msg);
+			this->setPose(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, 1.0, rpy_from_quaternion(this->odom_.pose.pose.orientation));
 			ros::spinOnce();
 			r.sleep();
 		}
@@ -112,8 +116,17 @@ namespace AutoFlight{
 		this->velPub_.publish(ts);
 	}
 
-	void quadCommand::setPosition(double x, double y, double z, double yaw){ // global frame
-		
+	void quadCommand::setPose(double x, double y, double z, double yaw){ // global frame
+		geometry_msgs::PoseStamped ps;
+		ps.pose.position.x = x;
+		ps.pose.position.y = y;
+		ps.pose.position.z = z;
+		ps.pose.orientation = quaternion_from_rpy(0, 0, yaw);
+		this->posePub_.publish(ps);
+	}
+
+	void quadCommand::setPose(const geometry_msgs::PoseStamped& ps){ // global frame
+		this->posePub_.publish(ps);
 	}
 
 	void quadCommand::resetPosition(double x, double y, double z, double yaw){
@@ -202,6 +215,37 @@ namespace AutoFlight{
 			++this->clickCount_;
 		}
 		++this->clickCount_;
+	}
+
+
+	bool quadCommand::isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw){
+		double targetX, targetY, targetZ, targetYaw, currX, currY, currZ, currYaw;
+		targetX = poseTgt.pose.position.x;
+		targetY = poseTgt.pose.position.y;
+		targetZ = poseTgt.pose.position.z;
+		targetYaw = AutoFlight::rpy_from_quaternion(poseTgt.pose.orientation);
+		currX = this->odom_.pose.pose.position.x;
+		currY = this->odom_.pose.pose.position.y;
+		currZ = this->odom_.pose.pose.position.z;
+		currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		
+		bool reachX, reachY, reachZ, reachYaw;
+		reachX = std::abs(targetX - currX) < 0.1;
+		reachY = std::abs(targetY - currY) < 0.1;
+		reachZ = std::abs(targetZ - currZ) < 0.15;
+		if (useYaw){
+			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
+		}
+		else{
+			reachYaw = true;
+		}
+		// cout << reachX << reachY << reachZ << reachYaw << endl;
+		if (reachX and reachY and reachZ and reachYaw){
+			return true;
+		}
+		else{
+			return false;
+		}
 	}
 }
 #endif

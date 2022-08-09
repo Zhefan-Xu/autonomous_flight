@@ -101,7 +101,6 @@ int main(int argc, char** argv){
 		ros::spinOnce();
 		r.sleep(); // wait for map to be stablized
 	}
-	cout << "sleep end" << endl;
 
 	trajPlanner::bsplineTraj bst;
 	bst.init(nh);
@@ -114,6 +113,13 @@ int main(int argc, char** argv){
 	bst.updatePath(simpleTraj, startEndCondition);
 	bst.makePlan();
 
+	ros::Rate rate (10);
+	double t = 0.0;
+	while (not qm.isReach(pGoal) and t <= bst.getDuration()){
+		qm.setPose(bst.getPose(t));
+		t += 0.1;
+		rate.sleep();
+	}
 
 
 	ros::spin();
