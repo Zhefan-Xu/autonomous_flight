@@ -4,16 +4,16 @@
 */
 
 #include <ros/ros.h>
-#include <autonomous_flight/simulation/quadcopter_command.h>
+#include <autonomous_flight/simulation/flightBase.h>
 #include <reactive_planner/ORCAPlanner.h>
 
 int main(int argc, char** argv){
 	ros::init(argc, argv, "orca_node");
 	ros::NodeHandle nh;
 
-	AutoFlight::quadCommand qm (nh);
+	AutoFlight::flightBase qm (nh);
 	qm.takeoff();
-	std::vector<double> goal = qm.getGoal();
+	std::vector<double> goal = qm.getGoalClick();
 	
 	reactivePlanner::orcaPlanner op (nh);
 	op.updateGoal(std::vector<double> {goal[0], goal[1]});
@@ -21,7 +21,7 @@ int main(int argc, char** argv){
 	ros::Rate r (50);
 	while (ros::ok()){
 		if (op.isReach() == true){
-			std::vector<double> goal = qm.getGoal();
+			std::vector<double> goal = qm.getGoalClick();
 			op.updateGoal(std::vector<double> {goal[0], goal[1]});
 		}
 
@@ -36,7 +36,7 @@ int main(int argc, char** argv){
 			// Robot Position and Goal position
 			nav_msgs::Odometry robotOdom = op.getOdom();
 			cout << "Current Position: " << robotOdom.pose.pose.position.x << ", " << robotOdom.pose.pose.position.y << endl;
-			cout << "GOal Position: " << goal[0] << ", " << goal[1] << endl;
+			cout << "Goal Position: " << goal[0] << ", " << goal[1] << endl;
 
 
 			// prefered vel in world frame

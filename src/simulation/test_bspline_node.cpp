@@ -4,7 +4,7 @@
 */
 
 #include <ros/ros.h>
-#include <autonomous_flight/simulation/quadcopter_command.h>
+#include <autonomous_flight/simulation/flightBase.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
 #include <map_manager/occupancyMap.h>
@@ -57,11 +57,11 @@ int main(int argc, char** argv){
 
 
 
-	AutoFlight::quadCommand qm (nh);
+	AutoFlight::flightBase qm (nh);
 	qm.takeoff(); 
 
 	// // click to get goal position
-	std::vector<double> goal = qm.getGoal();
+	std::vector<double> goal = qm.getGoalClick();
 	std::vector<double> pos = qm.getPosition();
 	nav_msgs::Path simplePath; // contains start and end
 	geometry_msgs::PoseStamped pStart, pGoal;
