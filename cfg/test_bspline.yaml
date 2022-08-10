@@ -2,7 +2,7 @@ desired_velocity: 1.0
 desired_angular_velocity: 0.5
 
 bspline_traj/timestep: 0.1
-bspline_traj/distance_threshold: 1.0
+bspline_traj/distance_threshold: 2.0
 bspline_traj/max_vel: 1.0
 bspline_traj/max_acc: 0.5
 bspline_traj/weight_distance: 5.0

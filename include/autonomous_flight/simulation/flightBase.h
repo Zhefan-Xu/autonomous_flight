@@ -61,6 +61,7 @@ namespace AutoFlight{
 		void pubGoal();
 		std::vector<double> getGoalClick();
 		std::vector<double> getPosition();
+		nav_msgs::Odometry getOdom();
 		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
 		bool isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw=true);
@@ -88,6 +89,7 @@ namespace AutoFlight{
 		ros::Rate r (1);
 		while (ros::ok() and not this->odomReceived_){
 			ROS_INFO("wait for odom msg...");
+			ros::spinOnce();
 			r.sleep();
 		}
 	}
@@ -191,7 +193,13 @@ namespace AutoFlight{
 			ros::spinOnce();
 			r.sleep();
 		}
+		this->clickGoalInit_ = false;
+		this->clickCount_ = 0;
 		return this->clickGoalPos_;
+	}
+
+	nav_msgs::Odometry flightBase::getOdom(){
+		return this->odom_;
 	}
 
 	void flightBase::odomCB(const nav_msgs::OdometryConstPtr& odom){
