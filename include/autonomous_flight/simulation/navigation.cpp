@@ -67,6 +67,7 @@ namespace AutoFlight{
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
 		this->pwlTrajPub_.publish(this->pwlTrajMsg_);
 		this->pwlTrajUpdated_ = true;
+		this->goalReceived_ = false;
 
 	}
 
@@ -76,7 +77,6 @@ namespace AutoFlight{
 		if (not this->pwlTrajUpdated_ and this->bsplineTraj_->isCurrTrajValid()){
 			return;
 		}
-		this->pwlTrajUpdated_ = false;
 
 
 		std::vector<Eigen::Vector3d> startEndCondition;
@@ -88,9 +88,15 @@ namespace AutoFlight{
 		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end vel condition
 		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end acc condition
 
+		bool updateSuccess = false;
+		if (this->pwlTrajUpdated_){
+			updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+			this->pwlTrajUpdated_ = false;
+		}
+		else{
+			updateSuccess = this->bsplineTraj_->updatePath(this->td_.currTrajectory, startEndCondition);
+		}
 
-		bool updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
-	
 		
 		if (not updateSuccess){
 			return;

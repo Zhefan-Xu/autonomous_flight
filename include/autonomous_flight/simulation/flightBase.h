@@ -47,9 +47,15 @@ namespace AutoFlight{
 				this->tCurr = this->duration;
 			}
 
-			int di = 10;
+			int di = 3;
 			int idx = floor(this->tCurr/this->timestep);
 			int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
+
+			std::vector<geometry_msgs::PoseStamped> pathVec;
+			for (size_t i=idx; i<this->trajectory.poses.size(); ++i){
+				pathVec.push_back(this->trajectory.poses[i]);
+			}
+			this->currTrajectory.poses = pathVec;
 			return this->trajectory.poses[newIdx];
 		}
 	};
