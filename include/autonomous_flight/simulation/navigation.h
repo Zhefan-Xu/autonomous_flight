@@ -21,15 +21,18 @@ namespace AutoFlight{
 
 		ros::Timer pwlTimer_;
 		ros::Timer bsplineTimer_;
+		ros::Timer trajExeTimer_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
 
-
+		AutoFlight::trajData td_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
 
 		double desiredVel_;
-	
+
+		bool pwlTrajUpdated_ = false;
+
 	public:
 		navigation(const ros::NodeHandle& nh);
 		void initParam();
@@ -40,6 +43,7 @@ namespace AutoFlight{
 
 		void pwlCB(const ros::TimerEvent&);
 		void bsplineCB(const ros::TimerEvent&);
+		void trajExeCB(const ros::TimerEvent&);
 	};
 }
 

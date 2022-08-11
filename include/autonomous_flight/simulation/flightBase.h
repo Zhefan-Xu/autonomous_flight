@@ -8,6 +8,7 @@
 #define FLIGHTBASE_H
 #include <ros/ros.h>
 #include <std_msgs/Empty.h>
+#include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
@@ -18,6 +19,41 @@
 
 using std::cout; using std::endl;
 namespace AutoFlight{
+	struct trajData{
+		nav_msgs::Path trajectory;
+		nav_msgs::Path currTrajectory;
+		ros::Time startTime;
+		double tCurr;
+		double duration;
+		double timestep;
+		bool init = false;
+
+		void updateTrajectory(const nav_msgs::Path& _trajectory, double _duration){
+			this->trajectory = _trajectory;
+			this->currTrajectory = _trajectory;
+			this->duration = _duration;
+			this->tCurr = 0.0;
+			this->startTime = ros::Time::now();
+			this->timestep = this->duration/(this->trajectory.poses.size()-1);
+			if (not this->init){
+				this->init = true;
+			}
+		}
+
+		geometry_msgs::PoseStamped getPose(){
+			ros::Time currTime = ros::Time::now();
+			this->tCurr = (currTime - this->startTime).toSec() + this->timestep;
+			if (this->tCurr > this->duration){
+				this->tCurr = this->duration;
+			}
+
+			int di = 10;
+			int idx = floor(this->tCurr/this->timestep);
+			int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
+			return this->trajectory.poses[newIdx];
+		}
+	};
+
 	class flightBase{
 	protected:
 		// ROS

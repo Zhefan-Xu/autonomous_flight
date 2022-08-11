@@ -35,10 +35,13 @@ namespace AutoFlight{
 
 	void navigation::registerCallback(){
 		// pwl timer
-		this->pwlTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::pwlCB, this);
+		this->pwlTimer_ = this->nh_.createTimer(ros::Duration(0.5), &navigation::pwlCB, this);
 		
 		// bspline timer
-		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::bsplineCB, this);
+		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::bsplineCB, this);
+
+		// trajectory execution timer
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::trajExeCB, this);
 	}
 
 	void navigation::run(){
@@ -50,9 +53,6 @@ namespace AutoFlight{
 	}
 
 	void navigation::pwlCB(const ros::TimerEvent&){
-		if (not this->goalReceived_){
-			return;
-		}
 		nav_msgs::Path simplePath;
 		geometry_msgs::PoseStamped pStart, pGoal;
 		pStart.pose = this->odom_.pose.pose;
@@ -63,13 +63,15 @@ namespace AutoFlight{
 		this->pwlTraj_->updatePath(simplePath);
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
 		this->pwlTrajPub_.publish(this->pwlTrajMsg_);
+		this->pwlTrajUpdated_ = true;
+
 	}
 
 	void navigation::bsplineCB(const ros::TimerEvent&){
-		if (this->pwlTrajMsg_.poses.size() == 0){
+		if (not this->pwlTrajUpdated_){
 			return;
 		}
-		cout << this->pwlTrajMsg_.poses.size() << endl;
+		this->pwlTrajUpdated_ = false;
 
 		std::vector<Eigen::Vector3d> startEndCondition;
 		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
@@ -80,8 +82,22 @@ namespace AutoFlight{
 		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end vel condition
 		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end acc condition
 
-		this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+
+		bool updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+	
+		
+		if (not updateSuccess){
+			return;
+		}
 		this->bsplineTraj_->makePlan(this->bsplineTrajMsg_);
+		this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
 		this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
+	}
+
+	void navigation::trajExeCB(const ros::TimerEvent&){
+		if (not this->td_.init){
+			return;
+		}
+		this->updateTarget(this->td_.getPose());
 	}
 }
