@@ -53,6 +53,9 @@ namespace AutoFlight{
 	}
 
 	void navigation::pwlCB(const ros::TimerEvent&){
+		if (not this->goalReceived_){
+			return; 
+		}
 		nav_msgs::Path simplePath;
 		geometry_msgs::PoseStamped pStart, pGoal;
 		pStart.pose = this->odom_.pose.pose;
@@ -68,10 +71,13 @@ namespace AutoFlight{
 	}
 
 	void navigation::bsplineCB(const ros::TimerEvent&){
-		if (not this->pwlTrajUpdated_){
+
+		// only update if get new reference trajectory or current trajectory is not valid
+		if (not this->pwlTrajUpdated_ and this->bsplineTraj_->isCurrTrajValid()){
 			return;
 		}
 		this->pwlTrajUpdated_ = false;
+
 
 		std::vector<Eigen::Vector3d> startEndCondition;
 		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
