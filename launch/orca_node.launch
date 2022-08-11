@@ -1,4 +1,0 @@
-<launch>
-	<rosparam file="$(find autonomous_flight)/cfg/orca_param.yaml" />
-	<node pkg="autonomous_flight" type="orca_node" name="orca_node" output="screen" />
-</launch>
