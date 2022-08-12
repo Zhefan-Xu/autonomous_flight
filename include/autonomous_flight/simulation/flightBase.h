@@ -40,15 +40,20 @@ namespace AutoFlight{
 			}
 		}
 
-		geometry_msgs::PoseStamped getPose(){
+		int getCurrIdx(){
 			ros::Time currTime = ros::Time::now();
 			this->tCurr = (currTime - this->startTime).toSec() + this->timestep;
 			if (this->tCurr > this->duration){
 				this->tCurr = this->duration;
 			}
 
-			int di = 3;
 			int idx = floor(this->tCurr/this->timestep);
+			return idx;
+		}
+
+		geometry_msgs::PoseStamped getPose(){
+			int idx = this->getCurrIdx();
+			int di = 0;
 			int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
 
 			std::vector<geometry_msgs::PoseStamped> pathVec;
@@ -57,6 +62,38 @@ namespace AutoFlight{
 			}
 			this->currTrajectory.poses = pathVec;
 			return this->trajectory.poses[newIdx];
+		}
+
+		geometry_msgs::PoseStamped getPose(const geometry_msgs::Pose& psCurr){
+			int idx = this->getCurrIdx();
+			int di = 0;
+			int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
+
+			std::vector<geometry_msgs::PoseStamped> pathVec;
+			geometry_msgs::PoseStamped psFirst;
+			psFirst.pose = psCurr;
+			pathVec.push_back(psFirst);
+			for (size_t i=idx; i<this->trajectory.poses.size(); ++i){
+				pathVec.push_back(this->trajectory.poses[i]);
+			}
+			this->currTrajectory.poses = pathVec;
+			return this->trajectory.poses[newIdx];
+		}
+
+		void backoff(const geometry_msgs::Pose& psCurr){
+			std::vector<geometry_msgs::PoseStamped> pathVec;
+			geometry_msgs::PoseStamped ps;
+			ps.pose.orientation = psCurr.orientation;
+			int backoffIdx = 20;
+			int currIdx = this->getCurrIdx();
+			int idx = currIdx - backoffIdx;
+			idx = std::max(0, idx);
+			pathVec.push_back(this->trajectory.poses[idx]);
+			this->trajectory.poses = pathVec;
+			this->currTrajectory = this->trajectory;
+			this->tCurr = 0.0;
+			this->startTime = ros::Time::now();
+			this->duration = this->timestep; 
 		}
 	};
 

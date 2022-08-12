@@ -31,7 +31,10 @@ namespace AutoFlight{
 
 		double desiredVel_;
 
+		int restartNum_ = 0;
 		bool pwlTrajUpdated_ = false;
+		bool needNewPwlTraj_ = false;
+		bool stopBsplinePlan_ = false;
 
 	public:
 		navigation(const ros::NodeHandle& nh);
