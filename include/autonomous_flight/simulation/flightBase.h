@@ -83,12 +83,13 @@ namespace AutoFlight{
 		void backoff(const geometry_msgs::Pose& psCurr){
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			geometry_msgs::PoseStamped ps;
-			ps.pose.orientation = psCurr.orientation;
+			ps.pose = psCurr;
 			int backoffIdx = 20;
 			int currIdx = this->getCurrIdx();
 			int idx = currIdx - backoffIdx;
 			idx = std::max(0, idx);
-			pathVec.push_back(this->trajectory.poses[idx]);
+			// pathVec.push_back(this->trajectory.poses[idx]);
+			pathVec.push_back(ps);
 			this->trajectory.poses = pathVec;
 			this->currTrajectory = this->trajectory;
 			this->tCurr = 0.0;
@@ -113,6 +114,7 @@ namespace AutoFlight{
 		// status
 		bool odomReceived_ = false;
 		bool hasTakeoff_ = false;
+		bool firstGoal_ = false;
 		bool goalReceived_ = false;
 
 
@@ -177,6 +179,10 @@ namespace AutoFlight{
 	void flightBase::clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp){
 		this->goal_ = *cp;
 		this->goal_.pose.position.z = 1.0;
+		if (not this->firstGoal_){
+			this->firstGoal_ = true;
+		}
+
 		if (not this->goalReceived_){
 			this->goalReceived_ = true;
 		}
