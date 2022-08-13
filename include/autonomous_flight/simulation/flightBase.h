@@ -80,15 +80,10 @@ namespace AutoFlight{
 			return this->trajectory.poses[newIdx];
 		}
 
-		void backoff(const geometry_msgs::Pose& psCurr){
+		void stop(const geometry_msgs::Pose& psCurr){
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			geometry_msgs::PoseStamped ps;
 			ps.pose = psCurr;
-			int backoffIdx = 20;
-			int currIdx = this->getCurrIdx();
-			int idx = currIdx - backoffIdx;
-			idx = std::max(0, idx);
-			// pathVec.push_back(this->trajectory.poses[idx]);
 			pathVec.push_back(ps);
 			this->trajectory.poses = pathVec;
 			this->currTrajectory = this->trajectory;

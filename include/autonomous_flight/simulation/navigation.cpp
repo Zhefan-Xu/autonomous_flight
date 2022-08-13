@@ -20,6 +20,10 @@ namespace AutoFlight{
 		// initialize map
 		this->map_.reset(new mapManager::occMap (this->nh_));
 
+		// initialize rrt planner
+		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
+		this->rrtPlanner_->setMap(this->map_);
+
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
 
@@ -29,11 +33,15 @@ namespace AutoFlight{
 	}
 
 	void navigation::registerPub(){
+		this->rrtPathPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/rrt_path", 10);
 		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/pwl_trajectory", 10);
 		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/bspline_trajectory", 10);
 	}
 
 	void navigation::registerCallback(){
+		// rrt timer
+		this->rrtTimer_ = this->nh_.createTimer(ros::Duration(0.5), &navigation::rrtCB, this);
+
 		// pwl timer
 		this->pwlTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::pwlCB, this);
 		
@@ -52,10 +60,17 @@ namespace AutoFlight{
 		this->registerCallback();
 	}
 
+	void navigation::rrtCB(const ros::TimerEvent&){
+		if (not this->firstGoal_) return;
+
+		this->rrtPlanner_->updateStart(this->odom_.pose.pose);
+		this->rrtPlanner_->updateGoal(this->goal_.pose);
+		this->rrtPlanner_->makePlan(this->rrtPathMsg_);
+		this->rrtPathPub_.publish(this->rrtPathMsg_);
+	}
+
 	void navigation::pwlCB(const ros::TimerEvent&){
-		if (not this->firstGoal_){
-			return; 
-		}
+		if (not this->firstGoal_) return;
 
 		nav_msgs::Path simplePath;
 		geometry_msgs::PoseStamped pStart, pGoal;
@@ -94,6 +109,10 @@ namespace AutoFlight{
 				if (planSuccess){
 					this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
 					this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
+				}
+				else{
+					ROS_INFO("Fail. Stop!");
+					this->td_.stop(this->odom_.pose.pose);
 				}
 			}
 		}
