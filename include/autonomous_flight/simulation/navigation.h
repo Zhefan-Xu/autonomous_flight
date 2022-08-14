@@ -10,6 +10,7 @@
 #include <autonomous_flight/simulation/flightBase.h>
 #include <map_manager/occupancyMap.h>
 #include <global_planner/rrtOccMap.h>
+#include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
 
@@ -18,24 +19,31 @@ namespace AutoFlight{
 	private:
 		std::shared_ptr<mapManager::occMap> map_;
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
+		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
 
 		ros::Timer rrtTimer_;
+		ros::Timer polyTrajTimer_;
 		ros::Timer pwlTimer_;
 		ros::Timer bsplineTimer_;
 		ros::Timer trajExeTimer_;
+		ros::Timer visTimer_;
+		
 		ros::Publisher rrtPathPub_;
+		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
 
 		AutoFlight::trajData td_;
 		nav_msgs::Path rrtPathMsg_;
+		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
 
 
 		double desiredVel_;
+		bool rrtPathUpdated_ = false;
 
 
 	public:
@@ -47,9 +55,11 @@ namespace AutoFlight{
 		void run();
 
 		void rrtCB(const ros::TimerEvent&);
+		void polyTrajCB(const ros::TimerEvent&);
 		void pwlCB(const ros::TimerEvent&);
 		void bsplineCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
+		void visCB(const ros::TimerEvent&);
 	};
 }
 

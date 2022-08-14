@@ -9,6 +9,19 @@ rrt/goal_reach_distance: 0.4
 rrt/connect_goal_ratio: 0.2
 rrt/max_shortcut_dist: 3
 
+poly_traj/polynomial_degree: 7
+poly_traj/differential_degree: 4
+poly_traj/continuity_degree: 3
+poly_traj/desired_velocity: 1.0
+poly_traj/initial_radius: 0.5
+poly_traj/timeout: 0.2
+poly_traj/corridor_res: 5.0
+poly_traj/shrinking_factor: 0.5
+poly_traj/soft_constraint: false
+poly_traj/constraint_radius: 0.5
+poly_traj/sample_delta_time: 0.1
+poly_traj/maximum_iteration_num: 10
+poly_traj/use_pwl_failsafe: false
 
 bspline_traj/timestep: 0.1
 bspline_traj/distance_threshold: 1.0
