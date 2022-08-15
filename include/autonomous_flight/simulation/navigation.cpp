@@ -140,7 +140,9 @@ namespace AutoFlight{
 				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
 			}
 
-			this->goalReceived_ = false;
+			if (this->goalReceived_){
+				this->goalReceived_ = false;
+			}
 
 
 			if (updateSuccess){
@@ -152,11 +154,17 @@ namespace AutoFlight{
 				}
 				else{
 					if (this->useGlobalTraj_){
-						ROS_INFO("Your goal might not be valid!!! Please change your goal...");	
+						ROS_INFO("Environment is not explored enough. Impossible to find a feasible trajectory!!! Please change your goal...");	
 					}
 					else{
-						this->bsplineFailure_ = true;
-						ROS_INFO("Bspline failure. Trying replan with global path!");
+						// if the goal is not valid. Do not replan
+						if (this->map_->isInflatedOccupied(Eigen::Vector3d (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z))){
+							ROS_INFO("Your selected goal is not collision-free. Please change your goal.");
+						}
+						else{
+							this->bsplineFailure_ = true;
+							ROS_INFO("Bspline failure. Trying replan with global path!");
+						}
 					}
 					this->td_.stop(this->odom_.pose.pose);
 				}
