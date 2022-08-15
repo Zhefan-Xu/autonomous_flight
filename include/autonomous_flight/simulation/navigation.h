@@ -44,6 +44,8 @@ namespace AutoFlight{
 
 		double desiredVel_;
 		bool rrtPathUpdated_ = false;
+		bool bsplineFailure_ = false;
+		bool useGlobalTraj_ = false;
 
 
 	public:

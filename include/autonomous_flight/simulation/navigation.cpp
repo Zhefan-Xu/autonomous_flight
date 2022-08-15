@@ -45,10 +45,10 @@ namespace AutoFlight{
 
 	void navigation::registerCallback(){
 		// rrt timer
-		this->rrtTimer_ = this->nh_.createTimer(ros::Duration(0.5), &navigation::rrtCB, this);
+		this->rrtTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::rrtCB, this);
 
 		// poly traj timer
-		this->polyTrajTimer_ = this->nh_.createTimer(ros::Duration(0.2), &navigation::polyTrajCB, this);
+		this->polyTrajTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::polyTrajCB, this);
 
 		// pwl timer
 		this->pwlTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::pwlCB, this);
@@ -72,7 +72,9 @@ namespace AutoFlight{
 	}
 
 	void navigation::rrtCB(const ros::TimerEvent&){
+		if (not this->bsplineFailure_) return;
 		if (not this->firstGoal_) return;
+		// if (this->rrtPlanner_->isCurrPathValid() and not this->rrtPlanner_->hasNewGoal(this->goal_.pose)) return;
 
 		this->rrtPlanner_->updateStart(this->odom_.pose.pose);
 		this->rrtPlanner_->updateGoal(this->goal_.pose);
@@ -85,8 +87,17 @@ namespace AutoFlight{
 		if (this->rrtPathUpdated_ == false) return;
 
 		this->polyTraj_->updatePath(this->rrtPathMsg_);
+		geometry_msgs::Twist vel;
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+		startCondition *= this->desiredVel_;
+		vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
+		this->polyTraj_->updateInitVel(vel);
 		this->polyTraj_->makePlan(this->polyTrajMsg_);
 		this->rrtPathUpdated_ = false;
+		this->useGlobalTraj_ = true;
+		this->bsplineFailure_ = false; // reset bspline failure
+		ROS_INFO("Global Trajectory Generated!");
 	}
 
 	void navigation::pwlCB(const ros::TimerEvent&){
@@ -109,8 +120,8 @@ namespace AutoFlight{
 		Eigen::Vector3d firstCollisionPos;
 		bool trajValid = this->bsplineTraj_->isCurrTrajValid(firstCollisionPos);
 
+
 		if (this->goalReceived_ or not trajValid){
-			this->goalReceived_ = false;
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
@@ -120,18 +131,39 @@ namespace AutoFlight{
 			startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end vel condition
 			startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end acc condition
 
-			bool updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+			bool updateSuccess = false;
+			if (not this->useGlobalTraj_ and not this->bsplineFailure_){
+				updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+			}
+			
+			if (this->useGlobalTraj_){
+				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+			}
+
+			this->goalReceived_ = false;
 
 
 			if (updateSuccess){
-				bool planSuccess = this->bsplineTraj_->makePlan(this->bsplineTrajMsg_);
+				nav_msgs::Path bsplineTrajMsgTemp;
+				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 				if (planSuccess){
+					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
 				}
 				else{
-					ROS_INFO("Fail. Stop!");
+					if (this->useGlobalTraj_){
+						ROS_INFO("Your goal might not be valid!!! Please change your goal...");	
+					}
+					else{
+						this->bsplineFailure_ = true;
+						ROS_INFO("Bspline failure. Trying replan with global path!");
+					}
 					this->td_.stop(this->odom_.pose.pose);
 				}
+			}
+
+			if (this->useGlobalTraj_){
+				this->useGlobalTraj_ = false;
 			}
 		}
 	}
@@ -144,9 +176,17 @@ namespace AutoFlight{
 	}
 
 	void navigation::visCB(const ros::TimerEvent&){
-		this->rrtPathPub_.publish(this->rrtPathMsg_);
-		this->polyTrajPub_.publish(this->polyTrajMsg_);
-		this->pwlTrajPub_.publish(this->pwlTrajMsg_);
-		this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
+		if (this->rrtPathMsg_.poses.size() != 0){
+			this->rrtPathPub_.publish(this->rrtPathMsg_);
+		}
+		if (this->polyTrajMsg_.poses.size() != 0){
+			this->polyTrajPub_.publish(this->polyTrajMsg_);
+		}
+		if (this->pwlTrajMsg_.poses.size() != 0){
+			this->pwlTrajPub_.publish(this->pwlTrajMsg_);
+		}
+		if (this->bsplineTrajMsg_.poses.size() != 0){
+			this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
+		}
 	}
 }
