@@ -112,6 +112,11 @@ namespace AutoFlight{
 
 		this->pwlTraj_->updatePath(simplePath);
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
+
+		if (this->goalReceived_){
+			this->goalReceived_ = false;
+			this->goalReceivedPWL_ = true;
+		}
 	}
 
 	void navigation::bsplineCB(const ros::TimerEvent&){
@@ -121,7 +126,7 @@ namespace AutoFlight{
 		bool trajValid = this->bsplineTraj_->isCurrTrajValid(firstCollisionPos);
 
 
-		if (this->goalReceived_ or not trajValid){
+		if (this->goalReceivedPWL_ or not trajValid){
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
@@ -140,8 +145,8 @@ namespace AutoFlight{
 				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
 			}
 
-			if (this->goalReceived_){
-				this->goalReceived_ = false;
+			if (this->goalReceivedPWL_){
+				this->goalReceivedPWL_ = false;
 			}
 
 

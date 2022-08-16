@@ -43,6 +43,7 @@ namespace AutoFlight{
 
 
 		double desiredVel_;
+		bool goalReceivedPWL_ = false;
 		bool rrtPathUpdated_ = false;
 		bool bsplineFailure_ = false;
 		bool useGlobalTraj_ = false;
