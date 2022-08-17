@@ -1,0 +1,2 @@
+color_distance: 5.0
+target_obstacle: ["person", "obstacle"]

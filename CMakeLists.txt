@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   global_planner
   trajectory_planner
   map_manager
+  onboard_vision
 )
 
 ## System dependencies are found with CMake's conventions
@@ -128,7 +129,9 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
+  include/${PROJECT_NAME}/simulation/flightBase.cpp
   include/${PROJECT_NAME}/simulation/navigation.cpp
+  include/${PROJECT_NAME}/simulation/dynamicNavigation.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -142,6 +145,7 @@ add_library(
 # add_executable(${PROJECT_NAME}_node src/autonomous_flight_node.cpp)
 # add_executable(test_bspline_node src/simulation/test_bspline_node.cpp)
 add_executable(navigation_node src/simulation/navigation_node.cpp)
+add_executable(dynamic_navigation_node src/simulation/dynamic_navigation_node.cpp)
 
 
 ## Rename C++ executable without prefix
@@ -161,6 +165,7 @@ add_executable(navigation_node src/simulation/navigation_node.cpp)
 # target_link_libraries(test_bspline_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #############
 ## Install ##
