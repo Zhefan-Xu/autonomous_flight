@@ -27,6 +27,8 @@ namespace AutoFlight{
 		double duration;
 		double timestep;
 		bool init = false;
+		int forwardIdx = 10;
+		int minIdx = 20;
 
 		void updateTrajectory(const nav_msgs::Path& _trajectory, double _duration){
 			this->trajectory = _trajectory;
@@ -53,8 +55,11 @@ namespace AutoFlight{
 
 		geometry_msgs::PoseStamped getPose(){
 			int idx = this->getCurrIdx();
-			int di = 0;
-			int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
+			idx = std::max(idx+forwardIdx, minIdx);
+			int newIdx = std::min(idx, int(this->trajectory.poses.size()-1));
+
+			// int di = 0;
+			// int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
 
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			for (size_t i=idx; i<this->trajectory.poses.size(); ++i){
@@ -66,8 +71,11 @@ namespace AutoFlight{
 
 		geometry_msgs::PoseStamped getPose(const geometry_msgs::Pose& psCurr){
 			int idx = this->getCurrIdx();
-			int di = 0;
-			int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
+			idx = std::max(idx+forwardIdx, minIdx);
+			int newIdx = std::min(idx, int(this->trajectory.poses.size()-1));
+			// int di = 0;
+			// int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
+
 
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			geometry_msgs::PoseStamped psFirst;

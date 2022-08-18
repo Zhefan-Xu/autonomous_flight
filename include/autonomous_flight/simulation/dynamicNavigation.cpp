@@ -60,7 +60,7 @@ namespace AutoFlight{
 		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicNavigation::bsplineCB, this);
 
 		// trajectory execution timer
-		// this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::trajExeCB, this);
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::trajExeCB, this);
 
 		// visualization
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::visCB, this);
