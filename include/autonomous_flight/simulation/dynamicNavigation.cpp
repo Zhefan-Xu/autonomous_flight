@@ -60,7 +60,7 @@ namespace AutoFlight{
 		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicNavigation::bsplineCB, this);
 
 		// trajectory execution timer
-		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::trajExeCB, this);
+		// this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::trajExeCB, this);
 
 		// visualization
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::visCB, this);
@@ -131,8 +131,10 @@ namespace AutoFlight{
 		Eigen::Vector3d firstCollisionPos;
 		bool trajValid = this->bsplineTraj_->isCurrTrajValid(firstCollisionPos);
 
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 
-		if (this->goalReceivedPWL_ or not trajValid){
+		if (this->goalReceivedPWL_ or not trajValid or obstaclesPos.size() != 0){
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
@@ -153,6 +155,10 @@ namespace AutoFlight{
 
 			if (this->goalReceivedPWL_){
 				this->goalReceivedPWL_ = false;
+			}
+
+			if (obstaclesPos.size() != 0){
+				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 			}
 
 
@@ -214,10 +220,23 @@ namespace AutoFlight{
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
 		this->detector_->getObstacles(msg);
 		for (onboard_vision::Obstacle ob: msg.obstacles){
-			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz-0.4);
-			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.3);
+			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
+			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
 		this->map_->updateFreeRegions(freeRegions);
+	}
+
+	void dynamicNavigation::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
+		onboard_vision::ObstacleList msg;
+		this->detector_->getObstaclesInSensorRange(PI_const, msg);
+		for (onboard_vision::Obstacle ob : msg.obstacles){
+			Eigen::Vector3d pos (ob.px, ob.py, ob.pz);
+			Eigen::Vector3d vel (ob.vx, ob.vy, ob.vz);
+			Eigen::Vector3d size (ob.xsize, ob.ysize, ob.zsize);
+			obstaclesPos.push_back(pos);
+			obstaclesVel.push_back(vel);
+			obstaclesSize.push_back(size);
+		}
 	}
 }

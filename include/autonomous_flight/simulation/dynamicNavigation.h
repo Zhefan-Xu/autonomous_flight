@@ -67,6 +67,9 @@ namespace AutoFlight{
 		void trajExeCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
 		void freeMapCB(const ros::TimerEvent&);
+
+		// helper function
+		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 	};
 }
 
