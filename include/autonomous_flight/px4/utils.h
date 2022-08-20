@@ -12,13 +12,14 @@
 #include <geometry_msgs/Quaternion.h>
 #include <random>
 
-#define PI_const 3.1415926
 
 namespace AutoFlight{
-    std::random_device rd;
-    std::mt19937 mt(rd());
+    const double PI_const = 3.1415926;
+
     // Helper Function: Random Number
     inline double randomNumber(double min, double max){
+        std::random_device rd;
+        std::mt19937 mt(rd());
         std::uniform_real_distribution<double> distribution(min, max);
         return distribution(mt);
     }

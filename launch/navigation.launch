@@ -1,0 +1,5 @@
+<launch>
+	<rosparam file="$(find autonomous_flight)/cfg/navigation/planner_param.yaml" />
+	<rosparam file="$(find autonomous_flight)/cfg/navigation/mapping_param.yaml" ns="/occupancy_map" />
+	<node pkg="autonomous_flight" type="navigation_node" name="navigation_node" output="screen" />
+</launch>

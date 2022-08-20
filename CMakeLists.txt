@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.0.2)
 project(autonomous_flight)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+# add_compile_options(-std=c++11)
+set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS} -O3 -Wall")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -14,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   octomap_ros
   global_planner
   trajectory_planner
+  map_manager
 )
 
 ## System dependencies are found with CMake's conventions
@@ -125,7 +127,9 @@ include_directories(
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
+   include/${PROJECT_NAME}/px4/flightBase.cpp
    include/${PROJECT_NAME}/px4/inspection.cpp
+   include/${PROJECT_NAME}/px4/navigation.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -140,6 +144,7 @@ add_library(${PROJECT_NAME}
 add_executable(flight_test_node src/px4/flight_test_node.cpp)
 add_executable(offboard_mode_node src/px4/offboard_mode_node.cpp)
 add_executable(inspection_node src/px4/inspection_node.cpp)
+add_executable(navigation_node src/px4/navigation_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -156,9 +161,10 @@ add_executable(inspection_node src/px4/inspection_node.cpp)
 #   ${catkin_LIBRARIES}
 # )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
-target_link_libraries(flight_test_node ${catkin_LIBRARIES})
+target_link_libraries(flight_test_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(offboard_mode_node ${catkin_LIBRARIES})
 target_link_libraries(inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #############
 ## Install ##
