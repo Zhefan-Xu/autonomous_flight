@@ -61,7 +61,7 @@ namespace AutoFlight{
 
 		this->updateTarget(ps);
 		ROS_INFO("Start taking off...");
-		ros::Rate r (10);
+		ros::Rate r (50);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1){
 			ros::spinOnce();
 			r.sleep();
@@ -82,7 +82,6 @@ namespace AutoFlight{
 		for(int i = 100; ros::ok() && i > 0; --i){
 	        this->poseTgt_.header.stamp = ros::Time::now();
 	        this->posePub_.publish(this->poseTgt_);
-	        ros::spinOnce();
 	        r.sleep();
     	}
 
@@ -107,7 +106,6 @@ namespace AutoFlight{
 	        }
 
 			this->posePub_.publish(this->poseTgt_);
-			ros::spinOnce();
 			r.sleep();
 		}
 	}

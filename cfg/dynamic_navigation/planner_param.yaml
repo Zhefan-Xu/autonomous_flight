@@ -6,7 +6,7 @@ desired_angular_velocity: 0.5
 
 rrt/map_resolution: 0.1
 rrt/timeout: 0.1
-rrt/env_box: [-100, 100, -100, 100, 0.5, 1.5]
+rrt/env_box: [-100, 100, -100, 100, 0, 2.5]
 rrt/incremental_distance: 0.5
 rrt/goal_reach_distance: 0.4
 rrt/connect_goal_ratio: 0.2
@@ -27,12 +27,15 @@ poly_traj/maximum_iteration_num: 10
 poly_traj/use_pwl_failsafe: false
 
 bspline_traj/timestep: 0.1
-bspline_traj/distance_threshold: 2.0
+bspline_traj/distance_threshold: 1.0
 bspline_traj/max_vel: 1.0
 bspline_traj/max_acc: 0.5
 bspline_traj/weight_distance: 5.0
 bspline_traj/weight_smoothness: 1.0
 bspline_traj/weight_feasibility: 1.0
-bspline_traj/min_height: 0.5
-bspline_traj/max_height: 1.5
+bspline_traj/weight_dynamic_obstacle: 5.0
+bspline_traj/min_height: 0.4
+bspline_traj/max_height: 1.8
 bspline_traj/uncertain_aware_factor: 2.0
+bspline_traj/prediction_horizon: 1.0
+bspline_traj/distance_threshold_dynamic: 1.0

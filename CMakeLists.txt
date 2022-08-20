@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   global_planner
   trajectory_planner
   map_manager
+  onboard_vision
 )
 
 ## System dependencies are found with CMake's conventions
@@ -130,6 +131,7 @@ add_library(${PROJECT_NAME}
    include/${PROJECT_NAME}/px4/flightBase.cpp
    include/${PROJECT_NAME}/px4/inspection.cpp
    include/${PROJECT_NAME}/px4/navigation.cpp
+   include/${PROJECT_NAME}/px4/dynamicNavigation.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -145,6 +147,7 @@ add_executable(flight_test_node src/px4/flight_test_node.cpp)
 add_executable(offboard_mode_node src/px4/offboard_mode_node.cpp)
 add_executable(inspection_node src/px4/inspection_node.cpp)
 add_executable(navigation_node src/px4/navigation_node.cpp)
+add_executable(dynamic_navigation_node src/px4/dynamic_navigation_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -165,6 +168,8 @@ target_link_libraries(flight_test_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(offboard_mode_node ${catkin_LIBRARIES})
 target_link_libraries(inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+
 
 #############
 ## Install ##
