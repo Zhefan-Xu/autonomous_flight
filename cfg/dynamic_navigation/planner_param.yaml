@@ -3,7 +3,7 @@ desired_angular_velocity: 0.5
 
 rrt/map_resolution: 0.1
 rrt/timeout: 0.1
-rrt/env_box: [-100, 100, -100, 100, 0.5, 1.5]
+rrt/env_box: [-100, 100, -100, 100, 1.0, 1.0]
 rrt/incremental_distance: 0.5
 rrt/goal_reach_distance: 0.4
 rrt/connect_goal_ratio: 0.2
