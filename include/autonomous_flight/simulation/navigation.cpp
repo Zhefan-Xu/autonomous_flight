@@ -61,6 +61,9 @@ namespace AutoFlight{
 
 		// visualization
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::visCB, this);
+
+		// collision check
+		this->collisionCheckTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::collisionCheckCB, this);
 	}
 
 	void navigation::run(){
@@ -73,9 +76,8 @@ namespace AutoFlight{
 
 	void navigation::rrtCB(const ros::TimerEvent&){
 		if (not this->bsplineFailure_) return;
-		if (not this->firstGoal_) return;
-		// if (this->rrtPlanner_->isCurrPathValid() and not this->rrtPlanner_->hasNewGoal(this->goal_.pose)) return;
-
+		if (not this->firstGoal_) return;		
+		
 		this->rrtPlanner_->updateStart(this->odom_.pose.pose);
 		this->rrtPlanner_->updateGoal(this->goal_.pose);
 		this->rrtPlanner_->makePlan(this->rrtPathMsg_);
@@ -113,20 +115,37 @@ namespace AutoFlight{
 		this->pwlTraj_->updatePath(simplePath);
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
 
+
 		if (this->goalReceived_){
+			// move to the correct orientation
+			double yaw = atan2(pGoal.pose.position.y - pStart.pose.position.y, pGoal.pose.position.x - pStart.pose.position.x);
+			geometry_msgs::PoseStamped poseTgt;
+			poseTgt.pose.position = pStart.pose.position;
+			poseTgt.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, yaw);
+			nav_msgs::Path rotationPath, rotationTraj;
+			std::vector<geometry_msgs::PoseStamped> rotationPathVec {pStart, poseTgt};
+			rotationPath.poses = rotationPathVec;
+			this->pwlTraj_->updatePath(rotationPath, true);
+			this->pwlTraj_->makePlan(rotationTraj, 0.1);
+			this->td_.updateTrajectory(rotationTraj, this->pwlTraj_->getDuration());
+	
+			ros::Rate r (50);
+			while (ros::ok() and not this->isReach(poseTgt)){
+				this->adjustingYaw_ = true;
+				ros::spinOnce();
+				r.sleep();
+			}
+			this->adjustingYaw_ = false;
 			this->goalReceived_ = false;
-			this->goalReceivedPWL_ = true;
+			this->goalReceivedPWL_ = true;	
 		}
 	}
 
 	void navigation::bsplineCB(const ros::TimerEvent&){
 		if (this->pwlTrajMsg_.poses.size() == 0) return;
 		// update when current trajectory is not valid or new goal received
-		Eigen::Vector3d firstCollisionPos;
-		bool trajValid = this->bsplineTraj_->isCurrTrajValid(firstCollisionPos);
-
-
-		if (this->goalReceivedPWL_ or not trajValid){
+		if (this->goalReceivedPWL_ or not this->trajValid_ or this->useGlobalTraj_){
+			if (this->adjustingYaw_) return;
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
@@ -140,7 +159,7 @@ namespace AutoFlight{
 			if (not this->useGlobalTraj_ and not this->bsplineFailure_){
 				updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
 			}
-			
+
 			if (this->useGlobalTraj_){
 				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
 			}
@@ -156,6 +175,7 @@ namespace AutoFlight{
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+					this->trajValid_ = true;
 				}
 				else{
 					if (this->useGlobalTraj_){
@@ -171,7 +191,7 @@ namespace AutoFlight{
 							ROS_INFO("Bspline failure. Trying replan with global path!");
 						}
 					}
-					this->td_.stop(this->odom_.pose.pose);
+					this->td_.stop(this->odom_.pose.pose); // update stop trajectory
 				}
 			}
 
@@ -185,6 +205,7 @@ namespace AutoFlight{
 		if (not this->td_.init){
 			return;
 		}
+
 		this->updateTarget(this->td_.getPose());
 	}
 
@@ -201,5 +222,18 @@ namespace AutoFlight{
 		if (this->bsplineTrajMsg_.poses.size() != 0){
 			this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
 		}
+	}
+
+	void navigation::collisionCheckCB(const ros::TimerEvent&){
+		if (this->td_.currTrajectory.poses.size() == 0) return;
+		nav_msgs::Path currTrajectory = this->td_.currTrajectory;
+		for (geometry_msgs::PoseStamped ps : currTrajectory.poses){
+			Eigen::Vector3d p (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
+			if (this->map_->isInflatedOccupied(p)){
+				this->trajValid_ = false;
+				return;
+			}
+		}
+		this->trajValid_ = true;
 	}
 }

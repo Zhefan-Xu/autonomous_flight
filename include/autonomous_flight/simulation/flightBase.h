@@ -58,8 +58,6 @@ namespace AutoFlight{
 			idx = std::max(idx+forwardIdx, minIdx);
 			int newIdx = std::min(idx, int(this->trajectory.poses.size()-1));
 
-			// int di = 0;
-			// int newIdx = std::min(idx+di, int(this->trajectory.poses.size()-1));
 
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			for (size_t i=idx; i<this->trajectory.poses.size(); ++i){

@@ -29,6 +29,7 @@ namespace AutoFlight{
 		ros::Timer bsplineTimer_;
 		ros::Timer trajExeTimer_;
 		ros::Timer visTimer_;
+		ros::Timer collisionCheckTimer_;
 		
 		ros::Publisher rrtPathPub_;
 		ros::Publisher polyTrajPub_;
@@ -47,6 +48,8 @@ namespace AutoFlight{
 		bool rrtPathUpdated_ = false;
 		bool bsplineFailure_ = false;
 		bool useGlobalTraj_ = false;
+		bool adjustingYaw_ = false;
+		bool trajValid_ = true;
 
 
 	public:
@@ -63,6 +66,7 @@ namespace AutoFlight{
 		void bsplineCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
+		void collisionCheckCB(const ros::TimerEvent&);
 	};
 }
 
