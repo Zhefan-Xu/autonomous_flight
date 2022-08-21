@@ -67,6 +67,10 @@ namespace AutoFlight{
 
 		// free map timer
 		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+
+
+		// collision check
+		this->collisionCheckTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicNavigation::collisionCheckCB, this);
 	}
 
 	void dynamicNavigation::run(){
@@ -120,6 +124,24 @@ namespace AutoFlight{
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
 
 		if (this->goalReceived_){
+			double yaw = atan2(pGoal.pose.position.y - pStart.pose.position.y, pGoal.pose.position.x - pStart.pose.position.x);
+			geometry_msgs::PoseStamped poseTgt;
+			poseTgt.pose.position = pStart.pose.position;
+			poseTgt.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, yaw);
+			nav_msgs::Path rotationPath, rotationTraj;
+			std::vector<geometry_msgs::PoseStamped> rotationPathVec {pStart, poseTgt};
+			rotationPath.poses = rotationPathVec;
+			this->pwlTraj_->updatePath(rotationPath, true);
+			this->pwlTraj_->makePlan(rotationTraj, 0.1);
+			this->td_.updateTrajectory(rotationTraj, this->pwlTraj_->getDuration());
+	
+			ros::Rate r (50);
+			while (ros::ok() and not this->isReach(poseTgt)){
+				this->adjustingYaw_ = true;
+				ros::spinOnce();
+				r.sleep();
+			}
+			this->adjustingYaw_ = false;
 			this->goalReceived_ = false;
 			this->goalReceivedPWL_ = true;
 		}
@@ -128,13 +150,12 @@ namespace AutoFlight{
 	void dynamicNavigation::bsplineCB(const ros::TimerEvent&){
 		if (this->pwlTrajMsg_.poses.size() == 0) return;
 		// update when current trajectory is not valid or new goal received
-		Eigen::Vector3d firstCollisionPos;
-		bool trajValid = this->bsplineTraj_->isCurrTrajValid(firstCollisionPos);
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 
-		if (this->goalReceivedPWL_ or not trajValid or obstaclesPos.size() != 0){
+		if (this->goalReceivedPWL_ or not this->trajValid_ or obstaclesPos.size() != 0 or this->useGlobalTraj_){
+			if (this->adjustingYaw_) return;
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
@@ -168,6 +189,7 @@ namespace AutoFlight{
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+					this->trajValid_ = true;
 				}
 				else{
 					if (this->useGlobalTraj_){
@@ -225,6 +247,19 @@ namespace AutoFlight{
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
 		this->map_->updateFreeRegions(freeRegions);
+	}
+
+	void dynamicNavigation::collisionCheckCB(const ros::TimerEvent&){
+		if (this->td_.currTrajectory.poses.size() == 0) return;
+		nav_msgs::Path currTrajectory = this->td_.currTrajectory;
+		for (geometry_msgs::PoseStamped ps : currTrajectory.poses){
+			Eigen::Vector3d p (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
+			if (this->map_->isInflatedOccupied(p)){
+				this->trajValid_ = false;
+				return;
+			}
+		}
+		this->trajValid_ = true;
 	}
 
 	void dynamicNavigation::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){

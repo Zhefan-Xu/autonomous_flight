@@ -32,7 +32,8 @@ namespace AutoFlight{
 		ros::Timer trajExeTimer_;
 		ros::Timer visTimer_;
 		ros::Timer freeMapTimer_;
-		
+		ros::Timer collisionCheckTimer_;
+
 		ros::Publisher rrtPathPub_;
 		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
@@ -50,6 +51,8 @@ namespace AutoFlight{
 		bool rrtPathUpdated_ = false;
 		bool bsplineFailure_ = false;
 		bool useGlobalTraj_ = false;
+		bool adjustingYaw_ = false;
+		bool trajValid_ = true;
 
 
 	public:
@@ -67,6 +70,7 @@ namespace AutoFlight{
 		void trajExeCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
 		void freeMapCB(const ros::TimerEvent&);
+		void collisionCheckCB(const ros::TimerEvent&);
 
 		// helper function
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
