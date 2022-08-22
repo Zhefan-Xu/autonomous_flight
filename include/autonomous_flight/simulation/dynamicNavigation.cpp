@@ -201,8 +201,13 @@ namespace AutoFlight{
 							ROS_INFO("Your selected goal is not collision-free. Please change your goal.");
 						}
 						else{
-							this->bsplineFailure_ = true;
-							ROS_INFO("Bspline failure. Trying replan with global path!");
+							if (obstaclesPos.size() == 0){
+								this->bsplineFailure_ = true;
+								ROS_INFO("Bspline failure. Trying replan with global path!");
+							}
+							else{
+								ROS_INFO("Failure. Stop.");
+							}
 						}
 					}
 					this->td_.stop(this->odom_.pose.pose);

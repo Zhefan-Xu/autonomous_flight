@@ -4,7 +4,7 @@ pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
 
 # robot size
-robot_size: [0.8, 0.8, 0.4]
+robot_size: [0.5, 0.5, 0.3]
 
 # Camera Parameters
 depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy
@@ -32,7 +32,7 @@ p_occ: 0.80
 # Map
 map_resolution: 0.1
 ground_height: -0.1 # m
-map_size: [40, 40, 3] # meter. in x y z direction (reserved size)
+map_size: [60, 60, 3] # meter. in x y z direction (reserved size)
 local_update_range: [5, 5, 5]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
