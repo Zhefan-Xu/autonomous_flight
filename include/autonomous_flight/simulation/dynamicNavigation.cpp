@@ -19,8 +19,8 @@ namespace AutoFlight{
 	void dynamicNavigation::initModules(){
 		// initialize map
 		// this->map_.reset(new mapManager::occMap (this->nh_));
-		this->map_.reset(new mapManager::dynamicMap (this->nh_));
-		// this->map_->initMap(this->nh_);
+		this->map_.reset(new mapManager::dynamicMap ());
+		this->map_->initMap(this->nh_);
 
 		// initialize fake detector
 		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
@@ -154,10 +154,10 @@ namespace AutoFlight{
 		// update when current trajectory is not valid or new goal received
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-		this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-		// this->map_->getObjPos(obstaclesPos);
-		// this->map_->getObjVel(obstaclesVel);
-		// this->map_->getObjSize(obstaclesSize);
+		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		this->map_->getObjPos(obstaclesPos);
+		this->map_->getObjVel(obstaclesVel);
+		this->map_->getObjSize(obstaclesSize);
 		// cout << "dynamic obstacle size: " << obstaclesPos.size() << endl;
 		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 
