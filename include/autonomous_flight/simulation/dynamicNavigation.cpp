@@ -18,7 +18,9 @@ namespace AutoFlight{
 
 	void dynamicNavigation::initModules(){
 		// initialize map
-		this->map_.reset(new mapManager::occMap (this->nh_));
+		// this->map_.reset(new mapManager::occMap (this->nh_));
+		this->map_.reset(new mapManager::dynamicMap (this->nh_));
+		// this->map_->initMap(this->nh_);
 
 		// initialize fake detector
 		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
@@ -66,7 +68,7 @@ namespace AutoFlight{
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::visCB, this);
 
 		// free map timer
-		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		// this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 
 
 		// collision check
@@ -152,7 +154,12 @@ namespace AutoFlight{
 		// update when current trajectory is not valid or new goal received
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		// this->map_->getObjPos(obstaclesPos);
+		// this->map_->getObjVel(obstaclesVel);
+		// this->map_->getObjSize(obstaclesSize);
+		// cout << "dynamic obstacle size: " << obstaclesPos.size() << endl;
+		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 
 		if (this->goalReceivedPWL_ or not this->trajValid_ or obstaclesPos.size() != 0 or this->useGlobalTraj_){
 			if (this->adjustingYaw_) return;

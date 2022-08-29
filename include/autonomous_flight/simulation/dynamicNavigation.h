@@ -9,6 +9,7 @@
 
 #include <autonomous_flight/simulation/flightBase.h>
 #include <map_manager/occupancyMap.h>
+#include <map_manager/dynamicMap.h>
 #include <onboard_vision/fakeDetector.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
@@ -18,7 +19,8 @@
 namespace AutoFlight{
 	class dynamicNavigation : public flightBase{
 	private:
-		std::shared_ptr<mapManager::occMap> map_;
+		// std::shared_ptr<mapManager::occMap> map_;
+		std::shared_ptr<mapManager::dynamicMap> map_;
 		std::shared_ptr<onboardVision::fakeDetector> detector_;
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
