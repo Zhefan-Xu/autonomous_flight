@@ -132,6 +132,7 @@ add_library(
   include/${PROJECT_NAME}/simulation/flightBase.cpp
   include/${PROJECT_NAME}/simulation/navigation.cpp
   include/${PROJECT_NAME}/simulation/dynamicNavigation.cpp
+  include/${PROJECT_NAME}/simulation/testNavigation.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -146,6 +147,7 @@ add_library(
 # add_executable(test_bspline_node src/simulation/test_bspline_node.cpp)
 add_executable(navigation_node src/simulation/navigation_node.cpp)
 add_executable(dynamic_navigation_node src/simulation/dynamic_navigation_node.cpp)
+add_executable(test_navigation_node src/simulation/test_navigation_node.cpp)
 
 
 ## Rename C++ executable without prefix
@@ -166,6 +168,7 @@ add_executable(dynamic_navigation_node src/simulation/dynamic_navigation_node.cp
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(test_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #############
 ## Install ##

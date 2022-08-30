@@ -158,7 +158,6 @@ namespace AutoFlight{
 		this->map_->getObjPos(obstaclesPos);
 		this->map_->getObjVel(obstaclesVel);
 		this->map_->getObjSize(obstaclesSize);
-		// cout << "dynamic obstacle size: " << obstaclesPos.size() << endl;
 		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 
 		if (this->goalReceivedPWL_ or not this->trajValid_ or obstaclesPos.size() != 0 or this->useGlobalTraj_){
@@ -176,6 +175,7 @@ namespace AutoFlight{
 			if (not this->useGlobalTraj_ and not this->bsplineFailure_){
 				updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
 			}
+
 			
 			if (this->useGlobalTraj_){
 				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
