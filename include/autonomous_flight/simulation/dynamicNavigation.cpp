@@ -68,7 +68,7 @@ namespace AutoFlight{
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::visCB, this);
 
 		// free map timer
-		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		// this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 
 
 		// collision check
@@ -155,12 +155,16 @@ namespace AutoFlight{
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-		// this->map_->getObjPos(obstaclesPos);
-		// this->map_->getObjVel(obstaclesVel);
-		// this->map_->getObjSize(obstaclesSize);
-		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		this->map_->getObjPos(obstaclesPos);
+		this->map_->getObjVel(obstaclesVel);
+		this->map_->getObjSize(obstaclesSize);
+		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		bool planForDynamicObstacle = false;
+		if (obstaclesPos.size() != 0 and not this->trajValid_){
+			planForDynamicObstacle = true;
+		}
 
-		if (this->goalReceivedPWL_ or not this->trajValid_ or obstaclesPos.size() != 0 or this->useGlobalTraj_){
+		if (this->goalReceivedPWL_ or not this->trajValid_ or planForDynamicObstacle or this->useGlobalTraj_){
 			if (this->adjustingYaw_) return;
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
@@ -264,15 +268,39 @@ namespace AutoFlight{
 	void dynamicNavigation::collisionCheckCB(const ros::TimerEvent&){
 		if (this->td_.currTrajectory.poses.size() == 0) return;
 		nav_msgs::Path currTrajectory = this->td_.currTrajectory;
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		this->map_->getObjPos(obstaclesPos);
+		this->map_->getObjVel(obstaclesVel);
+		this->map_->getObjSize(obstaclesSize);
+		Eigen::Vector3d obstaclePos, obstacleSize, diff;
+		double size, dist;
+
+		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		for (geometry_msgs::PoseStamped ps : currTrajectory.poses){
 			Eigen::Vector3d p (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
 			if (this->map_->isInflatedOccupied(p)){
 				this->trajValid_ = false;
 				return;
 			}
+
+			for (size_t i=0; i<obstaclesPos.size(); ++i){
+				obstaclePos = obstaclesPos[i];
+				obstacleSize = obstaclesSize[i];
+				size = std::min(obstacleSize(0)/2, obstacleSize(1)/2);
+				diff = p - obstaclePos;
+				diff(2) = 0.0;
+				dist = diff.norm() - size;
+				if (dist < 0){
+					this->trajValid_ = false;	
+					return;
+				}
+			}
+
 		}
 		this->trajValid_ = true;
 	}
+
 
 	void dynamicNavigation::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
 		onboard_vision::ObstacleList msg;
