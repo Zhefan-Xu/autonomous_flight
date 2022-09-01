@@ -68,7 +68,7 @@ namespace AutoFlight{
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::visCB, this);
 
 		// free map timer
-		// this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 
 
 		// collision check
@@ -155,10 +155,10 @@ namespace AutoFlight{
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-		this->map_->getObjPos(obstaclesPos);
-		this->map_->getObjVel(obstaclesVel);
-		this->map_->getObjSize(obstaclesSize);
-		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		// this->map_->getObjPos(obstaclesPos);
+		// this->map_->getObjVel(obstaclesVel);
+		// this->map_->getObjSize(obstaclesSize);
+		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 
 		if (this->goalReceivedPWL_ or not this->trajValid_ or obstaclesPos.size() != 0 or this->useGlobalTraj_){
 			if (this->adjustingYaw_) return;

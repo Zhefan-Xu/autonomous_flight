@@ -63,7 +63,10 @@ namespace AutoFlight{
 	}
 
 	void testNavigation::plannerCB(const ros::TimerEvent&){
-		if (not this->firstGoal_ or not this->goalReceived_) return;
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		if (not this->firstGoal_) return;
+		if (obstaclesSize.size() == 0 and not this->goalReceived_) return;
 
 		nav_msgs::Path simplePath;
 		geometry_msgs::PoseStamped pStart, pGoal;
@@ -112,7 +115,11 @@ namespace AutoFlight{
 
 		bool updateSuccess = false;
 		updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+	
 
+		if (obstaclesPos.size() != 0){
+			this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
 
 		if (updateSuccess){
 			nav_msgs::Path bsplineTrajMsgTemp;
