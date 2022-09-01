@@ -42,6 +42,18 @@ namespace AutoFlight{
 			}
 		}
 
+		void updateTrajectoryTimestep(const nav_msgs::Path& _trajectory, double _timestep){
+			this->trajectory = _trajectory;
+			this->currTrajectory = _trajectory;
+			this->timestep = _timestep;
+			this->duration = (this->trajectory.poses.size()-1) * this->timestep;
+			this->tCurr = 0.0;
+			this->startTime = ros::Time::now();
+			if (not this->init){
+				this->init = true;
+			}
+		}
+
 		int getCurrIdx(){
 			ros::Time currTime = ros::Time::now();
 			this->tCurr = (currTime - this->startTime).toSec() + this->timestep;

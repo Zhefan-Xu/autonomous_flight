@@ -35,4 +35,4 @@ bspline_traj/min_height: 0.6
 bspline_traj/max_height: 1.8
 bspline_traj/uncertain_aware_factor: 10
 bspline_traj/prediction_horizon: 2.0
-bspline_traj/distance_threshold_dynamic: 1.0
+bspline_traj/distance_threshold_dynamic: 0.5
