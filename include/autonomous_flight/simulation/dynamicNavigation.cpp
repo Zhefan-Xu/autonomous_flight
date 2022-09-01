@@ -59,7 +59,7 @@ namespace AutoFlight{
 		this->pwlTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicNavigation::pwlCB, this);
 		
 		// bspline timer
-		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicNavigation::bsplineCB, this);
+		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.5), &dynamicNavigation::bsplineCB, this);
 
 		// trajectory execution timer
 		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::trajExeCB, this);
@@ -160,7 +160,8 @@ namespace AutoFlight{
 		this->map_->getObjSize(obstaclesSize);
 		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		bool planForDynamicObstacle = false;
-		if (obstaclesPos.size() != 0 and not this->trajValid_){
+		// if (obstaclesPos.size() != 0 and not this->trajValid_){
+		if (obstaclesPos.size() != 0){
 			planForDynamicObstacle = true;
 		}
 
