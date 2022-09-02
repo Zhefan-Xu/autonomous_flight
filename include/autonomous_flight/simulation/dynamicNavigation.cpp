@@ -59,7 +59,7 @@ namespace AutoFlight{
 		this->pwlTimer_ = this->nh_.createTimer(ros::Duration(0.05), &dynamicNavigation::pwlCB, this);
 		
 		// bspline timer
-		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.3), &dynamicNavigation::bsplineCB, this);
+		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::bsplineCB, this);
 
 		// trajectory execution timer
 		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::trajExeCB, this);
