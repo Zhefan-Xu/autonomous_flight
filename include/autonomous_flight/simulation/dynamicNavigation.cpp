@@ -68,7 +68,7 @@ namespace AutoFlight{
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::visCB, this);
 
 		// free map timer
-		// this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 
 
 		// collision check
@@ -155,17 +155,17 @@ namespace AutoFlight{
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-		this->map_->getObjPos(obstaclesPos);
-		this->map_->getObjVel(obstaclesVel);
-		this->map_->getObjSize(obstaclesSize);
-		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		// this->map_->getObjPos(obstaclesPos);
+		// this->map_->getObjVel(obstaclesVel);
+		// this->map_->getObjSize(obstaclesSize);
+		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		bool planForDynamicObstacle = false;
 		// if (obstaclesPos.size() != 0 and not this->trajValid_){
 		if (obstaclesPos.size() != 0){
 			planForDynamicObstacle = true;
 		}
 
-		if (this->goalReceivedPWL_ or not this->trajValid_ or planForDynamicObstacle or this->useGlobalTraj_){
+		if (this->goalReceivedPWL_ or not this->trajValid_ or planForDynamicObstacle or this->useGlobalTraj_ or (this->td_.needReplan(1.0/3.0))){
 			if (this->adjustingYaw_) return;
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);

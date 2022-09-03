@@ -109,6 +109,21 @@ namespace AutoFlight{
 			this->startTime = ros::Time::now();
 			this->duration = this->timestep; 
 		}
+
+		double getRemainTime(){
+			ros::Time currTime = ros::Time::now();
+			double tCurr = (currTime - this->startTime).toSec() + this->timestep;
+			return this->duration - tCurr;
+		}
+
+		bool needReplan(double factor){
+			if (this->getRemainTime() <= this->duration * (1 - factor)){
+				return true;
+			}
+			else{
+				return false;
+			}
+		}
 	};
 
 	class flightBase{

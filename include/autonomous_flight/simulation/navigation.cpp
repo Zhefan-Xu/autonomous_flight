@@ -144,7 +144,7 @@ namespace AutoFlight{
 	void navigation::bsplineCB(const ros::TimerEvent&){
 		if (this->pwlTrajMsg_.poses.size() == 0) return;
 		// update when current trajectory is not valid or new goal received
-		if (this->goalReceivedPWL_ or not this->trajValid_ or this->useGlobalTraj_){
+		if (this->goalReceivedPWL_ or not this->trajValid_ or this->useGlobalTraj_ or (this->td_.needReplan(1.0/3.0))){
 			if (this->adjustingYaw_) return;
 			std::vector<Eigen::Vector3d> startEndCondition;
 			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
