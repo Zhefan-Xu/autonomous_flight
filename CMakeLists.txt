@@ -133,6 +133,7 @@ add_library(
   include/${PROJECT_NAME}/simulation/navigation.cpp
   include/${PROJECT_NAME}/simulation/dynamicNavigation.cpp
   include/${PROJECT_NAME}/simulation/testNavigation.cpp
+  include/${PROJECT_NAME}/simulation/navigationWaypoint.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -148,7 +149,7 @@ add_library(
 add_executable(navigation_node src/simulation/navigation_node.cpp)
 add_executable(dynamic_navigation_node src/simulation/dynamic_navigation_node.cpp)
 add_executable(test_navigation_node src/simulation/test_navigation_node.cpp)
-
+add_executable(navigation_waypoint_node src/simulation/navigation_waypoint_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -169,6 +170,7 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(test_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(navigation_waypoint_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 #############
 ## Install ##

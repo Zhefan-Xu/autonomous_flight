@@ -1,0 +1,6 @@
+<launch>
+	<rosparam file="$(find autonomous_flight)/cfg/navigation_waypoint/planner_param.yaml" />
+	<rosparam file="$(find autonomous_flight)/cfg/navigation_waypoint/mapping_param.yaml" ns="/occupancy_map" />
+	<rosparam file="$(find autonomous_flight)/cfg/navigation_waypoint/waypoints.yaml" />
+	<node pkg="autonomous_flight" type="navigation_waypoint_node" name="navigation_waypoint_node" output="screen" />
+</launch>
