@@ -19,7 +19,7 @@ namespace AutoFlight{
 	class navigationWaypoint : public flightBase{
 	private:
 		std::shared_ptr<mapManager::occMap> map_;
-		// std::shared_ptr<mapManager::dynamicMap> map_;
+		// std::shared_ptr<mapManager::dynamicMap> dynamicMap_;
 		std::shared_ptr<onboardVision::fakeDetector> detector_;
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;

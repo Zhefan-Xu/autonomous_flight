@@ -19,8 +19,11 @@ namespace AutoFlight{
 	void navigationWaypoint::initModules(){
 		// initialize map
 		this->map_.reset(new mapManager::occMap (this->nh_));
-		// this->map_.reset(new mapManager::dynamicMap ());
-		// this->map_->initMap(this->nh_);
+		// this->dynamicMap_.reset(new mapManager::dynamicMap ());
+		// this->dynamicMap_->initMap(this->nh_);
+		
+		// initialize fake detector
+		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
 
 		// initialize polynomial trajectory planner
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
@@ -44,13 +47,12 @@ namespace AutoFlight{
 		// planner timer
 		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigationWaypoint::plannerCB, this);
 		
-		// initialize fake detector
-		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
+
 		// trajectory execution timer
 		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigationWaypoint::trajExeCB, this);
 
 		// visualization
-		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigationWaypoint::visCB, this);
+		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigationWaypoint::visCB, this);
 
 		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigationWaypoint::freeMapCB, this);
 
@@ -200,7 +202,7 @@ namespace AutoFlight{
 					this->trajValid_ = true;
 				}
 				else{
-					this->td_.stop(this->odom_.pose.pose);
+					// this->td_.stop(this->odom_.pose.pose);
 				}
 			}
 		}
@@ -281,9 +283,14 @@ namespace AutoFlight{
 			Eigen::Vector3d pos (ob.px, ob.py, ob.pz);
 			Eigen::Vector3d vel (ob.vx, ob.vy, ob.vz);
 			Eigen::Vector3d size (ob.xsize, ob.ysize, ob.zsize);
-			obstaclesPos.push_back(pos);
-			obstaclesVel.push_back(vel);
-			obstaclesSize.push_back(size);
+			Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+			Eigen::Vector3d posCheck = pos;
+			posCheck(2) = this->odom_.pose.pose.position.z;
+			if (not this->map_->isInflatedOccupiedLine(currPos, posCheck)){
+				obstaclesPos.push_back(pos);
+				obstaclesVel.push_back(vel);
+				obstaclesSize.push_back(size);
+			}
 		}
 	}
 }
