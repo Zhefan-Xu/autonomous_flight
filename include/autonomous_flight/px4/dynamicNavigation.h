@@ -8,7 +8,7 @@
 #define AUTOFLIGHT_DYNAMIC_NAVIGATION_H
 
 #include <autonomous_flight/px4/flightBase.h>
-#include <map_manager/occupancyMap.h>
+#include <map_manager/dynamicMap.h>
 #include <onboard_vision/fakeDetector.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
@@ -18,41 +18,29 @@
 namespace AutoFlight{
 	class dynamicNavigation : public flightBase{
 	private:
-		std::shared_ptr<mapManager::occMap> map_;
-		std::shared_ptr<onboardVision::fakeDetector> detector_;
-		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
-		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
+		std::shared_ptr<mapManager::dynamicMap> map_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
 
-		ros::Timer rrtTimer_;
-		ros::Timer polyTrajTimer_;
-		ros::Timer pwlTimer_;
-		ros::Timer bsplineTimer_;
+		ros::Timer plannerTimer_;
 		ros::Timer trajExeTimer_;
+		ros::Timer historyTrajTimer_;
 		ros::Timer visTimer_;
-		ros::Timer freeMapTimer_;
 		ros::Timer collisionCheckTimer_;
 
-		ros::Publisher rrtPathPub_;
-		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
+		ros::Publisher historyTrajPub_;
 
 		AutoFlight::trajData td_;
-		nav_msgs::Path rrtPathMsg_;
-		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
+		nav_msgs::Path historyTrajMsg_;
 
 
 		double desiredVel_;
-		bool goalReceivedPWL_ = false;
-		bool rrtPathUpdated_ = false;
-		bool bsplineFailure_ = false;
-		bool useGlobalTraj_ = false;
-		bool adjustingYaw_ = false;
 		bool trajValid_ = true;
+		bool adjustHeading_ = false;
 
 
 	public:
@@ -62,18 +50,14 @@ namespace AutoFlight{
 		void registerPub();
 		void registerCallback();
 		void run();
+		void adjustHeading();
+		void getStartCondition(std::vector<Eigen::Vector3d>& startEndCondition);
 
-		void rrtCB(const ros::TimerEvent&);
-		void polyTrajCB(const ros::TimerEvent&);
-		void pwlCB(const ros::TimerEvent&);
-		void bsplineCB(const ros::TimerEvent&);
+		void plannerCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
+		void historyTrajCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
-		void freeMapCB(const ros::TimerEvent&);
 		void collisionCheckCB(const ros::TimerEvent&);
-
-		// helper function
-		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 	};
 }
 
