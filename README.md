@@ -4,6 +4,6 @@ This branch is for the real-world or PX4-based simulation flight. Check the ```m
 
 
 ### Autonomous Flight Options
-  - ```Navigation```
-  - ```Dynamic Navigation```
-  - ```Inspection```
+  - ```Navigation```:
+  - ```Dynamic Navigation```:
+  - ```Inspection```:
