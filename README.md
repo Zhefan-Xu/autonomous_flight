@@ -12,4 +12,4 @@ This package includes the autonomous flight implementation for the PX4-based unm
 
 
 ### II. Quick Start
-This package depends on [map_manager](https://github.com/Zhefan-Xu/map_manager), [global_planner](https://github.com/Zhefan-Xu/global_planner), [trajectory_planner](https://github.com/Zhefan-Xu/trajectory_planner), [onboard_vision](https://github.com/Zhefan-Xu/onboard_vision). Please install those packages first!
+This package depends on [map_manager](https://github.com/Zhefan-Xu/map_manager), [global_planner](https://github.com/Zhefan-Xu/global_planner), [trajectory_planner](https://github.com/Zhefan-Xu/trajectory_planner) and [onboard_vision](https://github.com/Zhefan-Xu/onboard_vision). Please install those packages first!
