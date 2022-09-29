@@ -11,5 +11,19 @@ This package includes the autonomous flight implementation for the PX4-based unm
   - ```Inspection (Dynamic Map)```: Autonomous Tunnel Inspection using the Dynamic Map. (In Progress)
 
 
-### II. Quick Start
+### II. Installation
 This package depends on [map_manager](https://github.com/Zhefan-Xu/map_manager), [global_planner](https://github.com/Zhefan-Xu/global_planner), [trajectory_planner](https://github.com/Zhefan-Xu/trajectory_planner) and [onboard_vision](https://github.com/Zhefan-Xu/onboard_vision). Please install those packages first!
+```
+cd ~/catkin_ws/src/CERLAB-Autonomy
+git clone https://github.com/Zhefan-Xu/autonomous_flight.git
+
+cd ~/catkin_ws
+catkin_make
+```
+
+### III. Quick Start
+```Takeoff/Hovering```:
+```
+todo
+```
+
