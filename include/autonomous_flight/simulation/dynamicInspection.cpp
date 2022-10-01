@@ -8,7 +8,32 @@
 
 namespace AutoFlight{
 	dynamicInspection::dynamicInspection(const ros::NodeHandle& nh) : flightBase(nh){
+		this->initModules();
+	}
 
+	void dynamicInspection::initModules(){
+		// initialize map
+		this->map_.reset(new mapManager::occMap (this->nh_));
+		// this->map_.reset(new mapManager::dynamicMap ());
+		// this->map_->initMap(this->nh_);
+
+		// initialize fake detector
+		// this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
+
+		// initialize rrt planner
+		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
+		this->rrtPlanner_->setMap(this->map_);
+
+		// initialize polynomial trajectory planner
+		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
+		this->polyTraj_->setMap(this->map_);
+
+		// initialize piecewise linear trajectory planner
+		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
+
+		// initialize bspline trajectory planner
+		this->bsplineTraj_.reset(new trajPlanner::bsplineTraj (this->nh_));
+		this->bsplineTraj_->setMap(this->map_);
 	}
 
 	void dynamicInspection::registerCallback(){

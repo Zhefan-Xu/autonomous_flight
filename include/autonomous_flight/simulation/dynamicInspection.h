@@ -38,6 +38,7 @@ namespace AutoFlight{
 	public:
 		dynamicInspection();
 		dynamicInspection(const ros::NodeHandle& nh);
+		void initModules();
 		void registerCallback();
 		void run();
 		void plannerCB(const ros::TimerEvent&);

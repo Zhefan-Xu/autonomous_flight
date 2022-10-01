@@ -151,7 +151,7 @@ add_executable(navigation_node src/simulation/navigation_node.cpp)
 add_executable(dynamic_navigation_node src/simulation/dynamic_navigation_node.cpp)
 add_executable(test_navigation_node src/simulation/test_navigation_node.cpp)
 add_executable(navigation_waypoint_node src/simulation/navigation_waypoint_node.cpp)
-add_executable(dynamic_inspection_node src/simulation/dynamic_navigation_node.cpp)
+add_executable(dynamic_inspection_node src/simulation/dynamic_inspection_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
