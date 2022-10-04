@@ -11,6 +11,17 @@ namespace AutoFlight{
 		this->initModules();
 	}
 
+	void dynamicInspection::initParam(){
+		// minimum wall area
+		if (not this->nh_.getParam("min_wall_area", this->minWallArea_)){
+			this->minWallArea_ = 20;
+			cout << "[AutoFlight]: No minimum wall area param. Use default 20m^2." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Minimum wall area is set to: " << this->minWallArea_ << "m^2." << endl;
+		}		
+	}
+
 	void dynamicInspection::initModules(){
 		// initialize map
 		this->map_.reset(new mapManager::occMap (this->nh_));
@@ -39,6 +50,9 @@ namespace AutoFlight{
 	void dynamicInspection::registerCallback(){
 		// planner callback
 		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicInspection::plannerCB, this);
+
+		// check wall callback
+		this->checkWallTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicInspection::checkWallCB, this);
 	}
 
 	void dynamicInspection::run(){
@@ -82,6 +96,85 @@ namespace AutoFlight{
 		}
 	}
 
+	void dynamicInspection::checkWallCB(const ros::TimerEvent&){
+		// use current robot position, check the occcupancy of the predefined wall size bounding box
+
+		// const double maxWallWidth = 10.0; // The maximum width of the wall
+		// const double maxWallHeight = 10.0; // the maximum height of the wall
+		const double maxThickness = 3.0; // The maximum thickness of the wall
+
+		// 1. find the occupied point in front of the robot
+		Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		Eigen::Vector3d direction (1, 0, 0);
+		Eigen::Vector3d endPos;
+		double maxRayLength = 5.0;
+		bool castRaySuccess = this->map_->castRay(currPos, direction, endPos, maxRayLength);
+		
+		if (castRaySuccess){
+			// search for the wall region
+			double minX = endPos(0);
+			double maxX = endPos(0) + maxThickness;
+			double minY = endPos(1);
+			double maxY = endPos(0);
+			double minZ = endPos(2);
+			double maxZ = endPos(2);			
+
+			const double searchResolution = 0.3;
+			for (double xs=endPos(0); xs<endPos(0)+maxThickness; xs+=searchResolution){
+				Eigen::Vector3d p (xs, endPos(1), endPos(2));
+				Eigen::Vector3d pYP, pYN, pZP, pZN;
+				const double maxRayLengthWall = 7.0;
+				
+				// cast ray in +y direction
+				bool ypSuccess = this->map_->castRay(p, Eigen::Vector3d (0, 1, 0), pYP, maxRayLengthWall);
+
+				// cast ray in -y direction
+				bool ynSuccess = this->map_->castRay(p, Eigen::Vector3d (0, -1, 0), pYN, maxRayLengthWall);
+
+				// cast ray in +z direction
+				bool zpSuccess = this->map_->castRay(p, Eigen::Vector3d (0, 0, 1), pZP, maxRayLengthWall);
+
+				// cast ray in -y direction
+				bool znSuccess = this->map_->castRay(p, Eigen::Vector3d (0, 0, -1), pZN, maxRayLengthWall);
+			
+				// update range
+				if (pYN(1) < minY){
+					minY = pYN(1);
+				}
+
+				if (pYP(1) > maxY){
+					maxY = pYP(1);
+				}
+
+				if (pYN(1) < minY){
+					minY = pYN(1);
+				}
+
+				if (pZP(2) > maxZ){
+					maxZ = pZP(2);
+				}
+
+				if (pZN(2) < minZ){
+					minZ = pZN(2);
+				}								
+
+				bool noWall = (not ypSuccess) and (not ynSuccess) and (not zpSuccess) and (not znSuccess);
+				if (noWall){
+					maxX = xs;
+					break;
+				}
+			}
+
+			
+			std::vector<double> wallRange {minX, maxX, minY, maxY, minZ, maxZ};
+			this->updateWallRange(wallRange);
+		}
+		else{
+			std::vector<double> wallRange {0, 0, 0, 0, 0, 0};	
+			this->updateWallRange(wallRange);
+		}
+	}
+
 	void dynamicInspection::changeGoal(double x, double y, double z){
 		geometry_msgs::PoseStamped ps;
 		ps.pose.position.x = x;
@@ -96,5 +189,9 @@ namespace AutoFlight{
 
 	void dynamicInspection::changeState(const FLIGHT_STATE& flightState){
 		this->flightState_ = flightState;
+	}
+
+	void dynamicInspection::updateWallRange(const std::vector<double>& wallRange){
+		this->wallRange_ = wallRange;
 	}
 }

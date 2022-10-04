@@ -20,6 +20,7 @@ namespace AutoFlight{
 	private:
 		ros::NodeHandle nh_;
 		ros::Timer plannerTimer_;
+		ros::Timer checkWallTimer_;
 
 		// Map
 		std::shared_ptr<mapManager::occMap> map_;
@@ -35,16 +36,26 @@ namespace AutoFlight{
 		FLIGHT_STATE flightState_ = FLIGHT_STATE::NAVIGATE;
 		geometry_msgs::PoseStamped goal_;
 
+		// inspection parameters
+		double minWallArea_;
+
+
+		// inspection data
+		std::vector<double> wallRange_;
+
 	public:
 		dynamicInspection();
 		dynamicInspection(const ros::NodeHandle& nh);
+		void initParam();
 		void initModules();
 		void registerCallback();
 		void run();
 		void plannerCB(const ros::TimerEvent&);
+		void checkWallCB(const ros::TimerEvent&); // check whether the front wall is reached
 		void changeGoal(double x, double y, double z);
 		void changeGoal(const geometry_msgs::PoseStamped& goal);
 		void changeState(const FLIGHT_STATE& flightState);
+		void updateWallRange(const std::vector<double>& wallRange);
 	};
 }
 
