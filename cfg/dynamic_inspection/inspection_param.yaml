@@ -1,1 +1,2 @@
 min_wall_area: 10
+safe_distance_to_wall: 2.5

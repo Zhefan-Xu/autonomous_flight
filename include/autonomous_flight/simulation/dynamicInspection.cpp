@@ -23,6 +23,15 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Minimum wall area is set to: " << this->minWallArea_ << "m^2." << endl;
+		}	
+
+		// safe distance to all walls
+		if (not this->nh_.getParam("safe_distance_to_wall", this->safeDistance_)){
+			this->safeDistance_ = 2.5;
+			cout << "[AutoFlight]: No safe distance to wall param. Use default 2.5m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Safe distance to wall is set to: " << this->safeDistance_ << "m." << endl;
 		}		
 	}
 
@@ -90,9 +99,7 @@ namespace AutoFlight{
 			// navigate to the goal position
 
 			// first try with pwl trajectory if not work try with the global path planner
-			// todo: add replan condition
-
-			bool replan = (this->td_.needReplan(1.0/3.0));
+			bool replan = (this->td_.needReplan(1.0/3.0)) or this->isWallDetected();
 			if (replan){
 				nav_msgs::Path simplePath;
 				geometry_msgs::PoseStamped pStart, pGoal;
@@ -118,7 +125,6 @@ namespace AutoFlight{
 				}
 			}
 			// if multiple times cannot navigate to the goal, change the state to EXPLORE
-
 			return;
 		}
 
@@ -217,8 +223,6 @@ namespace AutoFlight{
 					}
 				}
 
-
-
 				bool noWall = (not ypSuccess) and (not ynSuccess) and (not zpSuccess) and (not znSuccess);
 				if (noWall){
 					maxX = xs;
@@ -226,7 +230,6 @@ namespace AutoFlight{
 				}
 			}
 
-			
 			std::vector<double> wallRange {minX, maxX, minY, maxY, minZ, maxZ};
 			this->updateWallRange(wallRange);
 		}
@@ -254,12 +257,21 @@ namespace AutoFlight{
 
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
 		// if not meet wall, the goal will always be aggresive (+10 meter in front of the robot)
-
+		bool wallDetected = this->isWallDetected();
 		geometry_msgs::PoseStamped goal;
 		goal.pose = this->odom_.pose.pose;
-		goal.pose.position.x += 10.0;
-		// goal.pose.position.x = 1.0;
-		this->goal_ = goal;
+		
+		if (wallDetected){
+			double maxRayLength = 7.0;
+			Eigen::Vector3d pStart (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+			Eigen::Vector3d pEnd;
+			this->map_->castRay(pStart, Eigen::Vector3d (1, 0, 0), pEnd, maxRayLength);
+			goal.pose.position.x = std::max(goal.pose.position.x, pEnd(0)-this->safeDistance_);
+		}
+		else{
+			goal.pose.position.x += 10.0;
+			this->goal_ = goal;
+		}
 		return goal;
 	}
 
@@ -300,6 +312,9 @@ namespace AutoFlight{
 	}
 
 	bool dynamicInspection::isWallDetected(){
+		if (this->wallRange_.size() == 0){
+			return false;
+		}
 		double area = (this->wallRange_[3] - this->wallRange_[2]) * (this->wallRange_[5] - this->wallRange_[4]);
 		if (area > this->minWallArea_){
 			return true;
@@ -309,14 +324,18 @@ namespace AutoFlight{
 		}
 	}
 
+	double dynamicInspection::getWallDistance(){
+		return std::abs(this->wallRange_[0] - this->odom_.pose.pose.position.x);
+	}
+
 	void dynamicInspection::updateWallRange(const std::vector<double>& wallRange){
 		this->wallRange_ = wallRange;
 	}
 
 
 	visualization_msgs::Marker dynamicInspection::getLineMarker(double x1, double y1, double z1, 
-										  double x2, double y2, double z2,
-										  int id, bool isWall){
+										  						double x2, double y2, double z2,
+										  						int id, bool isWall){
 		std::vector<geometry_msgs::Point> lineVec;
 		geometry_msgs::Point p1, p2;
 		p1.x = x1; p1.y = y1; p1.z = z1;
@@ -358,7 +377,6 @@ namespace AutoFlight{
 		ymin = this->wallRange_[2]; ymax = this->wallRange_[3];
 		zmin = this->wallRange_[4]; zmax = this->wallRange_[5];
 
-
 		bool isWall = this->isWallDetected();
 		std::vector<visualization_msgs::Marker> visVec;
 		visualization_msgs::Marker l1 = this->getLineMarker(xmin, ymin, zmin, xmin, ymax, zmin, 1, isWall);
@@ -373,7 +391,6 @@ namespace AutoFlight{
 		visualization_msgs::Marker l10 = this->getLineMarker(xmin, ymax, zmax, xmax, ymax, zmax, 10, isWall);
 		visualization_msgs::Marker l11 = this->getLineMarker(xmax, ymax, zmax, xmax, ymin, zmax, 11, isWall);
 		visualization_msgs::Marker l12 = this->getLineMarker(xmin, ymin, zmax, xmax, ymin, zmax, 12, isWall);
-
 
 		// line 1-12
 		visVec.push_back(l1);
