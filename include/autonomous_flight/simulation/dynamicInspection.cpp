@@ -169,10 +169,10 @@ namespace AutoFlight{
 		
 		if (castRaySuccess){
 			// search for the wall region
-			double minX = endPos(0);
+			double minX = endPos(0) - this->map_->getRes();
 			double maxX = endPos(0) + maxThickness;
 			double minY = endPos(1);
-			double maxY = endPos(0);
+			double maxY = endPos(1);
 			double minZ = endPos(2);
 			double maxZ = endPos(2);			
 
@@ -183,22 +183,18 @@ namespace AutoFlight{
 				const double maxRayLengthWall = 7.0;
 				
 				// cast ray in +y direction
-				bool ypSuccess = this->map_->castRay(p, Eigen::Vector3d (0, 1, 0), pYP, maxRayLengthWall);
+				bool ypSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, 1, 0), pYP, maxRayLengthWall);
 
 				// cast ray in -y direction
-				bool ynSuccess = this->map_->castRay(p, Eigen::Vector3d (0, -1, 0), pYN, maxRayLengthWall);
+				bool ynSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, -1, 0), pYN, maxRayLengthWall);
 
 				// cast ray in +z direction
-				bool zpSuccess = this->map_->castRay(p, Eigen::Vector3d (0, 0, 1), pZP, maxRayLengthWall);
+				bool zpSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, 0, 1), pZP, maxRayLengthWall);
 
-				// cast ray in -y direction
-				bool znSuccess = this->map_->castRay(p, Eigen::Vector3d (0, 0, -1), pZN, maxRayLengthWall);
-			
+				// cast ray in -z direction
+				bool znSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, 0, -1), pZN, maxRayLengthWall);
+
 				// update range
-				if (pYN(1) < minY){
-					minY = pYN(1);
-				}
-
 				if (pYP(1) > maxY){
 					maxY = pYP(1);
 				}
@@ -207,13 +203,21 @@ namespace AutoFlight{
 					minY = pYN(1);
 				}
 
+				
 				if (pZP(2) > maxZ){
 					maxZ = pZP(2);
 				}
 
-				if (pZN(2) < minZ){
-					minZ = pZN(2);
-				}								
+				if (not znSuccess){
+					minZ = 0.0;
+				}
+				else{
+					if (pZN(2) < minZ){
+						minZ = pZN(2);
+					}
+				}
+
+
 
 				bool noWall = (not ypSuccess) and (not ynSuccess) and (not zpSuccess) and (not znSuccess);
 				if (noWall){
@@ -254,6 +258,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped goal;
 		goal.pose = this->odom_.pose.pose;
 		goal.pose.position.x += 10.0;
+		// goal.pose.position.x = 1.0;
 		this->goal_ = goal;
 		return goal;
 	}
@@ -273,6 +278,26 @@ namespace AutoFlight{
 		this->flightState_ = flightState;
 	}
 
+
+	bool dynamicInspection::castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength){
+		// return true if raycasting successfully find the endpoint, otherwise return false
+		if (not this->map_->isInflatedOccupied(start)){ // 
+			end = start;
+			return false;
+		}
+
+		Eigen::Vector3d directionNormalized = direction/direction.norm(); // normalize the direction vector
+		int num = ceil(maxRayLength/this->map_->getRes());
+		for (int i=1; i<num; ++i){
+			Eigen::Vector3d point = this->map_->getRes() * directionNormalized * i + start;
+			if (not this->map_->isInflatedOccupied(point)){
+				end = point;
+				return true;
+			}
+		}
+		end = start;
+		return false;
+	}
 
 	bool dynamicInspection::isWallDetected(){
 		double area = (this->wallRange_[3] - this->wallRange_[2]) * (this->wallRange_[5] - this->wallRange_[4]);
@@ -313,8 +338,8 @@ namespace AutoFlight{
 		lineMarker.scale.z = 0.1;
 		lineMarker.color.a = 1.0; // Don't forget to set the alpha!
 		if (isWall){
-			lineMarker.color.r = 0.0;
-			lineMarker.color.g = 1.0;
+			lineMarker.color.r = 1.0;
+			lineMarker.color.g = 0.0;
 			lineMarker.color.b = 0.0;
 		}
 		else{

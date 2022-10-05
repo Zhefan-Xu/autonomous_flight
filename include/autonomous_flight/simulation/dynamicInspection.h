@@ -75,6 +75,7 @@ namespace AutoFlight{
 
 
 		// wall detection
+		bool castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength);
 		bool isWallDetected();
 		void updateWallRange(const std::vector<double>& wallRange);
 		visualization_msgs::Marker getLineMarker(double x1, double y1, double z1, double x2, double y2, double z2, int id, bool isWall);

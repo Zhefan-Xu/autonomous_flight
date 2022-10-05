@@ -1,6 +1,8 @@
 <launch>
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_inspection/planner_param.yaml" />
 	<!-- <rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/dynamic_mapping_param.yaml" ns="/dynamic_map" /> -->
+	<rosparam file="$(find autonomous_flight)/cfg/dynamic_inspection/inspection_param.yaml"/>
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_inspection/dynamic_mapping_param.yaml" ns="/occupancy_map" />
+
 	<node pkg="autonomous_flight" type="dynamic_inspection_node" name="dynamic_inspection_node" output="screen" />
 </launch>
