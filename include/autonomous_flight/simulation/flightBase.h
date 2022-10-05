@@ -98,6 +98,24 @@ namespace AutoFlight{
 			return this->trajectory.poses[newIdx];
 		}
 
+		geometry_msgs::PoseStamped getPoseWithoutYaw(const geometry_msgs::Pose& psCurr){
+			int idx = this->getCurrIdx();
+			idx = std::max(idx+forwardIdx, minIdx);
+			int newIdx = std::min(idx, int(this->trajectory.poses.size()-1));
+
+			std::vector<geometry_msgs::PoseStamped> pathVec;
+			geometry_msgs::PoseStamped psFirst;
+			psFirst.pose = psCurr;
+			pathVec.push_back(psFirst);
+			for (size_t i=idx; i<this->trajectory.poses.size(); ++i){
+				pathVec.push_back(this->trajectory.poses[i]);
+			}
+			this->currTrajectory.poses = pathVec;
+			geometry_msgs::PoseStamped psTarget = this->trajectory.poses[newIdx];
+			psTarget.pose.orientation = psCurr.orientation;
+			return psTarget;	
+		}
+
 		void stop(const geometry_msgs::Pose& psCurr){
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			geometry_msgs::PoseStamped ps;
