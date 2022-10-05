@@ -14,7 +14,7 @@
 
 namespace AutoFlight{
 	
-	enum FLIGHT_STATE {FORWARD, EXPLORE, INSPECT, BACK, STOP};
+	enum FLIGHT_STATE {FORWARD, EXPLORE, INSPECT, BACKWARD, STOP};
 
 	class dynamicInspection : flightBase{
 	private:
@@ -44,12 +44,16 @@ namespace AutoFlight{
 
 		// inspection parameters
 		double desiredVel_;
+		double desiredAngularVel_;
 		double minWallArea_;
 		double safeDistance_;
+		double inspectionHeight_;
+		double ascendStep_;
 
 
 		// inspection data
 		AutoFlight::trajData td_;
+		bool useYaw_ = false;
 		std::vector<double> wallRange_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
@@ -75,6 +79,13 @@ namespace AutoFlight{
 		void changeState(const FLIGHT_STATE& flightState);
 
 
+		// basic operations
+		bool moveToPosition(const geometry_msgs::Point& position);
+		bool moveToPosition(const Eigen::Vector3d& position);
+		bool moveToOrientation(const geometry_msgs::Quaternion& orientation);
+		bool moveToOrientation(double yaw);
+		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath);
+
 		// wall detection
 		bool castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength);
 		bool isWallDetected();
@@ -82,6 +93,11 @@ namespace AutoFlight{
 		void updateWallRange(const std::vector<double>& wallRange);
 		visualization_msgs::Marker getLineMarker(double x1, double y1, double z1, double x2, double y2, double z2, int id, bool isWall);
 		void getWallVisMsg(visualization_msgs::MarkerArray& msg);
+
+
+		// inspection module
+		void checkSurroundings();
+		nav_msgs::Path generateZigZagPath();
 	};
 }
 

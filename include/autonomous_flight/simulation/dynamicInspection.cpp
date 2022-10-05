@@ -15,6 +15,7 @@ namespace AutoFlight{
 
 	void dynamicInspection::initParam(){
 		this->desiredVel_ = this->pwlTraj_->getDesiredVel();
+		this->desiredAngularVel_ = this->pwlTraj_->getDesiredAngularVel();
 
 		// minimum wall area
 		if (not this->nh_.getParam("min_wall_area", this->minWallArea_)){
@@ -32,6 +33,24 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Safe distance to wall is set to: " << this->safeDistance_ << "m." << endl;
+		}		
+
+		// inspection height
+		if (not this->nh_.getParam("inspection_height", this->inspectionHeight_)){
+			this->inspectionHeight_ = 2.5;
+			cout << "[AutoFlight]: No inspection height param. Use default 2.5m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Inspection height is set to: " << this->inspectionHeight_ << "m." << endl;
+		}		
+
+		// inspection height
+		if (not this->nh_.getParam("ascend_step", this->ascendStep_)){
+			this->ascendStep_ = 3.0;
+			cout << "[AutoFlight]: No ascend step param. Use default 3.0m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Ascend step is set to: " << this->ascendStep_ << "m." << endl;
 		}		
 	}
 
@@ -125,6 +144,15 @@ namespace AutoFlight{
 				}
 			}
 			// if multiple times cannot navigate to the goal, change the state to EXPLORE
+
+			// if reach the wall, change the state to INSPECT
+			if (this->isWallDetected() and this->isReach(this->getForwardGoal(), false)){
+				this->td_.stop(this->odom_.pose.pose);
+				this->changeState(FLIGHT_STATE::INSPECT);
+				cout << "[AutoFlight]: Swtich from forward to inspection." << endl;
+				cout << "[AutoFlight]: Start Inspection..." << endl;
+			}
+
 			return;
 		}
 
@@ -137,12 +165,17 @@ namespace AutoFlight{
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::INSPECT){
-			// generate zig-zag path and exexute. No replan needed
+			// generate zig-zag path and exexute. 
+			// 1. check surroundings at each height
+			this->checkSurroundings();
 
+			// directly change to back
+			this->changeState(FLIGHT_STATE::BACKWARD);
+			cout << "[AutoFlight]: Swtich from inspection to backward." << endl;
 			return;
 		}
 
-		if (this->flightState_ == FLIGHT_STATE::BACK){
+		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
 			// turn back
 
 			// set new goal to the origin position
@@ -156,7 +189,12 @@ namespace AutoFlight{
 		if (not this->td_.init){
 			return;
 		}
-		this->updateTarget(this->td_.getPoseWithoutYaw(this->odom_.pose.pose));
+		if (not this->useYaw_){
+			this->updateTarget(this->td_.getPoseWithoutYaw(this->odom_.pose.pose));
+		}
+		else{
+			this->updateTarget(this->td_.getPose(this->odom_.pose.pose));	
+		}
 	}
 
 	void dynamicInspection::checkWallCB(const ros::TimerEvent&){
@@ -290,6 +328,106 @@ namespace AutoFlight{
 		this->flightState_ = flightState;
 	}
 
+	bool dynamicInspection::moveToPosition(const geometry_msgs::Point& position){
+		geometry_msgs::PoseStamped psStart, psGoal;
+		psGoal.pose.position = position;
+		psGoal.pose.orientation = this->odom_.pose.pose.orientation;
+		psStart.pose = this->odom_.pose.pose;
+
+		std::vector<geometry_msgs::PoseStamped> linePathVec;
+		linePathVec.push_back(psStart);
+		linePathVec.push_back(psGoal);
+		nav_msgs::Path linePath;
+		linePath.poses = linePathVec;
+
+		this->pwlTraj_->updatePath(linePath);
+		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+		this->td_.updateTrajectory(this->pwlTrajMsg_, this->pwlTraj_->getDuration());
+
+		ros::Rate r (10);
+		while (ros::ok() and not this->isReach(psGoal, false)){
+			ros::spinOnce();
+			r.sleep();
+		}
+		return true;
+	}
+
+	bool dynamicInspection::moveToPosition(const Eigen::Vector3d& position){
+		geometry_msgs::Point p;
+		p.x = position(0);
+		p.y = position(1);
+		p.z = position(2);
+		this->moveToPosition(p);
+		return true;
+	}
+	
+	bool dynamicInspection::moveToOrientation(const geometry_msgs::Quaternion& orientation){
+		double yawTgt = AutoFlight::rpy_from_quaternion(orientation);
+		double yawCurr = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		ps.pose.orientation = orientation;
+
+		double yawDiff = yawTgt - yawCurr; // difference between yaw
+		double direction = 0;
+		double yawDiffAbs = std::abs(yawDiff);
+		if ((yawDiffAbs <= PI_const) and (yawDiff>0)){
+			direction = 1.0; // counter clockwise
+		} 
+		else if ((yawDiffAbs <= PI_const) and (yawDiff<0)){
+			direction = -1.0; // clockwise
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff>0)){
+			direction = -1.0; // rotate in clockwise direction
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff<0)){
+			direction = 1.0; // counter clockwise
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+
+
+		double t = 0.0;
+		double startTime = 0.0; double endTime = yawDiffAbs/this->desiredAngularVel_;
+
+		nav_msgs::Path rotationPath;
+		std::vector<geometry_msgs::PoseStamped> rotationPathVec;
+		while (t <= endTime){
+			double currYawTgt = yawCurr + (double) direction * (t-startTime)/(endTime-startTime) * yawDiffAbs;
+			geometry_msgs::Quaternion quatT = trajPlanner::quaternion_from_rpy(0, 0, currYawTgt);
+			geometry_msgs::PoseStamped psT = ps;
+			psT.pose.orientation = quatT;
+			rotationPathVec.push_back(psT);
+			t += 0.1;
+		}
+		rotationPath.poses = rotationPathVec;
+		this->useYaw_ = true;
+		this->td_.updateTrajectory(rotationPath, endTime);
+
+		ros::Rate r (10);
+		while (ros::ok() and not this->isReach(ps)){
+			ros::spinOnce();
+			r.sleep();
+		}
+		this->useYaw_ = false;
+		return true;
+	}
+
+	bool dynamicInspection::moveToOrientation(double yaw){
+		geometry_msgs::Quaternion quat = AutoFlight::quaternion_from_rpy(0, 0, yaw);
+		this->moveToOrientation(quat);
+		return true;
+	}
+
+	double dynamicInspection::makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath){
+		nav_msgs::Path waypointsMsg;
+		waypointsMsg.poses = waypoints;
+		this->pwlTraj_->updatePath(waypointsMsg);
+
+		this->pwlTraj_->makePlan(resultPath, 0.1);
+		return this->pwlTraj_->getDuration();
+	}
+
 
 	bool dynamicInspection::castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength){
 		// return true if raycasting successfully find the endpoint, otherwise return false
@@ -407,5 +545,82 @@ namespace AutoFlight{
 		visVec.push_back(l12);
 
 		msg.markers = visVec;
+	}
+
+
+	void dynamicInspection::checkSurroundings(){
+		// 1. find all the height level
+		std::vector<double> heightLevels;
+		double currHeight = this->odom_.pose.pose.position.z;
+		double heightTemp = currHeight;
+		while (heightTemp < this->inspectionHeight_){
+			heightLevels.push_back(heightTemp);
+			heightTemp += this->ascendStep_;
+		}
+		heightLevels.push_back(this->inspectionHeight_);
+
+		// 2. for each height level check left and right
+		double currX = this->odom_.pose.pose.position.x;
+		double currY = this->odom_.pose.pose.position.y;
+		double maxRayLength = 7.0;
+		for (double height : heightLevels){
+			// a. move to desired height
+			Eigen::Vector3d pHeight (currX, currY, height);
+			this->moveToPosition(pHeight);
+
+			// b. turn left
+			Eigen::Vector3d leftEnd;
+			bool castLeftSuccess = this->map_->castRay(pHeight, Eigen::Vector3d (0, 1, 0), leftEnd, maxRayLength);
+			
+		
+			if (not castLeftSuccess){
+				this->moveToOrientation(PI_const/2);
+				// translation
+				while (not castLeftSuccess){
+					geometry_msgs::PoseStamped pStart, pGoal;
+					pStart.pose = this->odom_.pose.pose;
+					pGoal = pStart; pGoal.pose.position.y += 1.0;
+					std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
+					nav_msgs::Path leftPath;
+					double duration = this->makePWLTraj(pathVec, leftPath);
+					this->td_.updateTrajectory(leftPath, duration);
+
+					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+					castLeftSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), leftEnd, maxRayLength);
+				}
+
+				this->moveToOrientation(0);
+			}
+			
+
+			// c. turn right
+			Eigen::Vector3d rightEnd;
+			bool castRightSuccess = this->map_->castRay(pHeight, Eigen::Vector3d(0, -1, 0), rightEnd, maxRayLength);
+			if (not castRightSuccess){
+				this->moveToOrientation(-PI_const/2);
+				while (not castRightSuccess){
+					geometry_msgs::PoseStamped pStart, pGoal;
+					pStart.pose = this->odom_.pose.pose;
+					pGoal = pStart; pGoal.pose.position.y -= 1.0;
+					std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
+					nav_msgs::Path rightPath;
+					double duration = this->makePWLTraj(pathVec, rightPath);
+					this->td_.updateTrajectory(rightPath, duration);
+					
+					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+					castRightSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), rightEnd, maxRayLength);
+				}
+
+				this->moveToOrientation(0);
+			}
+
+			// d. back to origin
+			this->moveToPosition(pHeight);
+		}
+	}
+
+	nav_msgs::Path dynamicInspection::generateZigZagPath(){
+		nav_msgs::Path zigzagPath;
+		return zigzagPath;
 	}
 }

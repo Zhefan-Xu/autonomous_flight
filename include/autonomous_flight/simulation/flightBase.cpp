@@ -96,7 +96,7 @@ namespace AutoFlight{
 		else{
 			reachYaw = true;
 		}
-		// cout << reachX << reachY << reachZ << reachYaw << endl;
+		cout << reachX << reachY << reachZ << reachYaw << endl;
 		if (reachX and reachY and reachZ and reachYaw){
 			return true;
 		}

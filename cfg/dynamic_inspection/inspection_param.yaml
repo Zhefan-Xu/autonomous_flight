@@ -1,2 +1,4 @@
 min_wall_area: 10
 safe_distance_to_wall: 2.5
+inspection_height: 6.0
+ascend_step: 3.0 # every x meters will make a stop
