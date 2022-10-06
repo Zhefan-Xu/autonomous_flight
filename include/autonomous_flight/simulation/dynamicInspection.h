@@ -14,7 +14,7 @@
 
 namespace AutoFlight{
 	
-	enum FLIGHT_STATE {FORWARD, EXPLORE, INSPECT, BACKWARD, STOP};
+	enum FLIGHT_STATE {FORWARD, EXPLORE, INSPECT, TURNBACK, BACKWARD};
 
 	class dynamicInspection : flightBase{
 	private:
@@ -24,6 +24,8 @@ namespace AutoFlight{
 		ros::Timer checkWallTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher goalPub_;
+		ros::Publisher rrtPathPub_;
+		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
 		ros::Publisher wallVisPub_;
@@ -57,6 +59,8 @@ namespace AutoFlight{
 		AutoFlight::trajData td_;
 		bool useYaw_ = false;
 		std::vector<double> wallRange_;
+		nav_msgs::Path rrtPathMsg_;
+		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
 		visualization_msgs::MarkerArray wallVisMsg_;

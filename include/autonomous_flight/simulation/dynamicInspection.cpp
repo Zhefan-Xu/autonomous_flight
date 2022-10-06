@@ -101,6 +101,12 @@ namespace AutoFlight{
 		// goal publisher
 		this->goalPub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("inspection/current_goal", 10);
 
+		// rrt path publisher
+		this->rrtPathPub_ = this->nh_.advertise<nav_msgs::Path>("inspection/rrt_path", 10);
+
+		// polynomial trajectory publisher
+		this->polyTrajPub_ = this->nh_.advertise<nav_msgs::Path>("inspection/poly_trajectory", 10);
+
 		// piecewise linear trajectory publisher
 		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("inspection/pwl_trajectory", 10);
 
@@ -191,17 +197,36 @@ namespace AutoFlight{
 			this->inspectZigZag();
 
 			// 3. directly change to back
-			this->changeState(FLIGHT_STATE::BACKWARD);
-			cout << "[AutoFlight]: Swtich from inspection to backward." << endl;
+			this->changeState(FLIGHT_STATE::TURNBACK);
+			cout << "[AutoFlight]: Swtich from inspection to turnback." << endl;
+			return;
+		}
+
+		if (this->flightState_ == FLIGHT_STATE::TURNBACK){
+			// turn back
+			this->moveToOrientation(-PI_const);
+
+			// set new goal to the origin position
+			geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (0, 0, this->takeoffHgt_));
+			this->rrtPlanner_->updateStart(this->odom_.pose.pose);
+			this->rrtPlanner_->updateGoal(psBack.pose);
+			this->rrtPlanner_->makePlan(this->rrtPathMsg_);
+
+			this->polyTraj_->updatePath(this->rrtPathMsg_);
+			geometry_msgs::Twist vel;
+			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+			startCondition *= this->desiredVel_;
+			vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
+			this->polyTraj_->updateInitVel(vel);
+			this->polyTraj_->makePlan(this->polyTrajMsg_);
+			// change the state to NAVIGATE
+			this->changeState(FLIGHT_STATE::BACKWARD);;
+			cout << "[AutoFlight]: Swtich from turnback to backward." << endl;
 			return;
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
-			// turn back
-
-			// set new goal to the origin position
-
-			// change the state to NAVIGATE
 			return;
 		}
 	}
@@ -300,6 +325,14 @@ namespace AutoFlight{
 
 	void dynamicInspection::visCB(const ros::TimerEvent&){
 		this->goalPub_.publish(this->goal_);
+		if (this->rrtPathMsg_.poses.size() != 0){
+			this->rrtPathPub_.publish(this->rrtPathMsg_);
+		}
+
+		if (this->polyTrajMsg_.poses.size() != 0){
+			this->polyTrajPub_.publish(this->polyTrajMsg_);
+		}
+
 		if (this->pwlTrajMsg_.poses.size() != 0){
 			this->pwlTrajPub_.publish(this->pwlTrajMsg_);
 		}
@@ -311,7 +344,6 @@ namespace AutoFlight{
 			this->getWallVisMsg(this->wallVisMsg_);
 			this->wallVisPub_.publish(this->wallVisMsg_);
 		}
-
 	}
 
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
