@@ -14,7 +14,7 @@
 
 namespace AutoFlight{
 	
-	enum FLIGHT_STATE {FORWARD, EXPLORE, INSPECT, TURNBACK, BACKWARD};
+	enum FLIGHT_STATE {FORWARD, EXPLORE, INSPECT, BACKWARD};
 
 	class dynamicInspection : flightBase{
 	private:
@@ -42,6 +42,7 @@ namespace AutoFlight{
 
 		// state
 		FLIGHT_STATE flightState_ = FLIGHT_STATE::FORWARD;
+		FLIGHT_STATE prevState_ = FLIGHT_STATE::FORWARD;
 		geometry_msgs::PoseStamped goal_;
 
 		// inspection parameters
@@ -81,6 +82,7 @@ namespace AutoFlight{
 		void visCB(const ros::TimerEvent&);
 
 		geometry_msgs::PoseStamped getForwardGoal();
+		nav_msgs::Path getLatestGlobalPath();
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndCondition);
 		void changeState(const FLIGHT_STATE& flightState);
 

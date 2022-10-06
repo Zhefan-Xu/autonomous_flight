@@ -138,6 +138,7 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::plannerCB(const ros::TimerEvent&){
+
 		if (this->flightState_ == FLIGHT_STATE::FORWARD){
 			// navigate to the goal position
 
@@ -167,6 +168,8 @@ namespace AutoFlight{
 					}
 				}
 			}
+			this->prevState_ = this->flightState_;
+
 			// if multiple times cannot navigate to the goal, change the state to EXPLORE
 
 			// if reach the wall, change the state to INSPECT
@@ -176,7 +179,6 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Swtich from forward to inspection." << endl;
 				cout << "[AutoFlight]: Start Inspection..." << endl;
 			}
-
 			return;
 		}
 
@@ -184,7 +186,7 @@ namespace AutoFlight{
 			// generate new local exploration goal
 
 			// change the state to NAVIGATE
-
+			this->prevState_ = this->flightState_;
 			return;
 		}
 
@@ -197,38 +199,57 @@ namespace AutoFlight{
 			this->inspectZigZag();
 
 			// 3. directly change to back
-			this->changeState(FLIGHT_STATE::TURNBACK);
-			cout << "[AutoFlight]: Swtich from inspection to turnback." << endl;
-			return;
-		}
-
-		if (this->flightState_ == FLIGHT_STATE::TURNBACK){
-			// turn back
-			this->moveToOrientation(-PI_const);
-
-			// set new goal to the origin position
-			geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (0, 0, this->takeoffHgt_));
-			this->rrtPlanner_->updateStart(this->odom_.pose.pose);
-			this->rrtPlanner_->updateGoal(psBack.pose);
-			this->rrtPlanner_->makePlan(this->rrtPathMsg_);
-
-			this->polyTraj_->updatePath(this->rrtPathMsg_);
-			geometry_msgs::Twist vel;
-			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-			startCondition *= this->desiredVel_;
-			vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
-			this->polyTraj_->updateInitVel(vel);
-			this->polyTraj_->makePlan(this->polyTrajMsg_);
-			// change the state to NAVIGATE
-			this->changeState(FLIGHT_STATE::BACKWARD);;
-			cout << "[AutoFlight]: Swtich from turnback to backward." << endl;
+			this->prevState_ = this->flightState_;
+			this->changeState(FLIGHT_STATE::BACKWARD);
+			cout << "[AutoFlight]: Swtich from inspection to backward." << endl;
+			
 			return;
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
+
+			if (this->prevState_ == FLIGHT_STATE::INSPECT){
+				// turn back
+				this->moveToOrientation(-PI_const);
+
+				// generate global waypoint path. set new goal to the origin position
+				geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (0, 0, this->takeoffHgt_));
+				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
+				this->rrtPlanner_->updateGoal(psBack.pose);
+				this->rrtPlanner_->makePlan(this->rrtPathMsg_);
+			}
+
+			if (this->prevState_ == FLIGHT_STATE::BACKWARD){
+				// get the latest global waypoint path
+				nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
+				this->polyTraj_->updatePath(latestGLobalPath);
+				geometry_msgs::Twist vel;
+				double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+				Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+				startCondition *= this->desiredVel_;
+				vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
+				this->polyTraj_->updateInitVel(vel);
+				this->polyTraj_->makePlan(this->polyTrajMsg_);
+
+				std::vector<Eigen::Vector3d> startEndCondition;		
+				this->getStartEndConditions(startEndCondition);
+				bool updateSuccess = false;
+				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+
+				if (updateSuccess){
+					nav_msgs::Path bsplineTrajMsgTemp;
+					bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
+					if (planSuccess){
+						this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
+						this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+					}
+				}
+
+			}
+			this->prevState_ = this->flightState_;
 			return;
 		}
+
 	}
 
 	void dynamicInspection::trajExeCB(const ros::TimerEvent&){
@@ -364,6 +385,36 @@ namespace AutoFlight{
 			this->goal_ = goal;
 		}
 		return goal;
+	}
+
+	nav_msgs::Path dynamicInspection::getLatestGlobalPath(){
+		nav_msgs::Path latestPath;
+
+		int nextIdx = 0;
+		int idx = 0;
+		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d directionCurr (cos(currYaw), sin(currYaw), 0);
+		double minDist = 100000;
+		for (geometry_msgs::PoseStamped p : this->rrtPathMsg_.poses){
+			Eigen::Vector3d pEig (p.pose.position.x, p.pose.position.y, p.pose.position.z);
+			Eigen::Vector3d pDiff = pEig - pCurr;
+
+			double dist = (pEig - pCurr).norm();
+			if (dist < minDist and trajPlanner::angleBetweenVectors(directionCurr, pDiff) < PI_const/2){
+				nextIdx = idx;
+				minDist = dist;
+			}
+			++idx;
+		}
+
+		geometry_msgs::PoseStamped psCurr;
+		psCurr.pose = this->odom_.pose.pose;
+		latestPath.poses.push_back(psCurr);
+		for (size_t i=nextIdx; i<this->rrtPathMsg_.poses.size(); ++i){
+			latestPath.poses.push_back(this->rrtPathMsg_.poses[i]);
+		}
+		return latestPath;
 	}
 
 	void dynamicInspection::getStartEndConditions(std::vector<Eigen::Vector3d>& startEndCondition){
