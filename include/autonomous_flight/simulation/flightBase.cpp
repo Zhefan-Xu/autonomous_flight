@@ -33,10 +33,10 @@ namespace AutoFlight{
 
 		geometry_msgs::PoseStamped ps;
 		ps.pose = this->odom_.pose.pose;
-		ps.pose.position.z = 1.0;
+		ps.pose.position.z = this->takeoffHgt_;
 		this->updateTarget(ps);
 		ros::Rate r (10);
-		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - 1.0) >= 0.1 and not this->hasTakeoff_){
+		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1 and not this->hasTakeoff_){
 			ros::spinOnce();
 			r.sleep();
 		}
@@ -56,7 +56,7 @@ namespace AutoFlight{
 
 	void flightBase::clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp){
 		this->goal_ = *cp;
-		this->goal_.pose.position.z = 1.0;
+		this->goal_.pose.position.z = this->takeoffHgt_;
 		if (not this->firstGoal_){
 			this->firstGoal_ = true;
 		}

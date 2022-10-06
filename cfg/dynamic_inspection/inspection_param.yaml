@@ -1,4 +1,6 @@
 min_wall_area: 10
 safe_distance_to_wall: 2.5
+side_safe_distance: 1.5
 inspection_height: 6.0
 ascend_step: 3.0 # every x meters will make a stop
+descend_step: 2.0 # zig zag descend step

@@ -47,8 +47,10 @@ namespace AutoFlight{
 		double desiredAngularVel_;
 		double minWallArea_;
 		double safeDistance_;
+		double sideSafeDistance_;
 		double inspectionHeight_;
 		double ascendStep_;
+		double descendStep_;
 
 
 		// inspection data
@@ -97,7 +99,11 @@ namespace AutoFlight{
 
 		// inspection module
 		void checkSurroundings();
-		nav_msgs::Path generateZigZagPath();
+		void inspectZigZag();
+
+		
+		// utils
+		geometry_msgs::PoseStamped eigen2ps(const Eigen::Vector3d& p);
 	};
 }
 

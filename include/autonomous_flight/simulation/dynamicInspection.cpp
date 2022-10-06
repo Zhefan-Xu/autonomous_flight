@@ -33,6 +33,15 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Safe distance to wall is set to: " << this->safeDistance_ << "m." << endl;
+		}	
+
+		// side safe distance to all walls
+		if (not this->nh_.getParam("side_safe_distance", this->sideSafeDistance_)){
+			this->sideSafeDistance_ = 1.5;
+			cout << "[AutoFlight]: No side safe distance param. Use default 1.5m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Side safe distance is set to: " << this->sideSafeDistance_ << "m." << endl;
 		}		
 
 		// inspection height
@@ -44,14 +53,23 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Inspection height is set to: " << this->inspectionHeight_ << "m." << endl;
 		}		
 
-		// inspection height
+		// ascend step
 		if (not this->nh_.getParam("ascend_step", this->ascendStep_)){
 			this->ascendStep_ = 3.0;
 			cout << "[AutoFlight]: No ascend step param. Use default 3.0m." << endl;
 		}
 		else{
 			cout << "[AutoFlight]: Ascend step is set to: " << this->ascendStep_ << "m." << endl;
-		}		
+		}	
+
+		// descend step
+		if (not this->nh_.getParam("descend_step", this->descendStep_)){
+			this->descendStep_ = 2.0;
+			cout << "[AutoFlight]: No descend step param. Use default 2.0m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Descend step is set to: " << this->descendStep_ << "m." << endl;
+		}	
 	}
 
 	void dynamicInspection::initModules(){
@@ -169,7 +187,10 @@ namespace AutoFlight{
 			// 1. check surroundings at each height
 			this->checkSurroundings();
 
-			// directly change to back
+			// 2. start inspection
+			this->inspectZigZag();
+
+			// 3. directly change to back
 			this->changeState(FLIGHT_STATE::BACKWARD);
 			cout << "[AutoFlight]: Swtich from inspection to backward." << endl;
 			return;
@@ -553,7 +574,7 @@ namespace AutoFlight{
 		std::vector<double> heightLevels;
 		double currHeight = this->odom_.pose.pose.position.z;
 		double heightTemp = currHeight;
-		while (heightTemp < this->inspectionHeight_){
+		while (ros::ok() and heightTemp < this->inspectionHeight_){
 			heightLevels.push_back(heightTemp);
 			heightTemp += this->ascendStep_;
 		}
@@ -581,9 +602,8 @@ namespace AutoFlight{
 					pStart.pose = this->odom_.pose.pose;
 					pGoal = pStart; pGoal.pose.position.y += 1.0;
 					std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
-					nav_msgs::Path leftPath;
-					double duration = this->makePWLTraj(pathVec, leftPath);
-					this->td_.updateTrajectory(leftPath, duration);
+					double duration = this->makePWLTraj(pathVec, this->pwlTrajMsg_);
+					this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 
 					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 					castLeftSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), leftEnd, maxRayLength);
@@ -603,9 +623,8 @@ namespace AutoFlight{
 					pStart.pose = this->odom_.pose.pose;
 					pGoal = pStart; pGoal.pose.position.y -= 1.0;
 					std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
-					nav_msgs::Path rightPath;
-					double duration = this->makePWLTraj(pathVec, rightPath);
-					this->td_.updateTrajectory(rightPath, duration);
+					double duration = this->makePWLTraj(pathVec, this->pwlTrajMsg_);
+					this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 					
 					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 					castRightSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), rightEnd, maxRayLength);
@@ -619,8 +638,84 @@ namespace AutoFlight{
 		}
 	}
 
-	nav_msgs::Path dynamicInspection::generateZigZagPath(){
-		nav_msgs::Path zigzagPath;
-		return zigzagPath;
+	void dynamicInspection::inspectZigZag(){
+		std::vector<geometry_msgs::PoseStamped> zigzagPathVec;
+
+		// 1. find all height levels
+		std::vector<double> heightLevels;
+		
+		double currHeight = this->odom_.pose.pose.position.z;
+		double heightTemp = currHeight;
+		while (ros::ok() and heightTemp > this->takeoffHgt_){
+			heightLevels.push_back(heightTemp);
+			heightTemp -= this->descendStep_;
+		}
+		heightLevels.push_back(this->takeoffHgt_);
+
+
+		// 2. cast rays to two sides
+		double currX = this->odom_.pose.pose.position.x;
+		double currY = this->odom_.pose.pose.position.y;
+		double maxRayLength = 7.0;
+		
+		Eigen::Vector3d pStart (currX, currY, currHeight);
+		geometry_msgs::PoseStamped psStart = this->eigen2ps(pStart);
+		zigzagPathVec.push_back(psStart);
+
+		int count = 0;
+		for (double height : heightLevels){
+			Eigen::Vector3d pCurr (currX, currY, height);
+
+			// cast to left
+			Eigen::Vector3d pLeftEnd;
+			this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), pLeftEnd, maxRayLength);
+			pLeftEnd(1) = std::max(pLeftEnd(1) - this->sideSafeDistance_, currY); 
+			geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeftEnd);
+
+			// cast to right
+			Eigen::Vector3d pRightEnd;
+			this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), pRightEnd, maxRayLength);
+			pRightEnd(1) = std::min(pRightEnd(1) + this->sideSafeDistance_, currY);
+			geometry_msgs::PoseStamped psRight = this->eigen2ps(pRightEnd);
+
+			if (count % 2 == 0){
+				if (count != 0){
+					geometry_msgs::PoseStamped psPrev = zigzagPathVec.back();
+					psPrev.pose.position.z =  height;
+					zigzagPathVec.push_back(psPrev);
+				}
+				zigzagPathVec.push_back(psLeft);
+				zigzagPathVec.push_back(psRight);
+			}
+			else{
+				geometry_msgs::PoseStamped psPrev = zigzagPathVec.back();
+				psPrev.pose.position.z =  height;
+				zigzagPathVec.push_back(psPrev);
+				zigzagPathVec.push_back(psRight);
+				zigzagPathVec.push_back(psLeft);
+			}
+			++count;
+		}
+
+		Eigen::Vector3d pEnd (currX, currY, this->takeoffHgt_);
+		geometry_msgs::PoseStamped psEnd = this->eigen2ps(pEnd);
+		zigzagPathVec.push_back(psEnd);
+
+		double duration = this->makePWLTraj(zigzagPathVec, this->pwlTrajMsg_);
+		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
+
+		ros::Rate r (10);
+		while (ros::ok() and not (this->isReach(psEnd, false))){
+			ros::spinOnce();
+			r.sleep();
+		}
+	}
+
+	geometry_msgs::PoseStamped dynamicInspection::eigen2ps(const Eigen::Vector3d& p){
+		geometry_msgs::PoseStamped ps;
+		ps.pose.position.x = p(0);
+		ps.pose.position.y = p(1);
+		ps.pose.position.z = p(2);
+		return ps;
 	}
 }

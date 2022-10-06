@@ -163,6 +163,8 @@ namespace AutoFlight{
 		bool firstGoal_ = false;
 		bool goalReceived_ = false;
 
+		double takeoffHgt_ = 1.0;
+
 
 	public:
 		flightBase(const ros::NodeHandle& nh);
