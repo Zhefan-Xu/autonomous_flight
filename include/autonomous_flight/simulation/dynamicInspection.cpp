@@ -17,6 +17,16 @@ namespace AutoFlight{
 		this->desiredVel_ = this->pwlTraj_->getDesiredVel();
 		this->desiredAngularVel_ = this->pwlTraj_->getDesiredAngularVel();
 
+		// inspection moving velocity
+		if (not this->nh_.getParam("inspection_velocity", this->inspectionVel_)){
+			this->inspectionVel_ = 0.5;
+			cout << "[AutoFlight]: No inspection velocity param. Use default 0.5m/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Inspection velocity is set to: " << this->inspectionVel_ << "m/s." << endl;
+		}	
+
+
 		// minimum wall area
 		if (not this->nh_.getParam("min_wall_area", this->minWallArea_)){
 			this->minWallArea_ = 20;
@@ -527,11 +537,18 @@ namespace AutoFlight{
 		nav_msgs::Path waypointsMsg;
 		waypointsMsg.poses = waypoints;
 		this->pwlTraj_->updatePath(waypointsMsg, true);
-
 		this->pwlTraj_->makePlan(resultPath, 0.1);
 		return this->pwlTraj_->getDuration();
 	}
 
+
+	double dynamicInspection::makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, double desiredVel, nav_msgs::Path& resultPath){
+		nav_msgs::Path waypointsMsg;
+		waypointsMsg.poses = waypoints;
+		this->pwlTraj_->updatePath(waypointsMsg, desiredVel, true);
+		this->pwlTraj_->makePlan(resultPath, 0.1);
+		return this->pwlTraj_->getDuration();
+	}
 
 	bool dynamicInspection::castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength){
 		// return true if raycasting successfully find the endpoint, otherwise return false
@@ -788,20 +805,10 @@ namespace AutoFlight{
 		psEnd.pose.orientation.w = 1.0;
 		zigzagPathVec.push_back(psEnd);
 
-		int i = 0;
-		for (geometry_msgs::PoseStamped ps : zigzagPathVec){
-			cout << "id " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
-			++i;
-		}
 
-		double duration = this->makePWLTraj(zigzagPathVec, this->pwlTrajMsg_);
+		double duration = this->makePWLTraj(zigzagPathVec, this->inspectionVel_, this->pwlTrajMsg_);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 
-		int j=0;
-		for (geometry_msgs::PoseStamped ps : this->pwlTrajMsg_.poses){
-			cout << "id " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
-			++j;
-		}
 
 		ros::Rate r (10);
 		while (ros::ok() and not (this->isReach(psEnd, false))){

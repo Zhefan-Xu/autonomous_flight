@@ -48,6 +48,7 @@ namespace AutoFlight{
 		// inspection parameters
 		double desiredVel_;
 		double desiredAngularVel_;
+		double inspectionVel_; 
 		double minWallArea_;
 		double safeDistance_;
 		double sideSafeDistance_;
@@ -93,6 +94,7 @@ namespace AutoFlight{
 		bool moveToOrientation(const geometry_msgs::Quaternion& orientation);
 		bool moveToOrientation(double yaw);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath);
+		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, double desiredVel, nav_msgs::Path& resultPath);
 
 		// wall detection
 		bool castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength);
