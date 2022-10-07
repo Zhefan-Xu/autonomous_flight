@@ -401,7 +401,7 @@ namespace AutoFlight{
 			Eigen::Vector3d pDiff = pEig - pCurr;
 
 			double dist = (pEig - pCurr).norm();
-			if (dist < minDist and trajPlanner::angleBetweenVectors(directionCurr, pDiff) < PI_const/2){
+			if (dist < minDist and trajPlanner::angleBetweenVectors(directionCurr, pDiff) < PI_const/4){
 				nextIdx = idx;
 				minDist = dist;
 			}
@@ -526,7 +526,7 @@ namespace AutoFlight{
 	double dynamicInspection::makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath){
 		nav_msgs::Path waypointsMsg;
 		waypointsMsg.poses = waypoints;
-		this->pwlTraj_->updatePath(waypointsMsg);
+		this->pwlTraj_->updatePath(waypointsMsg, true);
 
 		this->pwlTraj_->makePlan(resultPath, 0.1);
 		return this->pwlTraj_->getDuration();
@@ -743,6 +743,7 @@ namespace AutoFlight{
 		
 		Eigen::Vector3d pStart (currX, currY, currHeight);
 		geometry_msgs::PoseStamped psStart = this->eigen2ps(pStart);
+		psStart.pose.orientation.w = 1.0;
 		zigzagPathVec.push_back(psStart);
 
 		int count = 0;
@@ -754,12 +755,14 @@ namespace AutoFlight{
 			this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), pLeftEnd, maxRayLength);
 			pLeftEnd(1) = std::max(pLeftEnd(1) - this->sideSafeDistance_, currY); 
 			geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeftEnd);
+			psLeft.pose.orientation.w = 1.0;
 
 			// cast to right
 			Eigen::Vector3d pRightEnd;
 			this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), pRightEnd, maxRayLength);
 			pRightEnd(1) = std::min(pRightEnd(1) + this->sideSafeDistance_, currY);
 			geometry_msgs::PoseStamped psRight = this->eigen2ps(pRightEnd);
+			psRight.pose.orientation.w = 1.0;
 
 			if (count % 2 == 0){
 				if (count != 0){
@@ -782,10 +785,23 @@ namespace AutoFlight{
 
 		Eigen::Vector3d pEnd (currX, currY, this->takeoffHgt_);
 		geometry_msgs::PoseStamped psEnd = this->eigen2ps(pEnd);
+		psEnd.pose.orientation.w = 1.0;
 		zigzagPathVec.push_back(psEnd);
+
+		int i = 0;
+		for (geometry_msgs::PoseStamped ps : zigzagPathVec){
+			cout << "id " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
+			++i;
+		}
 
 		double duration = this->makePWLTraj(zigzagPathVec, this->pwlTrajMsg_);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
+
+		int j=0;
+		for (geometry_msgs::PoseStamped ps : this->pwlTrajMsg_.poses){
+			cout << "id " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
+			++j;
+		}
 
 		ros::Rate r (10);
 		while (ros::ok() and not (this->isReach(psEnd, false))){

@@ -45,7 +45,9 @@ namespace AutoFlight{
 
 
 	void flightBase::updateTarget(const geometry_msgs::PoseStamped& ps){ // global frame
-		this->posePub_.publish(ps);
+		geometry_msgs::PoseStamped psMsg = ps;
+		psMsg.header.frame_id = "map";
+		this->posePub_.publish(psMsg);
 	}
 
 
@@ -96,7 +98,7 @@ namespace AutoFlight{
 		else{
 			reachYaw = true;
 		}
-		cout << reachX << reachY << reachZ << reachYaw << endl;
+		// cout << reachX << reachY << reachZ << reachYaw << endl;
 		if (reachX and reachY and reachZ and reachYaw){
 			return true;
 		}
