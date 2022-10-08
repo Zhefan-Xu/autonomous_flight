@@ -55,6 +55,9 @@ namespace AutoFlight{
 		double inspectionHeight_;
 		double ascendStep_;
 		double descendStep_;
+		double sensorRange_;
+		double sensorAngleH_;
+		double sensorAngleV_;
 
 
 		// inspection data
@@ -96,7 +99,12 @@ namespace AutoFlight{
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, double desiredVel, nav_msgs::Path& resultPath);
 
-		// wall detection
+
+		// exploration module
+		Eigen::Vector3d randomSample();
+		int countUnknownFOV(const Eigen::Vector3d& p, double yaw);
+
+		// wall detection module
 		bool castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength);
 		bool isWallDetected();
 		double getWallDistance();

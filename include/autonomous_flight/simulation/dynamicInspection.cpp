@@ -80,6 +80,35 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Descend step is set to: " << this->descendStep_ << "m." << endl;
 		}	
+
+		// sensor range
+		if (not this->nh_.getParam("sensor_range", this->sensorRange_)){
+			this->sensorRange_ = 2.0;
+			cout << "[AutoFlight]: No sensor range param. Use default 2.0m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Sensor range is set to: " << this->sensorRange_ << "m." << endl;
+		}	
+
+		// horizontal sensor angle 
+		if (not this->nh_.getParam("sensor_angle_horizontal", this->sensorAngleH_)){
+			this->sensorAngleH_ = PI_const/2;
+			cout << "[AutoFlight]: No horizontal sensor angle param. Use default 90 degree." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Horizontal sensor angle is set to: " << this->sensorAngleH_ << " degree." << endl;
+			this->sensorAngleH_ *= PI_const/180.0;
+		}	
+
+		// vertical sensor angle 
+		if (not this->nh_.getParam("sensor_angle_vertical", this->sensorAngleV_)){
+			this->sensorAngleV_ = PI_const/3;
+			cout << "[AutoFlight]: No vertical sensor angle param. Use default 60 degree." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Vertical sensor angle is set to: " << this->sensorAngleV_ << " degree." << endl;
+			this->sensorAngleV_ *= PI_const/180.0;
+		}	
 	}
 
 	void dynamicInspection::initModules(){
@@ -400,7 +429,7 @@ namespace AutoFlight{
 	nav_msgs::Path dynamicInspection::getLatestGlobalPath(){
 		nav_msgs::Path latestPath;
 
-		int nextIdx = 0;
+		int nextIdx = this->rrtPathMsg_.poses.size()-1;
 		int idx = 0;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
@@ -411,7 +440,7 @@ namespace AutoFlight{
 			Eigen::Vector3d pDiff = pEig - pCurr;
 
 			double dist = (pEig - pCurr).norm();
-			if (dist < minDist and trajPlanner::angleBetweenVectors(directionCurr, pDiff) < PI_const/4){
+			if (dist < minDist and dist > 1.0 and trajPlanner::angleBetweenVectors(directionCurr, pDiff) < PI_const/4){
 				nextIdx = idx;
 				minDist = dist;
 			}
@@ -548,6 +577,63 @@ namespace AutoFlight{
 		this->pwlTraj_->updatePath(waypointsMsg, desiredVel, true);
 		this->pwlTraj_->makePlan(resultPath, 0.1);
 		return this->pwlTraj_->getDuration();
+	}
+
+	Eigen::Vector3d dynamicInspection::randomSample(){
+		Eigen::Vector3d mapSizeMin, mapSizeMax;
+		this->map_->getMapRange(mapSizeMin, mapSizeMax);
+
+		Eigen::Vector3d pSample (0, 0, 0);
+		while (ros::ok()){
+			pSample(0) = AutoFlight::randomNumber(mapSizeMin(0), mapSizeMax(0));
+			pSample(1) = AutoFlight::randomNumber(mapSizeMin(1), mapSizeMax(1));
+			pSample(2) = AutoFlight::randomNumber(mapSizeMin(2), mapSizeMax(2));
+			
+			if (not this->map_->isInflatedOccupied(pSample) and not this->map_->isUnknown(pSample)){
+				return pSample;
+			}
+		}
+		return pSample; // dummy
+	}
+
+
+	int dynamicInspection::countUnknownFOV(const Eigen::Vector3d& p, double yaw){
+		double height = 2 * tan(this->sensorAngleV_/2.0) * this->sensorRange_;
+		double width = 2 * tan(this->sensorAngleH_/2.0) * this->sensorRange_;
+
+		// create bounding box for search
+		double xmin = p(0);              double xmax = p(0) + this->sensorRange_;
+		double ymin = p(1) - width/2.0;  double ymax = p(1) + width/2.0;
+		double zmin = p(2) - height/2.0; double zmax = p(2) + height/2.0;
+		
+		Eigen::Vector3d faceDirection (cos(yaw), sin(yaw), 0);
+		int countUnknown = 0;
+		for (double x=xmin; x<=xmax; x+=this->map_->getRes()){
+			for (double y=ymin; y<=ymax; y+=this->map_->getRes()){
+				for (double z=zmin; z<=zmax; z+=this->map_->getRes()){
+					Eigen::Vector3d pQuery(x, y, z);
+					if (not this->map_->isInMap(pQuery)){
+						continue;
+					}
+					else{
+						if (this->map_->isUnknown(pQuery)){ // need to be unknown voxel
+							Eigen::Vector3d direction = pQuery - p;
+							Eigen::Vector3d directionH = direction; directionH(2) = 0;
+							Eigen::Vector3d directionV = direction; directionV(1) = 0;
+
+							double angleH = trajPlanner::angleBetweenVectors(directionH, faceDirection);
+							double angleV = trajPlanner::angleBetweenVectors(directionV, faceDirection);
+
+							if (angleH <= this->sensorAngleH_/2.0 and angleV <= this->sensorAngleV_/2.0){
+								++countUnknown;
+							}
+						}
+					}
+				}
+			}
+		}		
+
+		return countUnknown;
 	}
 
 	bool dynamicInspection::castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength){

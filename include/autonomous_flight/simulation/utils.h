@@ -10,6 +10,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <geometry_msgs/Quaternion.h>
+#include <random>
 
     
 
@@ -105,6 +106,14 @@ namespace AutoFlight{
             delta = 2 * PI_const - delta;
         }
         return delta;
+    }
+    
+    // Helper Function: Random Number
+    inline double randomNumber(double min, double max){
+        std::random_device rd;
+        std::mt19937 mt(rd());
+        std::uniform_real_distribution<double> distribution(min, max);
+        return distribution(mt);
     }
 }
 #endif
