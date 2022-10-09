@@ -58,6 +58,7 @@ namespace AutoFlight{
 		double sensorRange_;
 		double sensorAngleH_;
 		double sensorAngleV_;
+		int exploreSampleNum_;
 
 
 		// inspection data
@@ -101,6 +102,7 @@ namespace AutoFlight{
 
 
 		// exploration module
+		Eigen::Vector3d getBestViewPoint();
 		Eigen::Vector3d randomSample();
 		int countUnknownFOV(const Eigen::Vector3d& p, double yaw);
 

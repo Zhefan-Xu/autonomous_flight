@@ -26,7 +26,6 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Inspection velocity is set to: " << this->inspectionVel_ << "m/s." << endl;
 		}	
 
-
 		// minimum wall area
 		if (not this->nh_.getParam("min_wall_area", this->minWallArea_)){
 			this->minWallArea_ = 20;
@@ -108,6 +107,15 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Vertical sensor angle is set to: " << this->sensorAngleV_ << " degree." << endl;
 			this->sensorAngleV_ *= PI_const/180.0;
+		}	
+
+		// sample number
+		if (not this->nh_.getParam("explore_sample_number", this->exploreSampleNum_)){
+			this->exploreSampleNum_ = 10;
+			cout << "[AutoFlight]: No exploration sample number param. Use default: 10." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Exploration sample number is set to: " << this->exploreSampleNum_ << endl;
 		}	
 	}
 
@@ -205,6 +213,9 @@ namespace AutoFlight{
 						this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 						this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
 					}
+					else{
+						this->td_.stop(this->odom_.pose.pose);
+					}
 				}
 			}
 			this->prevState_ = this->flightState_;
@@ -215,14 +226,48 @@ namespace AutoFlight{
 			if (this->isWallDetected() and this->isReach(this->getForwardGoal(), false)){
 				this->td_.stop(this->odom_.pose.pose);
 				this->changeState(FLIGHT_STATE::INSPECT);
-				cout << "[AutoFlight]: Swtich from forward to inspection." << endl;
+				cout << "[AutoFlight]: Switch from forward to inspection." << endl;
 				cout << "[AutoFlight]: Start Inspection..." << endl;
 			}
 			return;
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::EXPLORE){
+			if (this->prevState_ == FLIGHT_STATE::FORWARD){
 			// generate new local exploration goal
+				Eigen::Vector3d pGoalExplore = this->getBestViewPoint();
+				geometry_msgs::PoseStamped psGoalExplore = this->eigen2ps(pGoalExplore);
+				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
+				this->rrtPlanner_->updateGoal(psGoalExplore.pose);
+				this->rrtPlanner_->makePlan(this->rrtPathMsg_);				
+			}
+
+			if (this->prevState_ == FLIGHT_STATE::EXPLORE){
+				// get the latest global waypoint path
+				nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
+				this->polyTraj_->updatePath(latestGLobalPath);
+				geometry_msgs::Twist vel;
+				double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+				Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+				startCondition *= this->desiredVel_;
+				vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
+				this->polyTraj_->updateInitVel(vel);
+				this->polyTraj_->makePlan(this->polyTrajMsg_);
+
+				std::vector<Eigen::Vector3d> startEndCondition;		
+				this->getStartEndConditions(startEndCondition);
+				bool updateSuccess = false;
+				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+
+				if (updateSuccess){
+					nav_msgs::Path bsplineTrajMsgTemp;
+					bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
+					if (planSuccess){
+						this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
+						this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+					}
+				}			
+			}
 
 			// change the state to NAVIGATE
 			this->prevState_ = this->flightState_;
@@ -240,13 +285,12 @@ namespace AutoFlight{
 			// 3. directly change to back
 			this->prevState_ = this->flightState_;
 			this->changeState(FLIGHT_STATE::BACKWARD);
-			cout << "[AutoFlight]: Swtich from inspection to backward." << endl;
+			cout << "[AutoFlight]: Switch from inspection to backward." << endl;
 			
 			return;
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
-
 			if (this->prevState_ == FLIGHT_STATE::INSPECT){
 				// turn back
 				this->moveToOrientation(-PI_const);
@@ -579,6 +623,20 @@ namespace AutoFlight{
 		return this->pwlTraj_->getDuration();
 	}
 
+	Eigen::Vector3d dynamicInspection::getBestViewPoint(){
+		int bestUnknown = 0;
+		Eigen::Vector3d bestPoint;
+		for (int i=0; i<this->exploreSampleNum_; ++i){
+			Eigen::Vector3d pRandom = this->randomSample();
+			int countUnknown = this->countUnknownFOV(pRandom, 0);
+			if (countUnknown > bestUnknown){
+				bestUnknown = countUnknown;
+				bestPoint = pRandom;
+			}
+		}
+		return bestPoint;
+	}
+
 	Eigen::Vector3d dynamicInspection::randomSample(){
 		Eigen::Vector3d mapSizeMin, mapSizeMax;
 		this->map_->getMapRange(mapSizeMin, mapSizeMax);
@@ -770,6 +828,7 @@ namespace AutoFlight{
 		double currX = this->odom_.pose.pose.position.x;
 		double currY = this->odom_.pose.pose.position.y;
 		double maxRayLength = 7.0;
+		ros::Rate r (10);
 		for (double height : heightLevels){
 			// a. move to desired height
 			Eigen::Vector3d pHeight (currX, currY, height);
@@ -783,7 +842,7 @@ namespace AutoFlight{
 			if (not castLeftSuccess){
 				this->moveToOrientation(PI_const/2);
 				// translation
-				while (not castLeftSuccess){
+				while (ros::ok() and not castLeftSuccess){
 					geometry_msgs::PoseStamped pStart, pGoal;
 					pStart.pose = this->odom_.pose.pose;
 					pGoal = pStart; pGoal.pose.position.y += 1.0;
@@ -793,6 +852,8 @@ namespace AutoFlight{
 
 					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 					castLeftSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), leftEnd, maxRayLength);
+					ros::spinOnce();
+					r.sleep();
 				}
 
 				this->moveToOrientation(0);
@@ -804,7 +865,7 @@ namespace AutoFlight{
 			bool castRightSuccess = this->map_->castRay(pHeight, Eigen::Vector3d(0, -1, 0), rightEnd, maxRayLength);
 			if (not castRightSuccess){
 				this->moveToOrientation(-PI_const/2);
-				while (not castRightSuccess){
+				while (ros::ok() and not castRightSuccess){
 					geometry_msgs::PoseStamped pStart, pGoal;
 					pStart.pose = this->odom_.pose.pose;
 					pGoal = pStart; pGoal.pose.position.y -= 1.0;
@@ -814,6 +875,8 @@ namespace AutoFlight{
 					
 					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 					castRightSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), rightEnd, maxRayLength);
+					ros::spinOnce();
+					r.sleep();
 				}
 
 				this->moveToOrientation(0);
