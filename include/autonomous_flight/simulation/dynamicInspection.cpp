@@ -260,11 +260,22 @@ namespace AutoFlight{
 		if (this->flightState_ == FLIGHT_STATE::EXPLORE){
 			if (this->prevState_ == FLIGHT_STATE::FORWARD){
 			// generate new local exploration goal
-				Eigen::Vector3d pGoalExplore = this->getBestViewPoint();
-				geometry_msgs::PoseStamped psGoalExplore = this->eigen2ps(pGoalExplore);
-				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
-				this->rrtPlanner_->updateGoal(psGoalExplore.pose);
-				this->rrtPlanner_->makePlan(this->rrtPathMsg_);				
+				Eigen::Vector3d pGoalExplore;
+				bool bestViewPointSuccess = this->getBestViewPoint(pGoalExplore);
+				if (bestViewPointSuccess){
+					geometry_msgs::PoseStamped psGoalExplore = this->eigen2ps(pGoalExplore);
+					this->rrtPlanner_->updateStart(this->odom_.pose.pose);
+					this->rrtPlanner_->updateGoal(psGoalExplore.pose);
+					this->rrtPlanner_->makePlan(this->rrtPathMsg_);	
+					this->prevState_ = this->flightState_;
+				}
+				else{
+					cout << "[AutoFlight]: Looking around to increase map range..." << endl;
+					this->moveToOrientation(PI_const/2.0);
+					this->moveToOrientation(-PI_const/2.0);
+					this->moveToOrientation(0);
+				}
+				return;
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::EXPLORE){
@@ -302,8 +313,8 @@ namespace AutoFlight{
 
 			// change to forward if finish current exploration
 			if (this->isReach(this->td_.trajectory.poses.back(), false) and this->prevState_ == FLIGHT_STATE::EXPLORE){
-				this->changeState(FLIGHT_STATE::FORWARD);
 				this->prevState_ = this->flightState_;
+				this->changeState(FLIGHT_STATE::FORWARD);
 				cout << "[AutoFlight]: Switch from explore to forward." << endl;
 				return;
 			}
@@ -680,35 +691,44 @@ namespace AutoFlight{
 		return this->pwlTraj_->getDuration();
 	}
 
-	Eigen::Vector3d dynamicInspection::getBestViewPoint(){
+	bool dynamicInspection::getBestViewPoint(Eigen::Vector3d& bestPoint){
 		int bestUnknown = 0;
-		Eigen::Vector3d bestPoint;
 		for (int i=0; i<this->exploreSampleNum_; ++i){
-			Eigen::Vector3d pRandom = this->randomSample();
+			Eigen::Vector3d pRandom;
+			bool sampleSuccess = this->randomSample(pRandom);
+			if (not sampleSuccess){
+				return false;
+			}
 			int countUnknown = this->countUnknownFOV(pRandom, 0);
 			if (countUnknown > bestUnknown){
 				bestUnknown = countUnknown;
 				bestPoint = pRandom;
 			}
 		}
-		return bestPoint;
+		return true;
 	}
 
-	Eigen::Vector3d dynamicInspection::randomSample(){
+	bool  dynamicInspection::randomSample(Eigen::Vector3d& pSample){
 		Eigen::Vector3d mapSizeMin, mapSizeMax;
 		this->map_->getMapRange(mapSizeMin, mapSizeMax);
 
-		Eigen::Vector3d pSample (0, 0, 0);
+		ros::Time startTime = ros::Time::now();
+		ros::Time endTime;
 		while (ros::ok()){
+			endTime = ros::Time::now();
+			if ((endTime - startTime).toSec() > 1.0){
+				cout << "[AutoFlight]: Explore random sample timeout." << endl;
+				return false;
+			}
 			pSample(0) = AutoFlight::randomNumber(this->odom_.pose.pose.position.x, mapSizeMax(0));
 			pSample(1) = AutoFlight::randomNumber(mapSizeMin(1), mapSizeMax(1));
 			pSample(2) = this->takeoffHgt_;
 			
 			if (not this->map_->isInflatedOccupied(pSample) and not this->map_->isUnknown(pSample) and this->satisfyWallDistance(pSample)){
-				return pSample;
+				return true;			
 			}
 		}
-		return pSample; // dummy
+		return false;
 	}
 
 	bool dynamicInspection::satisfyWallDistance(const Eigen::Vector3d& p){
