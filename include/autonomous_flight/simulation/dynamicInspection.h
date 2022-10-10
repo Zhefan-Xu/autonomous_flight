@@ -72,6 +72,7 @@ namespace AutoFlight{
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
 		visualization_msgs::MarkerArray wallVisMsg_;
+		int countBsplineFailure_ = 0;
 
 	public:
 		dynamicInspection();
@@ -107,7 +108,9 @@ namespace AutoFlight{
 		// exploration module
 		Eigen::Vector3d getBestViewPoint();
 		Eigen::Vector3d randomSample();
+		bool satisfyWallDistance(const Eigen::Vector3d& p);
 		int countUnknownFOV(const Eigen::Vector3d& p, double yaw);
+
 
 		// wall detection module
 		bool castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength);

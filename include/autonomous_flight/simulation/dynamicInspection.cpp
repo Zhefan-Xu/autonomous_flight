@@ -214,15 +214,16 @@ namespace AutoFlight{
 					if (planSuccess){
 						this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 						this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+						this->countBsplineFailure_ = 0; // reset failure count
 					}
 					else{
 						this->td_.stop(this->odom_.pose.pose);
+						++this->countBsplineFailure_;
 					}
 				}
 			}
 			this->prevState_ = this->flightState_;
 
-			// if multiple times cannot navigate to the goal, change the state to EXPLORE
 
 			// if reach the wall, change the state to INSPECT
 			if (this->isWallDetected() and this->isReach(this->getForwardGoal(), false)){
@@ -230,8 +231,30 @@ namespace AutoFlight{
 				this->changeState(FLIGHT_STATE::INSPECT);
 				cout << "[AutoFlight]: Switch from forward to inspection." << endl;
 				cout << "[AutoFlight]: Start Inspection..." << endl;
+				return;
 			}
-			return;
+
+			// if multiple times cannot navigate to the goal, change the state to EXPLORE
+			if (this->countBsplineFailure_ > 3){
+				cout << "[AutoFlight]: Wait for some time..." << endl;
+				// wait for 2 seconds
+				ros::Rate r (10);
+				ros::Time startTime = ros::Time::now();
+				ros::Time endTime;
+				while (ros::ok()){
+					endTime = ros::Time::now();
+					if ((endTime - startTime).toSec() > 0.5){
+						break;
+					}
+					r.sleep();
+				}
+			}
+
+			if (this->countBsplineFailure_ > 3 and not this->isWallDetected()){
+				this->changeState(FLIGHT_STATE::EXPLORE);
+				cout << "[AutoFlight]: Switch from forward to explore." << endl;
+				return;
+			}
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::EXPLORE){
@@ -270,13 +293,21 @@ namespace AutoFlight{
 							this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 							this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
 						}
+						else{
+							this->td_.stop(this->odom_.pose.pose);	
+						}
 					}
 				}			
 			}
 
-			// change the state to NAVIGATE
+			// change to forward if finish current exploration
+			if (this->isReach(this->td_.trajectory.poses.back(), false) and this->prevState_ == FLIGHT_STATE::EXPLORE){
+				this->changeState(FLIGHT_STATE::FORWARD);
+				this->prevState_ = this->flightState_;
+				cout << "[AutoFlight]: Switch from explore to forward." << endl;
+				return;
+			}
 			this->prevState_ = this->flightState_;
-			return;
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::INSPECT){
@@ -309,7 +340,7 @@ namespace AutoFlight{
 
 			if (this->prevState_ == FLIGHT_STATE::BACKWARD){
 				bool replan = (this->td_.needReplan(1.0/3.0)) or (not this->trajValid_);
-					if (replan){
+				if (replan){
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
 					this->polyTraj_->updatePath(latestGLobalPath);
@@ -332,6 +363,9 @@ namespace AutoFlight{
 						if (planSuccess){
 							this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 							this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+						}
+						else{
+							this->td_.stop(this->odom_.pose.pose);
 						}
 					}
 				}
@@ -666,17 +700,35 @@ namespace AutoFlight{
 
 		Eigen::Vector3d pSample (0, 0, 0);
 		while (ros::ok()){
-			pSample(0) = AutoFlight::randomNumber(mapSizeMin(0), mapSizeMax(0));
+			pSample(0) = AutoFlight::randomNumber(this->odom_.pose.pose.position.x, mapSizeMax(0));
 			pSample(1) = AutoFlight::randomNumber(mapSizeMin(1), mapSizeMax(1));
-			pSample(2) = AutoFlight::randomNumber(mapSizeMin(2), mapSizeMax(2));
+			pSample(2) = this->takeoffHgt_;
 			
-			if (not this->map_->isInflatedOccupied(pSample) and not this->map_->isUnknown(pSample)){
+			if (not this->map_->isInflatedOccupied(pSample) and not this->map_->isUnknown(pSample) and this->satisfyWallDistance(pSample)){
 				return pSample;
 			}
 		}
 		return pSample; // dummy
 	}
 
+	bool dynamicInspection::satisfyWallDistance(const Eigen::Vector3d& p){
+		// check front and side
+		Eigen::Vector3d pEndFront, pEndLeft, pEndRight;
+		bool ignoreUnknown = false; 
+		bool castSuccessFront = this->map_->castRay(p, Eigen::Vector3d (1, 0, 0), pEndFront, this->safeDistance_, ignoreUnknown);
+		// bool castSuccessLeft = this->map_->castRay(p, Eigen::Vector3d (0, 1, 0), pEndLeft, this->sideSafeDistance_, ignoreUnknown);
+		// bool castSuccessRight = this->map_->castRay(p, Eigen::Vector3d (0, -1, 0), pEndRight, this->sideSafeDistance_, ignoreUnknown);
+		bool castSuccessLeft = false;
+		bool castSuccessRight = false;
+
+
+		if (castSuccessFront or castSuccessRight or castSuccessLeft){
+			return false;
+		}
+		else{
+			return true;
+		}
+	}
 
 	int dynamicInspection::countUnknownFOV(const Eigen::Vector3d& p, double yaw){
 		double height = 2 * tan(this->sensorAngleV_/2.0) * this->sensorRange_;
