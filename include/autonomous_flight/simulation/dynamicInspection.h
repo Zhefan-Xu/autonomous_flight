@@ -22,6 +22,7 @@ namespace AutoFlight{
 		ros::Timer plannerTimer_;
 		ros::Timer trajExeTimer_;
 		ros::Timer checkWallTimer_;
+		ros::Timer collisionCheckTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher goalPub_;
 		ros::Publisher rrtPathPub_;
@@ -62,6 +63,7 @@ namespace AutoFlight{
 
 
 		// inspection data
+		bool trajValid_ = true;
 		AutoFlight::trajData td_;
 		bool useYaw_ = false;
 		std::vector<double> wallRange_;
@@ -84,6 +86,7 @@ namespace AutoFlight{
 		void plannerCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
 		void checkWallCB(const ros::TimerEvent&); // check whether the front wall is reached
+		void collisionCheckCB(const ros::TimerEvent&); // online collision checking
 		void visCB(const ros::TimerEvent&);
 
 		geometry_msgs::PoseStamped getForwardGoal();

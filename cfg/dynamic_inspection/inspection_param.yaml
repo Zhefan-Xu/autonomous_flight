@@ -11,4 +11,4 @@ descend_step: 2.0 # zig zag descend step
 sensor_range: 5.0
 sensor_angle_horizontal: 90
 sensor_angle_vertical: 60
-explore_sample_num: 10
+explore_sample_number: 10
