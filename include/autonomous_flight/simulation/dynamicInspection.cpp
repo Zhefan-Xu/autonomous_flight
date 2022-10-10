@@ -825,16 +825,13 @@ namespace AutoFlight{
 		heightLevels.push_back(this->inspectionHeight_);
 
 		// 2. for each height level check left and right
-		double currX = this->odom_.pose.pose.position.x;
-		double currY = this->odom_.pose.pose.position.y;
 		double maxRayLength = 7.0;
 		ros::Rate r (10);
-		for (double height : heightLevels){
-			// a. move to desired height
-			Eigen::Vector3d pHeight (currX, currY, height);
-			this->moveToPosition(pHeight);
 
-			// b. turn left
+		for (size_t i=0; i<heightLevels.size(); ++i){
+			Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, heightLevels[i]);
+
+			// a. turn left
 			Eigen::Vector3d leftEnd;
 			bool castLeftSuccess = this->map_->castRay(pHeight, Eigen::Vector3d (0, 1, 0), leftEnd, maxRayLength);
 			
@@ -860,7 +857,7 @@ namespace AutoFlight{
 			}
 			
 
-			// c. turn right
+			// b. turn right
 			Eigen::Vector3d rightEnd;
 			bool castRightSuccess = this->map_->castRay(pHeight, Eigen::Vector3d(0, -1, 0), rightEnd, maxRayLength);
 			if (not castRightSuccess){
@@ -882,8 +879,17 @@ namespace AutoFlight{
 				this->moveToOrientation(0);
 			}
 
-			// d. back to origin
-			this->moveToPosition(pHeight);
+			// c. back to the center of the wall
+			Eigen::Vector3d pCenter = (rightEnd + leftEnd)/2.0;
+			this->moveToPosition(pCenter);
+			
+			// d. move to next height
+			if (i != heightLevels.size()-1){
+				double height  = heightLevels[i+1];
+				Eigen::Vector3d pNextHeight (pCenter(0), pCenter(1), height);
+				this->moveToPosition(pNextHeight);
+			}
+
 		}
 	}
 
@@ -913,19 +919,20 @@ namespace AutoFlight{
 		zigzagPathVec.push_back(psStart);
 
 		int count = 0;
+		bool ignoreUnknown = true;
 		for (double height : heightLevels){
 			Eigen::Vector3d pCurr (currX, currY, height);
 
 			// cast to left
 			Eigen::Vector3d pLeftEnd;
-			this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), pLeftEnd, maxRayLength);
+			this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), pLeftEnd, maxRayLength, ignoreUnknown);
 			pLeftEnd(1) = std::max(pLeftEnd(1) - this->sideSafeDistance_, currY); 
 			geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeftEnd);
 			psLeft.pose.orientation.w = 1.0;
 
 			// cast to right
 			Eigen::Vector3d pRightEnd;
-			this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), pRightEnd, maxRayLength);
+			this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), pRightEnd, maxRayLength, ignoreUnknown);
 			pRightEnd(1) = std::min(pRightEnd(1) + this->sideSafeDistance_, currY);
 			geometry_msgs::PoseStamped psRight = this->eigen2ps(pRightEnd);
 			psRight.pose.orientation.w = 1.0;
@@ -960,7 +967,7 @@ namespace AutoFlight{
 
 
 		ros::Rate r (10);
-		while (ros::ok() and not (this->isReach(psEnd, false))){
+		while ((ros::ok() and not (this->isReach(psEnd, false))) or (this->td_.getRemainTime() > 0)){
 			ros::spinOnce();
 			r.sleep();
 		}
