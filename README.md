@@ -27,12 +27,22 @@ Start the uav simulator first and you should be able to see a quadcopter in a pr
 roslaunch uav_simulator start.launch
 ```
 
-```Takeoff/Hovering```:
+a. Simple takeoff and hovering ```Takeoff/Hovering```:
 ```
-todo
+rosrun autonomous_flight takeoff_and_hover_node  # takeoff at 1.0 meter height
 ```
 
-```Navigation```
+b. Static environment navigation ```Navigation```
 ```
-todo
+roslaunch autonomous_flight navigation.launch   # navigation in the static enviornment
+```
+c. Dynamic environment navigation ```Dynamic Navigation```
+```
+roslaunch autonomous_flight dynamic_navigation.launch     # navigation in the dynamic environment
+```
+d. Static environmnet inspection using octomap ```Inspection (Octomap)``` (Only support in PX4 branch)
+
+e. Dynamic environment inspection using dynamic map ```Inspection (Dynamic Map)```
+```
+roslaunch autonomous_flight dynamic_inspection.launch
 ```
