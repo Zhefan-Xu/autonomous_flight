@@ -450,7 +450,6 @@ namespace AutoFlight{
 					minY = pYN(1);
 				}
 
-				
 				if (pZP(2) > maxZ){
 					maxZ = pZP(2);
 				}
@@ -784,9 +783,16 @@ namespace AutoFlight{
 					}
 				}
 			}
-		}		
-
+		}
 		return countUnknown;
+	}
+
+	void dynamicInspection::setStartPositionFree(){
+		Eigen::Vector3d lowerPos, upperPos;
+		Eigen::Vector3d centerPos (0 , 0, this->takeoffHgt_);
+		lowerPos = centerPos - Eigen::Vector3d (0.5, 0.5, 0.5);
+		upperPos = centerPos + Eigen::Vector3d (0.5, 0.5, 0.5);
+		this->map_->freeRegion(lowerPos, upperPos);
 	}
 
 	bool dynamicInspection::castRayOccupied(const Eigen::Vector3d& start, const Eigen::Vector3d& direction, Eigen::Vector3d& end, double maxRayLength){

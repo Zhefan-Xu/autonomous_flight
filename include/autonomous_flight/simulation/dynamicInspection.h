@@ -110,6 +110,7 @@ namespace AutoFlight{
 		bool randomSample(Eigen::Vector3d& pSample);
 		bool satisfyWallDistance(const Eigen::Vector3d& p);
 		int countUnknownFOV(const Eigen::Vector3d& p, double yaw);
+		void setStartPositionFree();
 
 
 		// wall detection module
