@@ -132,7 +132,6 @@ add_library(
   include/${PROJECT_NAME}/simulation/flightBase.cpp
   include/${PROJECT_NAME}/simulation/navigation.cpp
   include/${PROJECT_NAME}/simulation/dynamicNavigation.cpp
-  include/${PROJECT_NAME}/simulation/testNavigation.cpp
   include/${PROJECT_NAME}/simulation/navigationWaypoint.cpp
   include/${PROJECT_NAME}/simulation/dynamicInspection.cpp
 )
@@ -147,9 +146,9 @@ add_library(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/autonomous_flight_node.cpp)
 # add_executable(test_bspline_node src/simulation/test_bspline_node.cpp)
+add_executable(takeoff_and_hover_node src/simulation/takeoff_and_hover_node.cpp)
 add_executable(navigation_node src/simulation/navigation_node.cpp)
 add_executable(dynamic_navigation_node src/simulation/dynamic_navigation_node.cpp)
-add_executable(test_navigation_node src/simulation/test_navigation_node.cpp)
 add_executable(navigation_waypoint_node src/simulation/navigation_waypoint_node.cpp)
 add_executable(dynamic_inspection_node src/simulation/dynamic_inspection_node.cpp)
 
@@ -169,9 +168,9 @@ add_executable(dynamic_inspection_node src/simulation/dynamic_inspection_node.cp
 # )
 # target_link_libraries(test_bspline_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(takeoff_and_hover_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
-target_link_libraries(test_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(navigation_waypoint_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
