@@ -46,3 +46,6 @@ e. Dynamic environment inspection using dynamic map ```Inspection (Dynamic Map)`
 ```
 roslaunch autonomous_flight dynamic_inspection.launch
 ```
+
+### IV. Parameter Tunning
+All the parameters are in ```autonomous/cfg``` folder. For example, the parameters for ```Dynamic Navigation``` can be found in ```autonomous_flight/cfg/dynamic_navgation/***.yaml```.
