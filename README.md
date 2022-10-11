@@ -1,4 +1,4 @@
-# autonomous_flight
+# Autonomous Flight for Unmanned Aerial Vehicles (UAV)
 This branch is for the customized simulation flight. Check the ```px4``` branch for real-world or PX4-based simulation.
 
 ### I. Autonomous Flight Options
