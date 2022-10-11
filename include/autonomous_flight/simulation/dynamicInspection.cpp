@@ -117,6 +117,43 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Exploration sample number is set to: " << this->exploreSampleNum_ << endl;
 		}	
+
+		// inspection goal given or not
+		if (not this->nh_.getParam("inspection_goal_given", this->inspectionGoalGiven_)){
+			this->inspectionGoalGiven_ = false;
+			cout << "[AutoFlight]: Use default mode" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: use inspection goal is set to: " << this->inspectionGoalGiven_ << endl;
+		}
+
+		if (this->inspectionGoalGiven_){
+			// inspection location (last component is orientation in degree)
+			std::vector<double> inspectionGoalTemp;
+			if (not this->nh_.getParam("inspection_goal", inspectionGoalTemp)){
+				this->inspectionGoalGiven_ = false;
+				cout << "[AutoFlight]: Use default inspection mode." << endl;
+			}
+			else{
+				this->inspectionGoal_(0) = inspectionGoalTemp[0];
+				this->inspectionGoal_(1) = inspectionGoalTemp[1];
+				this->inspectionGoal_(2) = inspectionGoalTemp[2];
+				this->inspectionOrientation_ = inspectionGoalTemp[3];
+				cout << "[AutoFlight]: Inspection goal is set to: [" << this->inspectionGoal_(0)  << ", " << this->inspectionGoal_(1) << ", " <<  this->inspectionGoal_(2) << "]." << endl; 
+				cout << "[AutoFlight]: Inspection angle is set to: " << this->inspectionOrientation_ << " degree." << endl;
+				this->inspectionOrientation_ *= PI_const/180;
+			}
+
+			// inspection width
+			if (not this->nh_.getParam("inspection_width", this->inspectionWidth_)){
+				this->inspectionWidth_ = 5.0;
+				cout << "[AutoFlight]: No inspection width parameter. Use default: 5.0m." << endl;
+			}
+			else{
+				cout << "[AutoFlight]: Inspection width is set to: " << this->inspectionWidth_ << "m." << endl;
+			}
+		}
+
 	}
 
 	void dynamicInspection::initModules(){
@@ -172,7 +209,9 @@ namespace AutoFlight{
 		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicInspection::trajExeCB, this);
 
 		// check wall callback
-		this->checkWallTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicInspection::checkWallCB, this);
+		if (not this->inspectionGoalGiven_){
+			this->checkWallTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicInspection::checkWallCB, this);
+		}	
 
 		// collision check callback
 		this->collisionCheckTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicInspection::collisionCheckCB, this);
@@ -192,7 +231,7 @@ namespace AutoFlight{
 			// navigate to the goal position
 
 			// first try with pwl trajectory if not work try with the global path planner
-			bool replan = (this->td_.needReplan(1.0/3.0)) or this->isWallDetected() or (not this->trajValid_);
+			bool replan = (this->td_.needReplan(1.0/2.0)) or this->isWallDetected() or (not this->trajValid_);
 			if (replan){
 				nav_msgs::Path simplePath;
 				geometry_msgs::PoseStamped pStart, pGoal;
@@ -226,12 +265,14 @@ namespace AutoFlight{
 
 
 			// if reach the wall, change the state to INSPECT
-			if (this->isWallDetected() and this->isReach(this->getForwardGoal(), false)){
-				this->td_.stop(this->odom_.pose.pose);
-				this->changeState(FLIGHT_STATE::INSPECT);
-				cout << "[AutoFlight]: Switch from forward to inspection." << endl;
-				cout << "[AutoFlight]: Start Inspection..." << endl;
-				return;
+			if (this->isReach(this->getForwardGoal(), false)){
+				if (this->isWallDetected() or this->inspectionGoalGiven_){
+					this->td_.stop(this->odom_.pose.pose);
+					this->changeState(FLIGHT_STATE::INSPECT);
+					cout << "[AutoFlight]: Switch from forward to inspection." << endl;
+					cout << "[AutoFlight]: Start Inspection..." << endl;
+					return;
+				}
 			}
 
 			// if multiple times cannot navigate to the goal, change the state to EXPLORE
@@ -279,7 +320,7 @@ namespace AutoFlight{
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::EXPLORE){
-				bool replan = (this->td_.needReplan(1.0/3.0)) or (not this->trajValid_);
+				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_);
 				if (replan){
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
@@ -323,11 +364,18 @@ namespace AutoFlight{
 
 		if (this->flightState_ == FLIGHT_STATE::INSPECT){
 			// generate zig-zag path and exexute. 
-			// 1. check surroundings at each height
-			this->checkSurroundings();
 
-			// 2. start inspection
-			this->inspectZigZag();
+			if (not this->inspectionGoalGiven_){
+				// 1. check surroundings at each height
+				this->checkSurroundings();
+
+				// 2. start inspection
+				this->inspectZigZag();
+			}
+			else{
+				this->moveToOrientation(this->inspectionOrientation_);
+				this->inspectZigZagRange();
+			}
 
 			// 3. directly change to back
 			this->prevState_ = this->flightState_;
@@ -350,7 +398,7 @@ namespace AutoFlight{
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::BACKWARD){
-				bool replan = (this->td_.needReplan(1.0/3.0)) or (not this->trajValid_);
+				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_);
 				if (replan){
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
@@ -518,6 +566,16 @@ namespace AutoFlight{
 	}
 
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
+		// if user has specified the inspection goal location, follow the goal
+		if (this->inspectionGoalGiven_){
+			geometry_msgs::PoseStamped goal;
+			goal.pose.position.x = this->inspectionGoal_(0);
+			goal.pose.position.y = this->inspectionGoal_(1);
+			goal.pose.position.z = this->inspectionGoal_(2);
+			this->goal_ = goal;
+			return goal;
+		}
+
 		// if not meet wall, the goal will always be aggresive (+10 meter in front of the robot)
 		bool wallDetected = this->isWallDetected();
 		geometry_msgs::PoseStamped goal;
@@ -598,7 +656,7 @@ namespace AutoFlight{
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
 		this->td_.updateTrajectory(this->pwlTrajMsg_, this->pwlTraj_->getDuration());
 
-		ros::Rate r (10);
+		ros::Rate r (50);
 		while (ros::ok() and not this->isReach(psGoal, false)){
 			ros::spinOnce();
 			r.sleep();
@@ -658,7 +716,7 @@ namespace AutoFlight{
 		this->useYaw_ = true;
 		this->td_.updateTrajectory(rotationPath, endTime);
 
-		ros::Rate r (10);
+		ros::Rate r (50);
 		while (ros::ok() and not this->isReach(ps)){
 			ros::spinOnce();
 			r.sleep();
@@ -1020,7 +1078,7 @@ namespace AutoFlight{
 		zigzagPathVec.push_back(psStart);
 
 		int count = 0;
-		bool ignoreUnknown = false;
+		bool ignoreUnknown = true;
 		for (double height : heightLevels){
 			Eigen::Vector3d pCurr (currX, currY, height);
 
@@ -1068,6 +1126,78 @@ namespace AutoFlight{
 
 
 		ros::Rate r (10);
+		while ((ros::ok() and not (this->isReach(psEnd, false))) or (this->td_.getRemainTime() > 0)){
+			ros::spinOnce();
+			r.sleep();
+		}
+	}
+
+	void dynamicInspection::inspectZigZagRange(){
+		// 1. move to the desired height
+		geometry_msgs::PoseStamped psHeight;
+		psHeight.pose = this->odom_.pose.pose;
+		psHeight.pose.position.z = this->inspectionHeight_;
+		this->moveToPosition(psHeight.pose.position);
+
+		std::vector<geometry_msgs::PoseStamped> zigzagPathVec;
+
+		// 2. find all height levels
+		std::vector<double> heightLevels;
+		
+		double currHeight = this->odom_.pose.pose.position.z;
+		double heightTemp = currHeight;
+		while (ros::ok() and heightTemp > this->takeoffHgt_){
+			heightLevels.push_back(heightTemp);
+			heightTemp -= this->descendStep_;
+		}
+		heightLevels.push_back(this->takeoffHgt_);
+
+		
+		// 3. use the given range to construct the path
+		double currX = this->odom_.pose.pose.position.x;
+		double currY = this->odom_.pose.pose.position.y;
+		Eigen::Vector3d pStart (currX, currY, currHeight);
+		geometry_msgs::Quaternion quat = AutoFlight::quaternion_from_rpy(0, 0, this->inspectionOrientation_);	
+	
+		int count = 0;
+		for (double height : heightLevels){
+			Eigen::Vector3d pLeft (currX - this->inspectionWidth_/2.0 * sin(this->inspectionOrientation_), currY + this->inspectionWidth_/2.0 * cos(this->inspectionOrientation_), height);
+			Eigen::Vector3d pRight (currX + this->inspectionWidth_/2.0 * sin(this->inspectionOrientation_), currY - this->inspectionWidth_/2.0 * cos(this->inspectionOrientation_), height);
+			geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeft);
+			psLeft.pose.orientation = quat;
+			geometry_msgs::PoseStamped psRight = this->eigen2ps(pRight);
+			psRight.pose.orientation = quat;
+
+			if (count % 2 == 0){
+				if (count != 0){
+					geometry_msgs::PoseStamped psPrev = zigzagPathVec.back();
+					psPrev.pose.position.z =  height;
+					zigzagPathVec.push_back(psPrev);					
+				}
+				zigzagPathVec.push_back(psLeft);
+				zigzagPathVec.push_back(psRight);
+			}
+			else{
+				geometry_msgs::PoseStamped psPrev = zigzagPathVec.back();
+				psPrev.pose.position.z =  height;
+				zigzagPathVec.push_back(psPrev);
+				zigzagPathVec.push_back(psRight);
+				zigzagPathVec.push_back(psLeft);				
+			}
+			++count;
+		}
+
+		Eigen::Vector3d pEnd (currX, currY, this->takeoffHgt_);
+		geometry_msgs::PoseStamped psEnd = this->eigen2ps(pEnd);
+		psEnd.pose.orientation = quat;
+		zigzagPathVec.push_back(psEnd);
+
+
+		double duration = this->makePWLTraj(zigzagPathVec, this->inspectionVel_, this->pwlTrajMsg_);
+		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
+
+
+		ros::Rate r (50);
 		while ((ros::ok() and not (this->isReach(psEnd, false))) or (this->td_.getRemainTime() > 0)){
 			ros::spinOnce();
 			r.sleep();

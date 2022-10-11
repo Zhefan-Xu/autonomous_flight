@@ -60,7 +60,12 @@ namespace AutoFlight{
 		double sensorAngleH_;
 		double sensorAngleV_;
 		int exploreSampleNum_;
-
+		// ***only used when we specify location***
+		bool inspectionGoalGiven_ = false;
+		Eigen::Vector3d inspectionGoal_; 
+		double inspectionOrientation_;
+		double inspectionWidth_;
+		// ***only used when we specify location***
 
 		// inspection data
 		bool trajValid_ = true;
@@ -125,6 +130,7 @@ namespace AutoFlight{
 		// inspection module
 		void checkSurroundings();
 		void inspectZigZag();
+		void inspectZigZagRange();
 
 		
 		// utils

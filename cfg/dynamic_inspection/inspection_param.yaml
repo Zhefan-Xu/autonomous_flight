@@ -1,6 +1,12 @@
+# inspection target (Be careful. Only use it if you know the inspection goal)
+inspection_goal_given: false
+inspection_goal: [8, 1, 1, -90]
+inspection_width: 5.0
+
+
 # inspection
 inspection_velocity: 0.5
-min_wall_area: 10
+min_wall_area: 15
 safe_distance_to_wall: 2.5
 side_safe_distance: 1.5
 inspection_height: 6.0

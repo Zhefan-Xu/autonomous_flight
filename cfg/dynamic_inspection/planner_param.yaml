@@ -37,4 +37,4 @@ bspline_traj/uncertain_aware_factor: 2.0
 bspline_traj/prediction_horizon: 2.0
 bspline_traj/distance_threshold_dynamic: 1.0
 bspline_traj/max_path_length: 7.0
-bspline_traj/max_obstacle_size: [2, 2, 1]
+bspline_traj/max_obstacle_size: [5, 5, 5]
