@@ -99,9 +99,7 @@ namespace AutoFlight{
 	void dynamicNavigation::plannerCB(const ros::TimerEvent&){
 		if (not this->firstGoal_) return;
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-		this->map_->getObjPos(obstaclesPos);
-		this->map_->getObjVel(obstaclesVel);
-		this->map_->getObjSize(obstaclesSize);
+		this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		
 		bool replan = this->goalReceived_ or (not this->trajValid_) or (obstaclesPos.size() != 0) or (this->td_.needReplan(1.0/3.0));
 		
