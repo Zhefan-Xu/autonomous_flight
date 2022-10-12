@@ -40,7 +40,11 @@ c. Dynamic environment navigation ```Dynamic Navigation```
 ```
 roslaunch autonomous_flight dynamic_navigation.launch     # navigation in the dynamic environment
 ```
-d. Static environmnet inspection using octomap ```Inspection (Octomap)``` (Only support in PX4 branch)
+d. Static environmnet inspection using octomap ```Inspection (Octomap)``` 
+```
+roslaunch octomap_server octomap_mapping.launch # remember to modify the parameters
+roslaunch autonomous_flight inspection.launch
+```
 
 e. Dynamic environment inspection using dynamic map ```Inspection (Dynamic Map)```
 ```
