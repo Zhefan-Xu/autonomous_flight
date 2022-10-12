@@ -1,4 +1,4 @@
 <launch>
-	<rosparam file="$(find autonomous_flight)/cfg/inspection_param.yaml" />
+	<rosparam file="$(find autonomous_flight)/cfg/inspection/inspection_param.yaml" />
 	<node pkg="autonomous_flight" type="inspection_node" name="inspection_node" output="screen" />
 </launch>
