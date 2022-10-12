@@ -154,13 +154,8 @@ namespace AutoFlight{
 		// update when current trajectory is not valid or new goal received
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-		// this->map_->getObjPos(obstaclesPos);
-		// this->map_->getObjVel(obstaclesVel);
-		// this->map_->getObjSize(obstaclesSize);
 		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		bool planForDynamicObstacle = false;
-		// if (obstaclesPos.size() != 0 and not this->trajValid_){
 		if (obstaclesPos.size() != 0){
 			planForDynamicObstacle = true;
 		}
@@ -271,10 +266,7 @@ namespace AutoFlight{
 		if (this->td_.currTrajectory.poses.size() == 0) return;
 		nav_msgs::Path currTrajectory = this->td_.currTrajectory;
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-		this->map_->getObjPos(obstaclesPos);
-		this->map_->getObjVel(obstaclesVel);
-		this->map_->getObjSize(obstaclesSize);
+		this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		Eigen::Vector3d obstaclePos, obstacleSize, diff;
 		double size, dist;
 

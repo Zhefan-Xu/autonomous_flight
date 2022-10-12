@@ -127,6 +127,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: use inspection goal is set to: " << this->inspectionGoalGiven_ << endl;
 		}
 
+		// inspection width given or not
+		if (not this->nh_.getParam("inspection_width_given", this->inspectionWidthGiven_)){
+			this->inspectionWidthGiven_ = false;
+			cout << "[AutoFlight]: Use default mode" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: use inspection width is set to: " << this->inspectionWidthGiven_ << endl;
+		}
+
 		if (this->inspectionGoalGiven_){
 			// inspection location (last component is orientation in degree)
 			std::vector<double> inspectionGoalTemp;
@@ -143,24 +152,24 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Inspection angle is set to: " << this->inspectionOrientation_ << " degree." << endl;
 				this->inspectionOrientation_ *= PI_const/180;
 			}
+		}
 
+		if (this->inspectionWidthGiven_){
 			// inspection width
 			if (not this->nh_.getParam("inspection_width", this->inspectionWidth_)){
-				this->inspectionWidth_ = 5.0;
-				cout << "[AutoFlight]: No inspection width parameter. Use default: 5.0m." << endl;
+				this->inspectionWidthGiven_ = false;
+				cout << "[AutoFlight]: No inspection width parameter." << endl;
 			}
 			else{
+				this->inspectionWidthGiven_ = true;
 				cout << "[AutoFlight]: Inspection width is set to: " << this->inspectionWidth_ << "m." << endl;
 			}
 		}
-
 	}
 
 	void dynamicInspection::initModules(){
 		// initialize map
-		this->map_.reset(new mapManager::occMap (this->nh_));
-		// this->map_.reset(new mapManager::dynamicMap ());
-		// this->map_->initMap(this->nh_);
+		this->map_.reset(new mapManager::dynamicMap (this->nh_));
 
 		// initialize fake detector
 		// this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
@@ -231,7 +240,13 @@ namespace AutoFlight{
 			// navigate to the goal position
 
 			// first try with pwl trajectory if not work try with the global path planner
-			bool replan = (this->td_.needReplan(1.0/2.0)) or this->isWallDetected() or (not this->trajValid_);
+			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			bool planForDynamicObstacle = false;
+			if (obstaclesPos.size() != 0){
+				planForDynamicObstacle = true;
+			}
+			bool replan = (this->td_.needReplan(1.0/2.0)) or this->isWallDetected() or (not this->trajValid_) or planForDynamicObstacle;
 			if (replan){
 				nav_msgs::Path simplePath;
 				geometry_msgs::PoseStamped pStart, pGoal;
@@ -320,7 +335,13 @@ namespace AutoFlight{
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::EXPLORE){
-				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_);
+				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				bool planForDynamicObstacle = false;
+				if (obstaclesPos.size() != 0){
+					planForDynamicObstacle = true;
+				}
+				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_) or planForDynamicObstacle;
 				if (replan){
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
@@ -366,11 +387,18 @@ namespace AutoFlight{
 			// generate zig-zag path and exexute. 
 
 			if (not this->inspectionGoalGiven_){
-				// 1. check surroundings at each height
-				this->checkSurroundings();
+				if (not this->inspectionWidthGiven_){
+					// 1. check surroundings at each height
+					this->checkSurroundings();
+					// 2. start inspection
+					this->inspectZigZag();
+				}
+				else{
+					this->moveToPosition(Eigen::Vector3d (this->odom_.pose.pose.position.x, 0, this->takeoffHgt_));
+					this->inspectZigZagRange();
+				}
 
-				// 2. start inspection
-				this->inspectZigZag();
+				
 			}
 			else{
 				this->moveToOrientation(this->inspectionOrientation_);
@@ -398,7 +426,13 @@ namespace AutoFlight{
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::BACKWARD){
-				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_);
+				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				bool planForDynamicObstacle = false;
+				if (obstaclesPos.size() != 0){
+					planForDynamicObstacle = true;
+				}
+				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_) or planForDynamicObstacle;
 				if (replan){
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
@@ -1157,12 +1191,16 @@ namespace AutoFlight{
 		double currX = this->odom_.pose.pose.position.x;
 		double currY = this->odom_.pose.pose.position.y;
 		Eigen::Vector3d pStart (currX, currY, currHeight);
-		geometry_msgs::Quaternion quat = AutoFlight::quaternion_from_rpy(0, 0, this->inspectionOrientation_);	
+		double inspectionOrientation = 0;
+		if (this->inspectionGoalGiven_){
+			inspectionOrientation = this->inspectionOrientation_;
+		}
+		geometry_msgs::Quaternion quat = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation);	
 	
 		int count = 0;
 		for (double height : heightLevels){
-			Eigen::Vector3d pLeft (currX - this->inspectionWidth_/2.0 * sin(this->inspectionOrientation_), currY + this->inspectionWidth_/2.0 * cos(this->inspectionOrientation_), height);
-			Eigen::Vector3d pRight (currX + this->inspectionWidth_/2.0 * sin(this->inspectionOrientation_), currY - this->inspectionWidth_/2.0 * cos(this->inspectionOrientation_), height);
+			Eigen::Vector3d pLeft (currX - this->inspectionWidth_/2.0 * sin(inspectionOrientation), currY + this->inspectionWidth_/2.0 * cos(inspectionOrientation), height);
+			Eigen::Vector3d pRight (currX + this->inspectionWidth_/2.0 * sin(inspectionOrientation), currY - this->inspectionWidth_/2.0 * cos(inspectionOrientation), height);
 			geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeft);
 			psLeft.pose.orientation = quat;
 			geometry_msgs::PoseStamped psRight = this->eigen2ps(pRight);
