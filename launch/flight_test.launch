@@ -1,4 +1,0 @@
-<launch>
-	<rosparam file="$(find autonomous_flight)/cfg/test_flight.yaml" />
-	<node pkg="autonomous_flight" type="flight_test_node" name="flight_test_node" output="screen" />
-</launch>

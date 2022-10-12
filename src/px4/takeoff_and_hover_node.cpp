@@ -1,5 +1,5 @@
 /*
-	FILE: flight_test_node.cpp
+	FILE: takeoff_and_hover_node.cpp
 	---------------------------
 	Simple flight test for autonomous flight
 */
@@ -8,12 +8,11 @@
 #include <autonomous_flight/px4/flightBase.h>
 
 int main(int argc, char** argv){
-	ros::init(argc, argv, "flight_test_node");
+	ros::init(argc, argv, "takeoff_and_hover_node");
 	ros::NodeHandle nh;
 
 	AutoFlight::flightBase fb (nh);
 	fb.takeoff();
-	fb.run();
 	ros::spin();
 
 	return 0;

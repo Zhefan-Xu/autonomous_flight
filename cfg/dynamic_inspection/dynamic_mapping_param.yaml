@@ -1,0 +1,114 @@
+localization_mode: 0 # 0: pose (default) 1: odom
+depth_image_topic: /camera/depth/image_raw
+pose_topic: /mavros/local_position/pose
+odom_topic: /mavros/local_position/odom
+
+# robot size
+robot_size: [0.5, 0.5, 0.3]
+
+# Camera Parameters
+depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy
+depth_scale_factor: 10 # 1000 for Intel Realsense Camera
+depth_min_value: 0.5
+depth_max_value: 5.0
+depth_filter_margin: 2 # filter
+depth_skip_pixel: 2 # filter
+image_cols: 640
+image_rows: 480
+body_to_camera: [0.0,  0.0,  1.0,  0.09,
+                -1.0,  0.0,  0.0,  0.0 ,   
+                 0.0, -1.0,  0.0,  0.095,
+                 0.0,  0.0,  0.0,  1.0]
+
+# Raycasting
+raycast_max_length: 5.0
+p_hit: 0.70
+p_miss: 0.35
+p_min: 0.12
+p_max: 0.97
+p_occ: 0.80
+
+
+# Map
+map_resolution: 0.1
+ground_height: -0.1 # m
+map_size: [80, 40, 10] # meter. in x y z direction (reserved size)
+local_update_range: [5, 5, 3]
+local_bound_inflation: 3.0 # inflate local bound in meter
+clean_local_map: false
+
+# visualziation
+local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)
+max_height_visualization: 8 # m
+visualize_global_map: true
+verbose: false
+
+
+
+# new params introduced
+
+# region search
+region_inflate_coefficient: 1.3
+rawBoxWidthLimitLower: 0.2
+rawBoxHeightLimitLower: 1.0
+rawBoxWidthLimitUpper: 1.3
+rawBoxHeightLimitUpper: 2.0
+region_search_floor: 0.0
+
+# track & estimate velocty
+overlapThreshold: 0.3
+shakeMetric: 0
+countShakeMetric: -1
+vAvgMeasuredMetric: 0
+vAvgEstimatedMetric: 0.4
+sizeRatioLower: 0.20 # 0.25/1.8
+sizeRatioUpper: 0.72 #1.3/1.8
+fusedBoxWidthLimitLower: 0.25
+fusedBoxHeightLimitLower: 1.41
+fusedBoxWidthLimitUpper: 1.2
+fusedBoxHeightLimitUpper: 2.0
+lowestPointLimit: 0.2
+dist_metric_coef: 0.2
+fix_candidates_size: 5
+pre_history_size: 20
+fov_x_margin_lower: 3
+fov_x_margin_upper: 637
+fov_y_margin_lower: 10
+fov_y_margin_upper: 470
+avg_velocty_history_size: 15
+avg_velocity_count_size: 20
+now_history_out_size: 15
+calc_shake_count_history_size: 10 # must <= now_history_out_size
+check_shake_points_gap: 4 
+static: 4
+dynamic: 8
+force_dynamic: 10
+e_p: 0.3
+e_q: 0.002
+e_r: 0.3
+
+# traj pred
+n: 5
+dt: 0.033
+t: 3.5
+ts: 0.033
+colliCheckEndDist: 3.0
+colliCheckStartDist: 1.0
+
+P_T:  [ 0.4637, 0.2812, 0.1182, 0.0729, 0.064, # markov state transform matrix
+        0.3004, 0.4955, 0.3004, 0.1262, 0.0789,
+        0.1369, 0.3258, 0.5373, 0.3258, 0.1369,
+        0.0789, 0.1262, 0.3004, 0.4955, 0.3004,
+        0.0640, 0.0729, 0.1182, 0.2812, 0.4637]
+P_I:  [0.3162, 0.7499, 1, 0.7499, 0.3162] # markove init state matrix
+
+# C1: [-0.00083222, 0.01506117, -0.10415035, 0.34858333, -0.59971534, 0.60071107, 0.00129707] # right most traj curve( x dir is right)
+# C2: [6.8813, -10.987, -2.5552, 14.248, -8.5216, 2.3566, -0.00125]
+
+
+# map refree
+pre_history_clean_size: 150
+keep_map_coef: 1.0
+hist_clean_skip: 3
+refree_extra_dist: 0.2
+
