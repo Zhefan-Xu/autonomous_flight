@@ -11,10 +11,6 @@ depth_image_topic: /camera/depth/image_raw
 pose_topic: /mavros/local_position/pose
 odom_topic: /mavros/local_position/odom
 
-# for simulation
-depth_image_topic: /camera/depth/image_raw
-pose_topic: /CERLAB/quadcopter/pose
-odom_topic: /CERLAB/quadcopter/odom
 
 # robot size
 robot_size: [0.5, 0.5, 0.3]
