@@ -6,7 +6,7 @@
 #ifndef DYNAMIC_INSPECTION
 #define DYNAMIC_INSPECTION
 #include <autonomous_flight/px4/flightBase.h>
-#include <map_manager/occupancyMap.h>
+#include <map_manager/dynamicMap.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
@@ -32,7 +32,7 @@ namespace AutoFlight{
 		ros::Publisher wallVisPub_;
 
 		// Map
-		std::shared_ptr<mapManager::occMap> map_;
+		std::shared_ptr<mapManager::dynamicMap> map_;
 
 		// Planner
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
@@ -64,6 +64,7 @@ namespace AutoFlight{
 		bool inspectionGoalGiven_ = false;
 		Eigen::Vector3d inspectionGoal_; 
 		double inspectionOrientation_;
+		bool inspectionWidthGiven_ = false;
 		double inspectionWidth_;
 		// ***only used when we specify location***
 

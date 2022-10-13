@@ -445,7 +445,7 @@ namespace AutoFlight{
 
 
 		// adjust angle
-		for (int i=0; i<forwardNBVPath.poses.size(); ++i){
+		for (size_t i=0; i<forwardNBVPath.poses.size(); ++i){
 			forwardNBVPath.poses[i].pose.orientation = quatStart;
 		}
 		// this->executeWaypointPath(forwardNBVPath, true, true);
@@ -592,7 +592,7 @@ namespace AutoFlight{
 		// adjust heading first
 		geometry_msgs::Quaternion quatBack = AutoFlight::quaternion_from_rpy(0, 0, PI_const);
 		this->moveToAngle(quatBack);
-		for (int i=0; i<backPath.poses.size(); ++i){
+		for (size_t i=0; i<backPath.poses.size(); ++i){
 			backPath.poses[i].pose.orientation = quatBack;
 		}
 		this->executeWaypointPath(backPath, true, false);
@@ -747,7 +747,7 @@ namespace AutoFlight{
 		int id = 0;
 		int pathIdx = 0;
 		for (nav_msgs::Path path : pathVec){
-			for (int i=0; i<path.poses.size()-1; ++i){
+			for (size_t i=0; i<path.poses.size()-1; ++i){
 				geometry_msgs::PoseStamped pCurr = path.poses[i];
 				geometry_msgs::PoseStamped pNext = path.poses[i+1];
 
@@ -990,11 +990,11 @@ namespace AutoFlight{
 	int inspector::evaluateSample(const octomap::point3d& p){
 		int countUnknown = 0;
 		// count number of unknowns in the +x direction
-		double xmin, xmax, ymin, ymax, zmin, zmax;
-		xmin = p.x(); xmax = xmin + this->sensorRange_;
-		ymin = p.y() - this->sensorRange_; ymax = p.y() + this->sensorRange_;
+		double xmin, ymin, zmin;
+		xmin = p.x(); //xmax = xmin + this->sensorRange_;
+		ymin = p.y() - this->sensorRange_; //ymax = p.y() + this->sensorRange_;
 		double zRange = this->sensorRange_ * tan(this->sensorVerticalAngle_);
-		zmin = p.z(); zmax = p.z() + zRange;
+		zmin = p.z(); //zmax = p.z() + zRange;
 		int xCount = (int) (this->sensorRange_/this->mapRes_) + 1;
 		int yCount = (int) (2 * this->sensorRange_/this->mapRes_) + 1;
 		int zCount = (int) (zRange/this->mapRes_) + 1;
@@ -1050,7 +1050,7 @@ namespace AutoFlight{
 		double yPlusRes = this->mapRes_ ;
 		double yPlusForward = 0.0;
 		octomap::point3d pYPlusCheck = p;
-		ros::Time yPlusStart = ros::Time::now();
+		// ros::Time yPlusStart = ros::Time::now();
 		while (ros::ok() and yPlusForward <= this->sideSafeDist_ * sideSafeReduceFactor + yPlusRes){
 			yPlusForward += yPlusRes;
 			pYPlusCheck.y() = p.y() + yPlusForward;
@@ -1065,7 +1065,7 @@ namespace AutoFlight{
 		double yMinusRes = this->mapRes_;
 		double yMinusForward = 0.0;
 		octomap::point3d pYMinusCheck = p;
-		ros::Time yMinusStart = ros::Time::now();
+		// ros::Time yMinusStart = ros::Time::now();
 		while (ros::ok() and yMinusForward <= this->sideSafeDist_ * sideSafeReduceFactor + yMinusRes){
 			yMinusForward += yMinusRes;
 			pYMinusCheck.y() = p.y() - yMinusForward;
@@ -1459,7 +1459,7 @@ namespace AutoFlight{
 		ps.pose.orientation = quat;
 
 		double yawDiff = yawTgt - yawCurr; // difference between yaw
-		double direction;
+		double direction = 1.0;
 		double yawDiffAbs = std::abs(yawDiff);
 		if ((yawDiffAbs <= PI_const) and (yawDiff>0)){
 			direction = 1.0; // counter clockwise
@@ -1683,7 +1683,7 @@ namespace AutoFlight{
 
 	double inspector::findPathLength(const nav_msgs::Path& path){
 		double totalLength = 0.0;
-		for (int i=0; i<path.poses.size()-1; ++i){
+		for (size_t i=0; i<path.poses.size()-1; ++i){
 			geometry_msgs::PoseStamped psCurr = path.poses[i];
 			geometry_msgs::PoseStamped psNext = path.poses[i+1];
 			double dist = this->poseDistance(psCurr, psNext);
@@ -1871,7 +1871,7 @@ namespace AutoFlight{
 		}
 
 		std::vector<octomap::point3d> intepolatedWaypoints;
-		for (int i=0; i<waypoints.size()-1; ++i){
+		for (size_t i=0; i<waypoints.size()-1; ++i){
 			std::vector<octomap::point3d> ray;
 			octomap::point3d origin = waypoints[i];
 			octomap::point3d end = waypoints[i+1];
@@ -1880,7 +1880,7 @@ namespace AutoFlight{
 		}
 		intepolatedWaypoints.push_back(waypoints.back());
 
-		double minDist = 0.0;
+		// double minDist = 0.0;
 		std::vector<double> distVec;
 		for (octomap::point3d p : intepolatedWaypoints){
 			double dist = this->evaluatePointObstacleDist(p);
