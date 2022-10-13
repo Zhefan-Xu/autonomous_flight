@@ -1188,14 +1188,17 @@ namespace AutoFlight{
 
 		
 		// 3. use the given range to construct the path
-		double currX = this->odom_.pose.pose.position.x;
-		double currY = this->odom_.pose.pose.position.y;
-		Eigen::Vector3d pStart (currX, currY, currHeight);
 		double inspectionOrientation = 0;
 		if (this->inspectionGoalGiven_){
 			inspectionOrientation = this->inspectionOrientation_;
 		}
 		geometry_msgs::Quaternion quat = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation);	
+		double currX = this->odom_.pose.pose.position.x;
+		double currY = this->odom_.pose.pose.position.y;
+		Eigen::Vector3d pStart (currX, currY, currHeight);
+		geometry_msgs::PoseStamped psStart = this->eigen2ps(pStart);
+		psStart.pose.orientation = quat;
+		zigzagPathVec.push_back(psStart);
 	
 		int count = 0;
 		for (double height : heightLevels){
