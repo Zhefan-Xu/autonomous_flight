@@ -104,7 +104,9 @@ namespace AutoFlight{
 
 		// basic operations
 		bool moveToPosition(const geometry_msgs::Point& position);
+		bool moveToPosition(const geometry_msgs::Point& position, double vel);
 		bool moveToPosition(const Eigen::Vector3d& position);
+		bool moveToPosition(const Eigen::Vector3d& position, double vel);
 		bool moveToOrientation(const geometry_msgs::Quaternion& orientation);
 		bool moveToOrientation(double yaw);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath);
