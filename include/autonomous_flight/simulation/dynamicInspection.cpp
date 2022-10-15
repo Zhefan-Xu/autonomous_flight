@@ -394,7 +394,7 @@ namespace AutoFlight{
 					this->inspectZigZag();
 				}
 				else{
-					this->moveToPosition(Eigen::Vector3d (this->odom_.pose.pose.position.x, 0, this->takeoffHgt_));
+					this->moveToPosition(Eigen::Vector3d (this->odom_.pose.pose.position.x, 0, this->takeoffHgt_), this->inspectionVel_);
 					this->inspectZigZagRange();
 				}
 
@@ -698,12 +698,45 @@ namespace AutoFlight{
 		return true;
 	}
 
+	bool dynamicInspection::moveToPosition(const geometry_msgs::Point& position, double vel){
+		geometry_msgs::PoseStamped psStart, psGoal;
+		psGoal.pose.position = position;
+		psGoal.pose.orientation = this->odom_.pose.pose.orientation;
+		psStart.pose = this->odom_.pose.pose;
+
+		std::vector<geometry_msgs::PoseStamped> linePathVec;
+		linePathVec.push_back(psStart);
+		linePathVec.push_back(psGoal);
+		nav_msgs::Path linePath;
+		linePath.poses = linePathVec;
+
+		this->pwlTraj_->updatePath(linePath, vel);
+		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+		this->td_.updateTrajectory(this->pwlTrajMsg_, this->pwlTraj_->getDuration());
+
+		ros::Rate r (50);
+		while (ros::ok() and not this->isReach(psGoal, false)){
+			ros::spinOnce();
+			r.sleep();
+		}
+		return true;
+	}
+
 	bool dynamicInspection::moveToPosition(const Eigen::Vector3d& position){
 		geometry_msgs::Point p;
 		p.x = position(0);
 		p.y = position(1);
 		p.z = position(2);
 		this->moveToPosition(p);
+		return true;
+	}
+
+	bool dynamicInspection::moveToPosition(const Eigen::Vector3d& position, double vel){
+		geometry_msgs::Point p;
+		p.x = position(0);
+		p.y = position(1);
+		p.z = position(2);
+		this->moveToPosition(p, vel);
 		return true;
 	}
 	
@@ -1074,13 +1107,13 @@ namespace AutoFlight{
 
 			// c. back to the center of the wall
 			Eigen::Vector3d pCenter = (rightEnd + leftEnd)/2.0;
-			this->moveToPosition(pCenter);
+			this->moveToPosition(pCenter, this->inspectionVel_);
 			
 			// d. move to next height
 			if (i != heightLevels.size()-1){
 				double height  = heightLevels[i+1];
 				Eigen::Vector3d pNextHeight (pCenter(0), pCenter(1), height);
-				this->moveToPosition(pNextHeight);
+				this->moveToPosition(pNextHeight, this->inspectionVel_);
 			}
 
 		}
@@ -1171,7 +1204,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped psHeight;
 		psHeight.pose = this->odom_.pose.pose;
 		psHeight.pose.position.z = this->inspectionHeight_;
-		this->moveToPosition(psHeight.pose.position);
+		this->moveToPosition(psHeight.pose.position, this->inspectionVel_);
 
 		std::vector<geometry_msgs::PoseStamped> zigzagPathVec;
 
