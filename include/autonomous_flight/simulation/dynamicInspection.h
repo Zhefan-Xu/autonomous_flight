@@ -69,7 +69,7 @@ namespace AutoFlight{
 		// ***only used when we specify location***
 
 		// inspection data
-		bool trajValid_ = true;
+		bool trajValid_ = false;
 		AutoFlight::trajData td_;
 		bool useYaw_ = false;
 		std::vector<double> wallRange_;
