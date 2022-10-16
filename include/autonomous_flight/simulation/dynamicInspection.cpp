@@ -269,6 +269,7 @@ namespace AutoFlight{
 						this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 						this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
 						this->countBsplineFailure_ = 0; // reset failure count
+						this->trajValid_ = true;
 					}
 					else{
 						this->td_.stop(this->odom_.pose.pose);
@@ -365,6 +366,7 @@ namespace AutoFlight{
 						if (planSuccess){
 							this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 							this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+							this->trajValid_ = true;
 						}
 						else{
 							this->td_.stop(this->odom_.pose.pose);	
@@ -456,6 +458,7 @@ namespace AutoFlight{
 						if (planSuccess){
 							this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 							this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+							this->trajValid_ = true;
 						}
 						else{
 							this->td_.stop(this->odom_.pose.pose);
