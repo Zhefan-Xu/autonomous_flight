@@ -421,7 +421,7 @@ namespace AutoFlight{
 				this->moveToOrientation(-PI_const);
 
 				// generate global waypoint path. set new goal to the origin position
-				geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (0, 0, this->takeoffHgt_));
+				geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (1.5, 0, this->takeoffHgt_));
 				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
 				this->rrtPlanner_->updateGoal(psBack.pose);
 				this->rrtPlanner_->makePlan(this->rrtPathMsg_);
