@@ -230,8 +230,16 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::run(){
+		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop." << endl;
+		std::cin.clear();
+		fflush(stdin);
+		std::cin.get();
 		this->takeoff();
 
+		cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.clear();
+		fflush(stdin);
+		std::cin.get();
 		this->registerCallback();
 	}
 
