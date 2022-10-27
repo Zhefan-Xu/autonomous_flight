@@ -12,6 +12,7 @@
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
 
+
 namespace AutoFlight{
 	
 	enum FLIGHT_STATE {FORWARD, EXPLORE, INSPECT, BACKWARD};

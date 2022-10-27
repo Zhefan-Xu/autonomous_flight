@@ -394,6 +394,14 @@ namespace AutoFlight{
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::INSPECT){
+			// record rosbag
+			int temp1 = system("gnome-terminal -- sh -c 'mkdir ~/rosbag_inspection'");
+			int temp2 = system("gnome-terminal -- sh -c 'rosbag record -O ~/rosbag_inspection/inspection.bag /camera/color/image_raw_t /camera/depth/image_rect_raw_t /mavros/local_position/pose __name:=inspection_bag'");
+			if (temp1==-1 or temp2==-1){
+				cout << "[AutoFlight]: Recording fails." << endl;
+			}
+
+						
 			// generate zig-zag path and exexute. 
 
 			if (not this->inspectionGoalGiven_){
@@ -414,6 +422,12 @@ namespace AutoFlight{
 				this->moveToOrientation(this->inspectionOrientation_);
 				this->inspectZigZagRange();
 			}
+
+			int temp3 = system("gnome-terminal -- sh -c 'rosnode kill /inspection_bag'");
+			if (temp3 == -1){
+				cout << "[AutoFlight]: Bag recording does not stop." << endl;
+			}
+
 
 			// 3. directly change to back
 			this->prevState_ = this->flightState_;
