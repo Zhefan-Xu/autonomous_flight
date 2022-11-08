@@ -86,6 +86,7 @@ namespace AutoFlight{
 		visualization_msgs::MarkerArray wallVisMsg_;
 		int countBsplineFailure_ = 0;
 		std::vector<Eigen::Vector3d> sideWallPoints_;
+		std::vector<Eigen::Vector3d> sideWallPointsC_;
 		sensor_msgs::ImagePtr sideWallRaycastImg_;
 
 	public:

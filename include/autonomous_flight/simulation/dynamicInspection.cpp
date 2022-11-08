@@ -172,7 +172,6 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: No side wall raycast range parameter. Use default: 5.0m" << endl;
 		}
 		else{
-			this->sideWallRaycastRange_ = true;
 			cout << "[AutoFlight]: Side wall raycast range is set to: " << this->sideWallRaycastRange_ << "m." << endl;
 		}	
 	}
@@ -605,6 +604,16 @@ namespace AutoFlight{
 		}
 
 		this->sideWallPoints_ = rayEndVec;
+
+
+		// substract the raycasting points with the current position
+		std::vector< Eigen::Vector3d> rayEndVecC;
+		for (size_t i=0; i<rayEndVec.size(); ++i){
+			Eigen::Vector3d rayEndC = rayEndVec[i] - pCurr;
+			rayEndVecC.push_back(rayEndC);
+		}
+		this->sideWallPointsC_ = rayEndVecC;
+
 	}
 
 	void dynamicInspection::collisionCheckCB(const ros::TimerEvent&){
@@ -1330,14 +1339,31 @@ namespace AutoFlight{
 
 
 	void dynamicInspection::getSideWallRaycastMsg(sensor_msgs::ImagePtr& imgMsg){
+		// draw sensor range
 		double imgRes = 0.1;
 		int imageSize = int(this->sideWallRaycastRange_/imgRes) * 2 + 10;
 		cv::Mat img (imageSize, imageSize, CV_8UC3, Scalar(255, 255, 255));
 		Point center (imageSize/2, imageSize/2);
 		int radius = int(this->sideWallRaycastRange_/imgRes);
-		cv::Scalar circleColor(1, 0, 0);//Color of the circle
+		cv::Scalar circleColor(255, 0, 0);//Color of the circle
 		int thickness = 1;
 		cv::circle(img, center, radius, circleColor, thickness);
+
+		// draw current position
+		cv::Scalar posColor(0, 255, 0);//Color of the circle
+		cv::circle(img, center, 1, posColor, 1);
+
+		// visualize the raycast points
+		for (size_t i=0; i<this->sideWallPointsC_.size(); ++i){
+			int locX = int(this->sideWallPointsC_[i](0)/imgRes + imageSize/2);
+			int locY = int(this->sideWallPointsC_[i](1)/imgRes + imageSize/2);
+			Point pCenter (locX, locY);
+			int pRadius = 1;
+			cv::Scalar pColor(0, 0, 255);//Color of the circle
+			int pThickness = 1;
+			cv::circle(img, pCenter, pRadius, pColor, pThickness);
+		}
+
 		imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
 	}
 
