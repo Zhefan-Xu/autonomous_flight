@@ -48,7 +48,7 @@ p_occ: 0.80
 # Map
 map_resolution: 0.1
 ground_height: -0.1 # m
-map_size: [80, 40, 10] # meter. in x y z direction (reserved size)
+map_size: [120, 120, 10] # meter. in x y z direction (reserved size)
 local_update_range: [5, 5, 3]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
@@ -56,7 +56,7 @@ clean_local_map: false
 # visualziation
 local_map_size: [20, 20, 6] # meter. in x y z direction (only for visualization)
 max_height_visualization: 8 # m
-visualize_global_map: true
+visualize_global_map: false
 verbose: false
 
 
