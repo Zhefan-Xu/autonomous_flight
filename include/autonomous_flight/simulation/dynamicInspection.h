@@ -11,6 +11,9 @@
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
+#include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
+
 
 namespace AutoFlight{
 	
@@ -22,6 +25,7 @@ namespace AutoFlight{
 		ros::Timer plannerTimer_;
 		ros::Timer trajExeTimer_;
 		ros::Timer checkWallTimer_;
+		ros::Timer sideWallRaycastTimer_;
 		ros::Timer collisionCheckTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher goalPub_;
@@ -30,6 +34,7 @@ namespace AutoFlight{
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
 		ros::Publisher wallVisPub_;
+		image_transport::Publisher sideWallRaycastVisPub_;
 
 		// Map
 		std::shared_ptr<mapManager::dynamicMap> map_;
@@ -66,6 +71,7 @@ namespace AutoFlight{
 		double inspectionOrientation_;
 		bool inspectionWidthGiven_ = false;
 		double inspectionWidth_;
+		double sideWallRaycastRange_;
 		// ***only used when we specify location***
 
 		// inspection data
@@ -79,6 +85,8 @@ namespace AutoFlight{
 		nav_msgs::Path bsplineTrajMsg_;
 		visualization_msgs::MarkerArray wallVisMsg_;
 		int countBsplineFailure_ = 0;
+		std::vector<Eigen::Vector3d> sideWallPoints_;
+		sensor_msgs::ImagePtr sideWallRaycastImg_;
 
 	public:
 		dynamicInspection();
@@ -93,6 +101,7 @@ namespace AutoFlight{
 		void plannerCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
 		void checkWallCB(const ros::TimerEvent&); // check whether the front wall is reached
+		void sideWallRaycastCB(const ros::TimerEvent&);
 		void collisionCheckCB(const ros::TimerEvent&); // online collision checking
 		void visCB(const ros::TimerEvent&);
 
@@ -134,6 +143,10 @@ namespace AutoFlight{
 		void checkSurroundings();
 		void inspectZigZag();
 		void inspectZigZagRange();
+
+
+		// side wall raycasting module
+		void getSideWallRaycastMsg(sensor_msgs::ImagePtr& imgMsg);
 
 		
 		// utils

@@ -165,6 +165,16 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Inspection width is set to: " << this->inspectionWidth_ << "m." << endl;
 			}
 		}
+
+		// side wall raycast range
+		if (not this->nh_.getParam("side_wall_raycast_range", this->sideWallRaycastRange_)){
+			this->sideWallRaycastRange_ = 5.0;
+			cout << "[AutoFlight]: No side wall raycast range parameter. Use default: 5.0m" << endl;
+		}
+		else{
+			this->sideWallRaycastRange_ = true;
+			cout << "[AutoFlight]: Side wall raycast range is set to: " << this->sideWallRaycastRange_ << "m." << endl;
+		}	
 	}
 
 	void dynamicInspection::initModules(){
@@ -208,6 +218,10 @@ namespace AutoFlight{
 
 		// wall visualization publisher
 		this->wallVisPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("inspection/wall", 10);
+
+		// side wall visualzation publisher
+		image_transport::ImageTransport it (this->nh_);
+		this->sideWallRaycastVisPub_ = it.advertise("inspection/side_wall_raycast", 1);
 	}
 
 	void dynamicInspection::registerCallback(){
@@ -224,6 +238,9 @@ namespace AutoFlight{
 
 		// collision check callback
 		this->collisionCheckTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicInspection::collisionCheckCB, this);
+
+		// side wall raycast callback
+		this->sideWallRaycastTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicInspection::sideWallRaycastCB, this);
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.03), &dynamicInspection::visCB, this);
@@ -564,6 +581,32 @@ namespace AutoFlight{
 		}
 	}
 
+	void dynamicInspection::sideWallRaycastCB(const ros::TimerEvent&){
+		// perform 360 degree ray casting
+		int rayNum = 16;
+		double interval = (double) PI_const * 2.0 / (double) rayNum;
+
+		// current position
+		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+
+		// get directions for ray casting and cast ray
+		std::vector<Eigen::Vector3d> rayEndVec;
+		double maxRayLength = this->sideWallRaycastRange_;
+		bool ignoreUnknown = true;
+		double angle = 0.0;
+		for (int i=0; i<rayNum; ++i){
+			Eigen::Vector3d rayDirection (cos(angle), sin(angle), 0.0);
+			Eigen::Vector3d rayEnd;
+			bool raycastSuccess = this->map_->castRay(pCurr, rayDirection, rayEnd, maxRayLength, ignoreUnknown);
+			if (raycastSuccess){
+				rayEndVec.push_back(rayEnd);
+			}
+			angle += interval;
+		}
+
+		this->sideWallPoints_ = rayEndVec;
+	}
+
 	void dynamicInspection::collisionCheckCB(const ros::TimerEvent&){
 		if (this->td_.currTrajectory.poses.size() == 0) return;
 		nav_msgs::Path currTrajectory = this->td_.currTrajectory;
@@ -600,6 +643,10 @@ namespace AutoFlight{
 			this->getWallVisMsg(this->wallVisMsg_);
 			this->wallVisPub_.publish(this->wallVisMsg_);
 		}
+
+		// visualzize raycasting image
+		this->getSideWallRaycastMsg(this->sideWallRaycastImg_);
+		this->sideWallRaycastVisPub_.publish(this->sideWallRaycastImg_);
 	}
 
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
@@ -1280,6 +1327,20 @@ namespace AutoFlight{
 			r.sleep();
 		}
 	}
+
+
+	void dynamicInspection::getSideWallRaycastMsg(sensor_msgs::ImagePtr& imgMsg){
+		double imgRes = 0.1;
+		int imageSize = int(this->sideWallRaycastRange_/imgRes) * 2 + 10;
+		cv::Mat img (imageSize, imageSize, CV_8UC3, Scalar(255, 255, 255));
+		Point center (imageSize/2, imageSize/2);
+		int radius = int(this->sideWallRaycastRange_/imgRes);
+		cv::Scalar circleColor(1, 0, 0);//Color of the circle
+		int thickness = 1;
+		cv::circle(img, center, radius, circleColor, thickness);
+		imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
+	}
+
 
 	geometry_msgs::PoseStamped dynamicInspection::eigen2ps(const Eigen::Vector3d& p){
 		geometry_msgs::PoseStamped ps;
