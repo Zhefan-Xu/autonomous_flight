@@ -581,8 +581,11 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::sideWallRaycastCB(const ros::TimerEvent&){
+		// timing
+		ros::Time startTime = ros::Time::now();
+
 		// perform 360 degree ray casting
-		int rayNum = 16;
+		int rayNum = 16 * 2;
 		double interval = (double) PI_const * 2.0 / (double) rayNum;
 
 		// current position
@@ -613,6 +616,10 @@ namespace AutoFlight{
 			rayEndVecC.push_back(rayEndC);
 		}
 		this->sideWallPointsC_ = rayEndVecC;
+
+		ros::Time endTime = ros::Time::now();
+		double duration = (endTime - startTime).toSec();
+		// cout << "[AutoFlight]: " << "Side wall raycast time: " << duration << endl;
 
 	}
 
@@ -1357,13 +1364,14 @@ namespace AutoFlight{
 		for (size_t i=0; i<this->sideWallPointsC_.size(); ++i){
 			int locX = int(this->sideWallPointsC_[i](0)/imgRes + imageSize/2);
 			int locY = int(this->sideWallPointsC_[i](1)/imgRes + imageSize/2);
-			Point pCenter (locX, locY);
+			Point pCenter (locY, locX);
 			int pRadius = 1;
 			cv::Scalar pColor(0, 0, 255);//Color of the circle
 			int pThickness = 1;
 			cv::circle(img, pCenter, pRadius, pColor, pThickness);
 		}
 
+		cv::flip(img, img, -1);
 		imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
 	}
 
