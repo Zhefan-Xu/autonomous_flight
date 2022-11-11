@@ -22,3 +22,5 @@ explore_sample_number: 10
 
 # side wall detection
 side_wall_raycast_range: 5 #m.
+side_wall_min_length: 5 #m
+side_wall_max_angle: 90 #degree

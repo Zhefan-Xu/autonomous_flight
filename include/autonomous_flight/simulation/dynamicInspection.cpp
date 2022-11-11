@@ -173,6 +173,25 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Side wall raycast range is set to: " << this->sideWallRaycastRange_ << "m." << endl;
+		}
+
+		// side wall minimum length threshold
+		if (not this->nh_.getParam("side_wall_min_length", this->sideWallLengthThresh_)){
+			this->sideWallLengthThresh_ = 5.0;
+			cout << "[AutoFlight]: No side wall min length parameter. Use default: 5.0m" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Side wall min length is set to: " << this->sideWallLengthThresh_ << "m." << endl;
+		}		
+
+		// side wall max angle threshold
+		if (not this->nh_.getParam("side_wall_max_angle", this->sideWallAngleThresh_)){
+			this->sideWallAngleThresh_ = PI_const/2;
+			cout << "[AutoFlight]: No side wall max angle parameter. Use default: 90 degree." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Side wall max angle is set to: " << this->sideWallAngleThresh_ << "degree." << endl;
+			this->sideWallAngleThresh_ *= PI_const/180.0;
 		}	
 	}
 
@@ -582,43 +601,33 @@ namespace AutoFlight{
 
 	void dynamicInspection::sideWallRaycastCB(const ros::TimerEvent&){
 		// timing
-		ros::Time startTime = ros::Time::now();
+		// ros::Time startTime = ros::Time::now();
 
 		// perform 360 degree ray casting
 		int rayNum = 16 * 2;
-		double interval = (double) PI_const * 2.0 / (double) rayNum;
-
-		// current position
-		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-
-		// get directions for ray casting and cast ray
 		std::vector<Eigen::Vector3d> rayEndVec;
-		double maxRayLength = this->sideWallRaycastRange_;
-		bool ignoreUnknown = true;
-		double angle = 0.0;
-		for (int i=0; i<rayNum; ++i){
-			Eigen::Vector3d rayDirection (cos(angle), sin(angle), 0.0);
-			Eigen::Vector3d rayEnd;
-			bool raycastSuccess = this->map_->castRay(pCurr, rayDirection, rayEnd, maxRayLength, ignoreUnknown);
-			if (raycastSuccess){
-				rayEndVec.push_back(rayEnd);
-			}
-			angle += interval;
-		}
+		std::vector<int> rayIDVec;
+		this->sideCast(rayNum, rayEndVec, rayIDVec);
 
-		this->sideWallPoints_ = rayEndVec;
+		// a. get the potential wall points
+		std::vector<std::vector<Eigen::Vector3d>> potentialWallVec;
+		this->getPotentialWallPoints(rayNum, rayEndVec, rayIDVec, potentialWallVec);
 
 
-		// substract the raycasting points with the current position
-		std::vector< Eigen::Vector3d> rayEndVecC;
-		for (size_t i=0; i<rayEndVec.size(); ++i){
-			Eigen::Vector3d rayEndC = rayEndVec[i] - pCurr;
-			rayEndVecC.push_back(rayEndC);
-		}
-		this->sideWallPointsC_ = rayEndVecC;
+		// b. for each potential wall, check the length of the wall and filter out the invalid potential wall
+		this->checkPotentialWallLength(potentialWallVec);
 
-		ros::Time endTime = ros::Time::now();
-		double duration = (endTime - startTime).toSec();
+
+		// c. check the angle 
+		this->checkPotentialWallAngle(potentialWallVec);
+
+		// d. get the final wall
+		std::vector<Eigen::Vector3d> finalSideWallPoints;
+		this->getSideWallPoints(potentialWallVec, finalSideWallPoints);
+
+
+		// ros::Time endTime = ros::Time::now();
+		// double duration = (endTime - startTime).toSec();
 		// cout << "[AutoFlight]: " << "Side wall raycast time: " << duration << endl;
 
 	}
@@ -1344,6 +1353,168 @@ namespace AutoFlight{
 		}
 	}
 
+	void dynamicInspection::sideCast(int rayNum, std::vector<Eigen::Vector3d>& rayEndVec, std::vector<int>& rayIDVec){
+		double interval = (double) PI_const * 2.0 / (double) rayNum;
+
+		// current position
+		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+
+		// get directions for ray casting and cast ray
+		double maxRayLength = this->sideWallRaycastRange_;
+		bool ignoreUnknown = true;
+		double angle = 0.0;
+		for (int i=0; i<rayNum; ++i){
+			Eigen::Vector3d rayDirection (cos(angle), sin(angle), 0.0);
+			Eigen::Vector3d rayEnd;
+			bool raycastSuccess = this->map_->castRay(pCurr, rayDirection, rayEnd, maxRayLength, ignoreUnknown);
+			if (raycastSuccess){
+				rayEndVec.push_back(rayEnd);
+				rayIDVec.push_back(i);
+			}
+			angle += interval;
+		}
+
+		this->sideWallPoints_ = rayEndVec;
+
+
+		// substract the raycasting points with the current position
+		std::vector< Eigen::Vector3d> rayEndVecC;
+		for (size_t i=0; i<rayEndVec.size(); ++i){
+			Eigen::Vector3d rayEndC = rayEndVec[i] - pCurr;
+			rayEndVecC.push_back(rayEndC);
+		}
+		this->sideWallPointsC_ = rayEndVecC;		
+	}
+
+
+	void dynamicInspection::getPotentialWallPoints(int rayNum, const std::vector<Eigen::Vector3d>& rayEndVec, const std::vector<int>& rayIDVec, std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec){
+		// check whether it is as wall
+		// get the potential wall points
+		// first get the consecutive ray IDs
+		std::vector<std::vector<int>> consecutiveIDVec;
+		int currID, prevID;
+		std::vector<int> tempVec;
+		for (size_t i=0; i<rayIDVec.size(); ++i){
+			currID = rayIDVec[i];
+			if (i != 0){
+				// check whether current ID is incremented from the previous one
+				if (currID - prevID == 1){ // they are neighbors
+					if (tempVec.size() == 0){
+						tempVec.push_back(prevID);
+					}
+					tempVec.push_back(currID);
+
+				}
+				else{ // isn's neighbor
+					// if the previous tempVec is not empty, we need to save it
+					if (tempVec.size() != 0){
+						consecutiveIDVec.push_back(tempVec);
+						tempVec.clear();
+					}
+				}
+
+			}
+			prevID = currID;
+		}
+
+		// check whether the first and last ID is in the consecutive vec. If they are, we need to merge two vector
+		if (consecutiveIDVec[0][0] == 0 and (consecutiveIDVec.back()).back() == rayNum - 1){
+			std::vector<std::vector<int>> newConsecutiveIDVec;
+			std::vector<int> firstIDVec = consecutiveIDVec[0];
+			std::vector<int> lastIDVec = consecutiveIDVec.back();
+			lastIDVec.insert(lastIDVec.end(), firstIDVec.begin(), firstIDVec.end());
+
+			newConsecutiveIDVec.push_back(lastIDVec);
+			for (size_t i=1; i<consecutiveIDVec.size()-1; ++i){
+				newConsecutiveIDVec.push_back(consecutiveIDVec[i]);
+			}
+			consecutiveIDVec = newConsecutiveIDVec;
+		}
+
+		// get the potential wall points
+		for (size_t i=0; i<consecutiveIDVec.size(); ++i){
+			std::vector<Eigen::Vector3d> points;
+			for (size_t j=0; j<consecutiveIDVec[i].size(); ++j){
+				int ID = consecutiveIDVec[i][j];
+				points.push_back(rayEndVec[ID]);
+			}
+			potentialWallVec.push_back(points);
+		}
+	}
+
+	void dynamicInspection::checkPotentialWallLength(std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec){
+		std::vector<std::vector<Eigen::Vector3d>> prevPotentialWallVec = potentialWallVec;
+		potentialWallVec.clear();
+		for (size_t i=0; i<prevPotentialWallVec.size(); ++i){
+			double wallLength = this->calculateWallLength(prevPotentialWallVec[i]);
+			if (wallLength >= this->sideWallLengthThresh_){
+				potentialWallVec.push_back(prevPotentialWallVec[i]);
+			}
+		}
+	}
+
+	double dynamicInspection::calculateWallLength(const std::vector<Eigen::Vector3d>& points){
+		double totalLength = 0.0;
+		for (size_t i=0; i<points.size()-1; ++i){
+			Eigen::Vector3d cp = points[i];
+			Eigen::Vector3d np = points[i+1];
+			totalLength += (np - cp).norm();
+		}
+		return totalLength;
+	}
+
+	void dynamicInspection::checkPotentialWallAngle(std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec){
+		std::vector<std::vector<Eigen::Vector3d>> prevPotentialWallVec = potentialWallVec;
+		potentialWallVec.clear();
+		for (size_t i=0; i<prevPotentialWallVec.size(); ++i){
+			double minAngle = this->checkWallPointMinAngle(prevPotentialWallVec[i]);
+			if (minAngle <= this->sideWallAngleThresh_){
+				potentialWallVec.push_back(prevPotentialWallVec[i]);
+			}
+		}
+	}
+
+	double dynamicInspection::checkWallPointMinAngle(const std::vector<Eigen::Vector3d>& points){
+		if (points.size() <= 2){
+			return 0.0;
+		}
+		double minAngle = 2 * PI_const;
+		Eigen::Vector3d startP = points[0];
+		Eigen::Vector3d endP = points.back();
+		for (size_t i=1; i<points.size()-1; ++i){
+			Eigen::Vector3d currP = points[i];
+			Eigen::Vector3d direction1 = startP - currP;
+			Eigen::Vector3d direction2 = endP - currP;
+			double currAngle = trajPlanner::angleBetweenVectors(direction1, direction2);
+			if (currAngle < minAngle){
+				minAngle = currAngle;
+			}
+		}
+		return minAngle;
+	}
+
+	void dynamicInspection::getSideWallPoints(const std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec, std::vector<Eigen::Vector3d>& finalSideWallPoints){
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d currDirection (cos(currYaw), sin(currYaw), 0.0);
+		Eigen::Vector3d currP (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+
+		double minAngle = PI_const * 2;
+		size_t minIdx = 0;
+		for (size_t i=0; i<potentialWallVec.size(); ++i){
+			for (size_t j=0; j<potentialWallVec[i].size(); ++j){
+				Eigen::Vector3d pointDirection = potentialWallVec[i][j] - currDirection;
+				double angle = trajPlanner::angleBetweenVectors(currDirection, pointDirection);
+				if (angle < minAngle){
+					minAngle = angle;
+					minIdx = i;
+				}
+			}
+		}
+
+		finalSideWallPoints = potentialWallVec[minIdx];
+		this->finalSideWallPoints_ = finalSideWallPoints;
+	}
+
 
 	void dynamicInspection::getSideWallRaycastMsg(sensor_msgs::ImagePtr& imgMsg){
 		// draw sensor range
@@ -1369,6 +1540,15 @@ namespace AutoFlight{
 			cv::Scalar pColor(0, 0, 255);//Color of the circle
 			int pThickness = 1;
 			cv::circle(img, pCenter, pRadius, pColor, pThickness);
+		}
+
+		// visualize the wall with line
+		for (size_t i=0; i<this->finalSideWallPoints_.size()-1; ++i){
+			Eigen::Vector3d p1e = this->finalSideWallPoints_[i];
+			Eigen::Vector3d p2e = this->finalSideWallPoints_[i+1];
+			cv::Point p1 (p1e(1), p1e(0));
+			cv::Point p2 (p2e(1), p2e(0));
+			cv::line(img, p1, p2, Scalar(255, 0, 0), 1, LINE_8);
 		}
 
 		cv::flip(img, img, -1);

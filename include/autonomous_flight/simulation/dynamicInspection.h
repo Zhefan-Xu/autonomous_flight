@@ -72,6 +72,8 @@ namespace AutoFlight{
 		bool inspectionWidthGiven_ = false;
 		double inspectionWidth_;
 		double sideWallRaycastRange_;
+		double sideWallLengthThresh_;
+		double sideWallAngleThresh_;
 		// ***only used when we specify location***
 
 		// inspection data
@@ -87,6 +89,7 @@ namespace AutoFlight{
 		int countBsplineFailure_ = 0;
 		std::vector<Eigen::Vector3d> sideWallPoints_;
 		std::vector<Eigen::Vector3d> sideWallPointsC_;
+		std::vector<Eigen::Vector3d> finalSideWallPoints_;
 		sensor_msgs::ImagePtr sideWallRaycastImg_;
 
 	public:
@@ -147,6 +150,13 @@ namespace AutoFlight{
 
 
 		// side wall raycasting module
+		void sideCast(int rayNum, std::vector<Eigen::Vector3d>& rayEndVec, std::vector<int>& rayIDVec);
+		void getPotentialWallPoints(int rayNum, const std::vector<Eigen::Vector3d>& rayEndVec, const std::vector<int>& rayIDVec, std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec);
+		void checkPotentialWallLength(std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec);
+		double calculateWallLength(const std::vector<Eigen::Vector3d>& points);
+		void checkPotentialWallAngle(std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec);
+		double checkWallPointMinAngle(const std::vector<Eigen::Vector3d>& points);
+		void getSideWallPoints(const std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec, std::vector<Eigen::Vector3d>& finalSideWallPoints);
 		void getSideWallRaycastMsg(sensor_msgs::ImagePtr& imgMsg);
 
 		
