@@ -89,7 +89,9 @@ namespace AutoFlight{
 		int countBsplineFailure_ = 0;
 		std::vector<Eigen::Vector3d> sideWallPoints_;
 		std::vector<Eigen::Vector3d> sideWallPointsC_;
+		std::vector<Eigen::Vector3d> sideWallPointsAll_; // in all directions
 		std::vector<Eigen::Vector3d> finalSideWallPoints_;
+		std::vector<Eigen::Vector3d> finalSideWallPointsC_;
 		sensor_msgs::ImagePtr sideWallRaycastImg_;
 
 	public:
