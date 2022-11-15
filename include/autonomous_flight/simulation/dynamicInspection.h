@@ -81,6 +81,8 @@ namespace AutoFlight{
 		AutoFlight::trajData td_;
 		bool useYaw_ = false;
 		std::vector<double> wallRange_;
+		std::vector<Eigen::Vector3d> frontWallPoints_;
+		Eigen::Vector3d frontWallDim_;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
@@ -141,7 +143,10 @@ namespace AutoFlight{
 		bool isWallDetected();
 		double getWallDistance();
 		void updateWallRange(const std::vector<double>& wallRange);
+		void updateFrontWallPoints(const std::vector<Eigen::Vector3d>& frontWallPoints);
+		void updateFrontWallDim(double length, double width, double height);
 		visualization_msgs::Marker getLineMarker(double x1, double y1, double z1, double x2, double y2, double z2, int id, bool isWall);
+		visualization_msgs::Marker getLineMarker(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, int id, bool isWall);
 		void getWallVisMsg(visualization_msgs::MarkerArray& msg);
 
 

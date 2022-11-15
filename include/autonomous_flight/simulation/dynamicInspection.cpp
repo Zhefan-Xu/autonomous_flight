@@ -343,7 +343,7 @@ namespace AutoFlight{
 			}
 
 			if (this->countBsplineFailure_ > 3 and not this->isWallDetected()){
-				this->changeState(FLIGHT_STATE::EXPLORE);
+				// this->changeState(FLIGHT_STATE::EXPLORE); // for development
 				cout << "[AutoFlight]: Switch from forward to explore." << endl;
 				return;
 			}
@@ -520,6 +520,7 @@ namespace AutoFlight{
 		}
 	}
 
+	// to reimplement
 	void dynamicInspection::checkWallCB(const ros::TimerEvent&){
 		// use current robot position, check the occcupancy of the predefined wall size bounding box
 
@@ -529,73 +530,83 @@ namespace AutoFlight{
 
 		// 1. find the occupied point in front of the robot
 		Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-		Eigen::Vector3d direction (1, 0, 0);
+		// Eigen::Vector3d direction (1, 0, 0); // forward raycast
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d direction (cos(currYaw), sin(currYaw), 0);
+		Eigen::Vector3d leftDirection (cos(currYaw+PI_const/2.0), sin(currYaw+PI_const/2.0), 0);
+		Eigen::Vector3d rightDirection (cos(currYaw-PI_const/2.0), sin(currYaw-PI_const/2.0), 0);
+
+
 		Eigen::Vector3d endPos;
 		double maxRayLength = 5.0;
 		bool castRaySuccess = this->map_->castRay(currPos, direction, endPos, maxRayLength);
 		
 		if (castRaySuccess){
 			// search for the wall region
-			double minX = endPos(0) - this->map_->getRes();
-			double maxX = endPos(0) + maxThickness;
-			double minY = endPos(1);
-			double maxY = endPos(1);
-			double minZ = endPos(2);
-			double maxZ = endPos(2);			
+			double leftDistMax = 0.0;
+			double rightDistMax = 0.0;
+			double zpDistMax = 0.0;
+			double znDistMax = currPos(2); // assume the wall start from 0 
 
+			double searchThickness = maxThickness;
 			const double searchResolution = 0.3;
-			for (double xs=endPos(0); xs<endPos(0)+maxThickness; xs+=searchResolution){
-				Eigen::Vector3d p (xs, endPos(1), endPos(2));
-				Eigen::Vector3d pYP, pYN, pZP, pZN;
+			for (double t=0.0; t<maxThickness; t+=searchResolution){
+				Eigen::Vector3d p = endPos + direction * t;
+				Eigen::Vector3d pLeft, pRight, pZP, pZN;
 				const double maxRayLengthWall = 7.0;
 				
-				// cast ray in +y direction
-				bool ypSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, 1, 0), pYP, maxRayLengthWall);
+				// cast ray in left (or Y plus) direction
+				bool leftSuccess = this->castRayOccupied(p, leftDirection, pLeft, maxRayLengthWall);
+				double leftDist = (pLeft - p).norm();
 
-				// cast ray in -y direction
-				bool ynSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, -1, 0), pYN, maxRayLengthWall);
+				// cast ray in right (or Y minus) direction
+				bool rightSuccess = this->castRayOccupied(p, rightDirection, pRight, maxRayLengthWall);
+				double rightDist = (pRight - p).norm();
 
 				// cast ray in +z direction
 				bool zpSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, 0, 1), pZP, maxRayLengthWall);
+				double zpDist = (pZP - p).norm();
 
-				// cast ray in -z direction
-				bool znSuccess = this->castRayOccupied(p, Eigen::Vector3d (0, 0, -1), pZN, maxRayLengthWall);
 
-				// update range
-				if (pYP(1) > maxY){
-					maxY = pYP(1);
+				if (leftDist > leftDistMax){
+					leftDistMax = leftDist; // update max distance for left cast
 				}
 
-				if (pYN(1) < minY){
-					minY = pYN(1);
+				if (rightDist > rightDistMax){
+					rightDistMax = rightDist;
 				}
 
-				if (pZP(2) > maxZ){
-					maxZ = pZP(2);
+				if (zpDist > zpDistMax){
+					zpDistMax = zpDist;
 				}
 
-				if (not znSuccess){
-					minZ = 0.0;
-				}
-				else{
-					if (pZN(2) < minZ){
-						minZ = pZN(2);
-					}
-				}
 
-				bool noWall = (not ypSuccess) and (not ynSuccess) and (not zpSuccess) and (not znSuccess);
+				bool noWall = (not leftSuccess) and (not rightSuccess) and (not zpSuccess);
 				if (noWall){
-					maxX = xs;
+					searchThickness = t;
 					break;
 				}
 			}
 
-			std::vector<double> wallRange {minX, maxX, minY, maxY, minZ, maxZ};
-			this->updateWallRange(wallRange);
+			// find corresponding 3D points for the front wall
+			Eigen::Vector3d pFLT = endPos + leftDirection * leftDistMax + Eigen::Vector3d (0, 0, 1) * zpDistMax;  // front left top
+			Eigen::Vector3d pFLB = endPos + leftDirection * leftDistMax + Eigen::Vector3d (0, 0, -1) * znDistMax; // front left bottom
+			Eigen::Vector3d pFRT = endPos + rightDirection * rightDistMax + Eigen::Vector3d (0, 0, 1) * zpDistMax; // front right top
+			Eigen::Vector3d pFRB = endPos + rightDirection * rightDistMax + Eigen::Vector3d (0, 0, -1) * znDistMax; // front right bottom
+			Eigen::Vector3d pRLT = endPos + leftDirection * leftDistMax + Eigen::Vector3d (0, 0, 1) * zpDistMax + searchThickness * direction; // rear left top
+			Eigen::Vector3d pRLB = endPos + leftDirection * leftDistMax + Eigen::Vector3d (0, 0, -1) * znDistMax + searchThickness * direction; // rear left bottom
+			Eigen::Vector3d pRRT = endPos + rightDirection * rightDistMax + Eigen::Vector3d (0, 0, 1) * zpDistMax + searchThickness * direction; // rear right top
+			Eigen::Vector3d pRRB = endPos + rightDirection * rightDistMax + Eigen::Vector3d (0, 0, -1) * znDistMax + searchThickness * direction; // real right bottom
+
+			std::vector<Eigen::Vector3d> frontWallPoints {pFLT, pFLB, pFRT, pFRB, pRLT, pRLB, pRRT, pRRB};
+			this->updateFrontWallPoints(frontWallPoints);
+			this->updateFrontWallDim(rightDistMax+leftDistMax, searchThickness, zpDistMax+znDistMax);
 		}
 		else{
-			std::vector<double> wallRange {0, 0, 0, 0, 0, 0};	
-			this->updateWallRange(wallRange);
+			Eigen::Vector3d dummyPoint (0, 0, 0);
+			std::vector<Eigen::Vector3d> frontWallPoints {dummyPoint, dummyPoint, dummyPoint, dummyPoint, dummyPoint, dummyPoint, dummyPoint, dummyPoint};
+			this->updateFrontWallPoints(frontWallPoints);
+			this->updateFrontWallDim(0, 0, 0);
 		}
 	}
 
@@ -667,7 +678,7 @@ namespace AutoFlight{
 			this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
 		}
 
-		if (this->wallRange_.size() != 0){
+		if (this->frontWallPoints_.size() != 0){
 			this->getWallVisMsg(this->wallVisMsg_);
 			this->wallVisPub_.publish(this->wallVisMsg_);
 		}
@@ -677,6 +688,7 @@ namespace AutoFlight{
 		this->sideWallRaycastVisPub_.publish(this->sideWallRaycastImg_);
 	}
 
+	// to reimplement
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
 		// if user has specified the inspection goal location, follow the goal
 		if (this->inspectionGoalGiven_){
@@ -1019,10 +1031,11 @@ namespace AutoFlight{
 	}
 
 	bool dynamicInspection::isWallDetected(){
-		if (this->wallRange_.size() == 0){
+		if (this->frontWallPoints_.size() == 0){
 			return false;
 		}
-		double area = (this->wallRange_[3] - this->wallRange_[2]) * (this->wallRange_[5] - this->wallRange_[4]);
+
+		double area = this->frontWallDim_(0) * this->frontWallDim_(2);
 		if (area > this->minWallArea_){
 			return true;
 		}
@@ -1032,13 +1045,23 @@ namespace AutoFlight{
 	}
 
 	double dynamicInspection::getWallDistance(){
-		return std::abs(this->wallRange_[0] - this->odom_.pose.pose.position.x);
+		Eigen::Vector3d frontWallCenter = (this->frontWallPoints_[0] + this->frontWallPoints_[1] + this->frontWallPoints_[2] + this->frontWallPoints_[3]) * 0.25;
+		Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		return (frontWallCenter - currPos).norm();
 	}
 
 	void dynamicInspection::updateWallRange(const std::vector<double>& wallRange){
 		this->wallRange_ = wallRange;
 	}
 
+	void dynamicInspection::updateFrontWallPoints(const std::vector<Eigen::Vector3d>& frontWallPoints){
+		this->frontWallPoints_ = frontWallPoints;
+	}
+
+	void dynamicInspection::updateFrontWallDim(double length, double width, double height){
+		Eigen::Vector3d dim (length, width, height);
+		this->frontWallDim_ = dim;
+	}
 
 	visualization_msgs::Marker dynamicInspection::getLineMarker(double x1, double y1, double z1, 
 										  						double x2, double y2, double z2,
@@ -1077,27 +1100,35 @@ namespace AutoFlight{
 		return lineMarker;
 	}
 
+	visualization_msgs::Marker dynamicInspection::getLineMarker(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2, int id, bool isWall){
+		double x1 = p1(0); 
+		double y1 = p1(1);
+		double z1 = p1(2);
+
+		double x2 = p2(0); 
+		double y2 = p2(1);
+		double z2 = p2(2);
+		return this->getLineMarker(x1, y1, z1, x2, y2, z2, id, isWall);
+	}
+
 	void dynamicInspection::getWallVisMsg(visualization_msgs::MarkerArray& msg){
 		msg.markers.clear();
-		double xmin, xmax, ymin, ymax, zmin, zmax;
-		xmin = this->wallRange_[0]; xmax = this->wallRange_[1];
-		ymin = this->wallRange_[2]; ymax = this->wallRange_[3];
-		zmin = this->wallRange_[4]; zmax = this->wallRange_[5];
+
 
 		bool isWall = this->isWallDetected();
 		std::vector<visualization_msgs::Marker> visVec;
-		visualization_msgs::Marker l1 = this->getLineMarker(xmin, ymin, zmin, xmin, ymax, zmin, 1, isWall);
-		visualization_msgs::Marker l2 = this->getLineMarker(xmin, ymax, zmin, xmax, ymax, zmin, 2, isWall);
-		visualization_msgs::Marker l3 = this->getLineMarker(xmax, ymax, zmin, xmax, ymin, zmin, 3, isWall);
-		visualization_msgs::Marker l4 = this->getLineMarker(xmin, ymin, zmin, xmax, ymin, zmin, 4, isWall);
-		visualization_msgs::Marker l5 = this->getLineMarker(xmin, ymin, zmin, xmin, ymin, zmax, 5, isWall);
-		visualization_msgs::Marker l6 = this->getLineMarker(xmin, ymax, zmin, xmin, ymax, zmax, 6, isWall);
-		visualization_msgs::Marker l7 = this->getLineMarker(xmax, ymax, zmin, xmax, ymax, zmax, 7, isWall);
-		visualization_msgs::Marker l8 = this->getLineMarker(xmax, ymin, zmin, xmax, ymin, zmax, 8, isWall);
-		visualization_msgs::Marker l9 = this->getLineMarker(xmin, ymin, zmax, xmin, ymax, zmax, 9, isWall);
-		visualization_msgs::Marker l10 = this->getLineMarker(xmin, ymax, zmax, xmax, ymax, zmax, 10, isWall);
-		visualization_msgs::Marker l11 = this->getLineMarker(xmax, ymax, zmax, xmax, ymin, zmax, 11, isWall);
-		visualization_msgs::Marker l12 = this->getLineMarker(xmin, ymin, zmax, xmax, ymin, zmax, 12, isWall);
+		visualization_msgs::Marker l1 = this->getLineMarker(this->frontWallPoints_[0], this->frontWallPoints_[1], 1, isWall);
+		visualization_msgs::Marker l2 = this->getLineMarker(this->frontWallPoints_[0], this->frontWallPoints_[2], 2, isWall);
+		visualization_msgs::Marker l3 = this->getLineMarker(this->frontWallPoints_[1], this->frontWallPoints_[3], 3, isWall);
+		visualization_msgs::Marker l4 = this->getLineMarker(this->frontWallPoints_[2], this->frontWallPoints_[3], 4, isWall);
+		visualization_msgs::Marker l5 = this->getLineMarker(this->frontWallPoints_[0], this->frontWallPoints_[4], 5, isWall);
+		visualization_msgs::Marker l6 = this->getLineMarker(this->frontWallPoints_[1], this->frontWallPoints_[5], 6, isWall);
+		visualization_msgs::Marker l7 = this->getLineMarker(this->frontWallPoints_[2], this->frontWallPoints_[6], 7, isWall);
+		visualization_msgs::Marker l8 = this->getLineMarker(this->frontWallPoints_[3], this->frontWallPoints_[7], 8, isWall);
+		visualization_msgs::Marker l9 = this->getLineMarker(this->frontWallPoints_[4], this->frontWallPoints_[5], 9, isWall);
+		visualization_msgs::Marker l10 = this->getLineMarker(this->frontWallPoints_[4], this->frontWallPoints_[6], 10, isWall);
+		visualization_msgs::Marker l11 = this->getLineMarker(this->frontWallPoints_[5], this->frontWallPoints_[7], 11, isWall);
+		visualization_msgs::Marker l12 = this->getLineMarker(this->frontWallPoints_[6], this->frontWallPoints_[7], 12, isWall);
 
 		// line 1-12
 		visVec.push_back(l1);
