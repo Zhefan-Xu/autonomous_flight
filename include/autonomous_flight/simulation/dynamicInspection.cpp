@@ -343,7 +343,7 @@ namespace AutoFlight{
 			}
 
 			if (this->countBsplineFailure_ > 3 and not this->isWallDetected()){
-				// this->changeState(FLIGHT_STATE::EXPLORE); // for development
+				this->changeState(FLIGHT_STATE::EXPLORE); // for development
 				cout << "[AutoFlight]: Switch from forward to explore." << endl;
 				return;
 			}
@@ -363,9 +363,10 @@ namespace AutoFlight{
 				}
 				else{
 					cout << "[AutoFlight]: Looking around to increase map range..." << endl;
-					this->moveToOrientation(PI_const/2.0);
-					this->moveToOrientation(-PI_const/2.0);
-					this->moveToOrientation(0);
+					double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+					this->moveToOrientation(currYaw + PI_const/2.0);
+					this->moveToOrientation(currYaw - PI_const/2.0);
+					this->moveToOrientation(currYaw);
 				}
 				return;
 			}
@@ -624,21 +625,17 @@ namespace AutoFlight{
 		// a. get the potential wall points
 		std::vector<std::vector<Eigen::Vector3d>> potentialWallVec;
 		this->getPotentialWallPoints(rayNum, rayEndVec, rayIDVec, potentialWallVec);
-		cout << "1: " << potentialWallVec.size() << endl;
 
 
 		// b. for each potential wall, check the length of the wall and filter out the invalid potential wall
 		this->checkPotentialWallLength(potentialWallVec);
-		cout << "2: " << potentialWallVec.size() << endl;
 
 		// c. check the angle 
 		this->checkPotentialWallAngle(potentialWallVec);
-		cout << "3: " << potentialWallVec.size() << endl;
 
 		// d. get the final wall
 		std::vector<Eigen::Vector3d> finalSideWallPoints;
 		this->getSideWallPoints(potentialWallVec, finalSideWallPoints);
-		cout << "4: " << finalSideWallPoints.size() << endl;
 
 		// ros::Time endTime = ros::Time::now();
 		// double duration = (endTime - startTime).toSec();
@@ -1160,6 +1157,10 @@ namespace AutoFlight{
 		heightLevels.push_back(this->inspectionHeight_);
 
 		// 2. for each height level check left and right
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d leftDirection (cos(currYaw + PI_const/2.0), sin(currYaw + PI_const/2.0), 0);
+		Eigen::Vector3d rightDirection (cos(currYaw - PI_const/2.0), sin(currYaw - PI_const/2.0), 0);
+
 		double maxRayLength = 7.0;
 		ros::Rate r (50);
 
@@ -1168,50 +1169,55 @@ namespace AutoFlight{
 
 			// a. turn left
 			Eigen::Vector3d leftEnd;
-			bool castLeftSuccess = this->map_->castRay(pHeight, Eigen::Vector3d (0, 1, 0), leftEnd, maxRayLength);
+			bool castLeftSuccess = this->map_->castRay(pHeight, leftDirection, leftEnd, maxRayLength);
 			
 		
 			if (not castLeftSuccess){
-				this->moveToOrientation(PI_const/2);
+				this->moveToOrientation(currYaw + PI_const/2);
 				// translation
 				while (ros::ok() and not castLeftSuccess){
 					geometry_msgs::PoseStamped pStart, pGoal;
 					pStart.pose = this->odom_.pose.pose;
-					pGoal = pStart; pGoal.pose.position.y += 1.0;
+					Eigen::Vector3d pStartEig (pStart.pose.position.x, pStart.pose.position.y, pStart.pose.position.z);
+					Eigen::Vector3d pGoalEig = pStartEig + 1.0 * leftDirection;
+					pGoal = this->eigen2ps(pGoalEig); pGoal.pose.orientation = pStart.pose.orientation;
 					std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
 					double duration = this->makePWLTraj(pathVec, this->pwlTrajMsg_);
 					this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 
+
 					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-					castLeftSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), leftEnd, maxRayLength);
+					castLeftSuccess = this->map_->castRay(pCurr, leftDirection, leftEnd, maxRayLength);
+
 					ros::spinOnce();
 					r.sleep();
 				}
-
-				this->moveToOrientation(0);
+				this->moveToOrientation(currYaw);
 			}
 			
 
 			// b. turn right
 			Eigen::Vector3d rightEnd;
-			bool castRightSuccess = this->map_->castRay(pHeight, Eigen::Vector3d(0, -1, 0), rightEnd, maxRayLength);
+			bool castRightSuccess = this->map_->castRay(pHeight, rightDirection, rightEnd, maxRayLength);
 			if (not castRightSuccess){
-				this->moveToOrientation(-PI_const/2);
+				this->moveToOrientation(currYaw - PI_const/2);
 				while (ros::ok() and not castRightSuccess){
 					geometry_msgs::PoseStamped pStart, pGoal;
 					pStart.pose = this->odom_.pose.pose;
-					pGoal = pStart; pGoal.pose.position.y -= 1.0;
+					Eigen::Vector3d pStartEig (pStart.pose.position.x, pStart.pose.position.y, pStart.pose.position.z);
+					Eigen::Vector3d pGoalEig = pStartEig + 1.0 * rightDirection;
+					pGoal = this->eigen2ps(pGoalEig); pGoal.pose.orientation = pStart.pose.orientation;
 					std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
 					double duration = this->makePWLTraj(pathVec, this->pwlTrajMsg_);
 					this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 					
 					Eigen::Vector3d pCurr(this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-					castRightSuccess = this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), rightEnd, maxRayLength);
+					castRightSuccess = this->map_->castRay(pCurr, rightDirection, rightEnd, maxRayLength);
 					ros::spinOnce();
 					r.sleep();
 				}
 
-				this->moveToOrientation(0);
+				this->moveToOrientation(currYaw);
 			}
 
 			// c. back to the center of the wall
@@ -1246,11 +1252,14 @@ namespace AutoFlight{
 		// 2. cast rays to two sides
 		double currX = this->odom_.pose.pose.position.x;
 		double currY = this->odom_.pose.pose.position.y;
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d leftDirection (cos(currYaw + PI_const/2.0), sin(currYaw + PI_const/2.0), 0);
+		Eigen::Vector3d rightDirection (cos(currYaw - PI_const/2.0), sin(currYaw - PI_const/2.0), 0);
 		double maxRayLength = 7.0;
 		
 		Eigen::Vector3d pStart (currX, currY, currHeight);
 		geometry_msgs::PoseStamped psStart = this->eigen2ps(pStart);
-		psStart.pose.orientation.w = 1.0;
+		psStart.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, currYaw);
 		zigzagPathVec.push_back(psStart);
 
 		int count = 0;
@@ -1260,17 +1269,29 @@ namespace AutoFlight{
 
 			// cast to left
 			Eigen::Vector3d pLeftEnd;
-			this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), pLeftEnd, maxRayLength, ignoreUnknown);
-			pLeftEnd(1) = std::max(pLeftEnd(1) - this->sideSafeDistance_, currY); 
-			geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeftEnd);
-			psLeft.pose.orientation.w = 1.0;
+			this->map_->castRay(pCurr, leftDirection, pLeftEnd, maxRayLength, ignoreUnknown);
+			double leftDist = (pLeftEnd - pCurr).norm();
+			if (leftDist < this->sideSafeDistance_){
+				pLeftEnd = pCurr;
+			}
+			else{
+				pLeftEnd = pLeftEnd - leftDirection * this->sideSafeDistance_;
+			}			geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeftEnd);
+			psLeft.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, currYaw);
 
 			// cast to right
 			Eigen::Vector3d pRightEnd;
-			this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), pRightEnd, maxRayLength, ignoreUnknown);
-			pRightEnd(1) = std::min(pRightEnd(1) + this->sideSafeDistance_, currY);
+			this->map_->castRay(pCurr, rightDirection, pRightEnd, maxRayLength, ignoreUnknown);
+			double rightDist = (pRightEnd - pCurr).norm();
+			if (rightDist < this->sideSafeDistance_){
+				pRightEnd = pCurr;
+			}
+			else{
+				pRightEnd = pRightEnd - rightDirection * this->sideSafeDistance_;
+			}
+
 			geometry_msgs::PoseStamped psRight = this->eigen2ps(pRightEnd);
-			psRight.pose.orientation.w = 1.0;
+			psRight.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, currYaw);
 
 			if (count % 2 == 0){
 				if (count != 0){
@@ -1293,7 +1314,7 @@ namespace AutoFlight{
 
 		Eigen::Vector3d pEnd (currX, currY, this->takeoffHgt_);
 		geometry_msgs::PoseStamped psEnd = this->eigen2ps(pEnd);
-		psEnd.pose.orientation.w = 1.0;
+		psEnd.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, currYaw);
 		zigzagPathVec.push_back(psEnd);
 
 
