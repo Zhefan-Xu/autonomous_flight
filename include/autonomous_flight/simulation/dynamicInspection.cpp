@@ -272,8 +272,7 @@ namespace AutoFlight{
 
 	void dynamicInspection::plannerCB(const ros::TimerEvent&){
 		if (this->flightState_ == FLIGHT_STATE::FORWARD){
-			// navigate to the goal position
-
+			// navigate to the goal position			
 			// first try with pwl trajectory if not work try with the global path planner
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -286,6 +285,10 @@ namespace AutoFlight{
 				nav_msgs::Path simplePath;
 				geometry_msgs::PoseStamped pStart, pGoal;
 				pStart.pose = this->odom_.pose.pose;
+
+				// get the moving direction
+				this->moveToOrientation(this->getMovingDirection());
+
 				pGoal = this->getForwardGoal();
 				std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
 				simplePath.poses = pathVec;
@@ -313,7 +316,6 @@ namespace AutoFlight{
 				}
 			}
 			this->prevState_ = this->flightState_;
-
 
 			// if reach the wall, change the state to INSPECT
 			if (this->isReach(this->getForwardGoal(), false)){
@@ -347,6 +349,9 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Switch from forward to explore." << endl;
 				return;
 			}
+
+
+
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::EXPLORE){
@@ -453,8 +458,15 @@ namespace AutoFlight{
 
 		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
 			if (this->prevState_ == FLIGHT_STATE::INSPECT){
+				double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+
 				// turn back
-				this->moveToOrientation(-PI_const);
+				if (not this->inspectionGoalGiven_){
+					this->moveToOrientation(currYaw-PI_const);
+				}
+				else{
+					this->moveToOrientation(-PI_const);
+				}
 
 				// generate global waypoint path. set new goal to the origin position
 				geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (1.5, 0, this->takeoffHgt_));
@@ -685,7 +697,7 @@ namespace AutoFlight{
 		this->sideWallRaycastVisPub_.publish(this->sideWallRaycastImg_);
 	}
 
-	// to reimplement
+
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
 		// if user has specified the inspection goal location, follow the goal
 		if (this->inspectionGoalGiven_){
@@ -697,22 +709,39 @@ namespace AutoFlight{
 			return goal;
 		}
 
+
 		// if not meet wall, the goal will always be aggresive (+10 meter in front of the robot)
 		bool wallDetected = this->isWallDetected();
 		geometry_msgs::PoseStamped goal;
-		goal.pose = this->odom_.pose.pose;
+		Eigen::Vector3d pGoal;
+		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d direction (cos(currYaw), sin(currYaw), 0);
 		
 		if (wallDetected){
 			double maxRayLength = 7.0;
 			Eigen::Vector3d pStart (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 			Eigen::Vector3d pEnd;
-			this->map_->castRay(pStart, Eigen::Vector3d (1, 0, 0), pEnd, maxRayLength);
-			goal.pose.position.x = std::max(goal.pose.position.x, pEnd(0)-this->safeDistance_);
+			this->map_->castRay(pStart, direction, pEnd, maxRayLength);
+			double dist = (pEnd - pCurr).norm();
+			if (dist <= this->safeDistance_){
+				pGoal = pCurr;
+			}
+			else{
+				pGoal = pEnd - direction * this->safeDistance_;
+			}
 		}
 		else{
-			goal.pose.position.x += 10.0;
-			this->goal_ = goal;
+			pGoal = pCurr + direction * 10.0;
 		}
+
+		goal.pose.position.x = pGoal(0);
+		goal.pose.position.y = pGoal(1);
+		goal.pose.position.z = pGoal(2);
+		goal.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, currYaw);
+
+		this->goal_ = goal;
 		return goal;
 	}
 
@@ -1406,6 +1435,18 @@ namespace AutoFlight{
 			ros::spinOnce();
 			r.sleep();
 		}
+	}
+
+	double dynamicInspection::getMovingDirection(){
+		// if we did not detect the wall, we use the current direction
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		double targetYaw = currYaw;
+		if (this->finalSideWallPoints_.size() != 0){
+			Eigen::Vector3d lastWallPoint = this->finalSideWallPoints_[this->finalSideWallPoints_.size() - 1];
+			Eigen::Vector3d secondLastWallPoint = this->finalSideWallPoints_[this->finalSideWallPoints_.size() - 2];
+			targetYaw = atan2(lastWallPoint(1) - secondLastWallPoint(1), lastWallPoint(0) - secondLastWallPoint(0));
+		}
+		return targetYaw;
 	}
 
 	void dynamicInspection::sideCast(int rayNum, std::vector<Eigen::Vector3d>& rayEndVec, std::vector<int>& rayIDVec){

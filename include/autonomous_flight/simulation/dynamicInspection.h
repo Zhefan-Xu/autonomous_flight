@@ -157,6 +157,7 @@ namespace AutoFlight{
 
 
 		// side wall raycasting module
+		double getMovingDirection();
 		void sideCast(int rayNum, std::vector<Eigen::Vector3d>& rayEndVec, std::vector<int>& rayIDVec);
 		void getPotentialWallPoints(int rayNum, const std::vector<Eigen::Vector3d>& rayEndVec, const std::vector<int>& rayIDVec, std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec);
 		void checkPotentialWallLength(std::vector<std::vector<Eigen::Vector3d>>& potentialWallVec);
