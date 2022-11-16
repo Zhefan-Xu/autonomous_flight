@@ -8,7 +8,7 @@ This package includes the autonomous flight implementation for the PX4-based unm
   - ```Navigation```: Autonomous navigation in static environment.  
   - ```Dynamic Navigation```: Autonomous navigation in dynamic environments.
   - ```Inspection (Octomap)```: Autonomous tunnel excavation frontier inspection using the Octomap.
-  - ```Inspection (Dynamic Map)```: Autonomous Tunnel Inspection using the Dynamic Map. (In Progress)
+  - ```Inspection (Dynamic Map)```: Autonomous Tunnel Inspection using the Dynamic Map. 
 
 
 ### II. Installation
