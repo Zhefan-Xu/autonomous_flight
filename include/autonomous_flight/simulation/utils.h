@@ -98,6 +98,14 @@ namespace AutoFlight{
 
     }
 
+    inline double getAngleDiff(double angle1, double angle2){
+        double delta = std::abs(angle2 - angle1);
+        if (delta > PI_const){
+            delta = 2 * PI_const - delta;
+        }
+        return delta;
+    }
+
     inline double getYawDistance(const pose& pStart, const pose& pTarget){
         double yaw1 = pStart.yaw;
         double yaw2 = pTarget.yaw;

@@ -288,6 +288,7 @@ namespace AutoFlight{
 
 				// get the moving direction
 				this->moveToOrientation(this->getMovingDirection());
+			
 
 				pGoal = this->getForwardGoal();
 				std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
@@ -1446,6 +1447,11 @@ namespace AutoFlight{
 			Eigen::Vector3d secondLastWallPoint = this->finalSideWallPoints_[this->finalSideWallPoints_.size() - 2];
 			targetYaw = atan2(lastWallPoint(1) - secondLastWallPoint(1), lastWallPoint(0) - secondLastWallPoint(0));
 		}
+
+		if (this->isWallDetected()){
+			targetYaw = currYaw;
+		}
+
 		return targetYaw;
 	}
 
@@ -1619,7 +1625,22 @@ namespace AutoFlight{
 
 		if (potentialWallVec.size() != 0){
 			finalSideWallPoints = potentialWallVec[minIdx];
+			// check the order of the wall points
+			// defined order: the last point is the newly discovered point
+			Eigen::Vector3d firstPoint = finalSideWallPoints[0];
+			Eigen::Vector3d firstDirection = firstPoint - currP;
+			Eigen::Vector3d lastPoint = finalSideWallPoints.back();
+			Eigen::Vector3d lastDirection = lastPoint - currP;
+			double firstPointAngle = trajPlanner::angleBetweenVectors(currDirection, firstDirection);
+			double lastPointAngle =  trajPlanner::angleBetweenVectors(currDirection, lastDirection);
+
+			if (lastPointAngle > firstPointAngle){
+				std::reverse(finalSideWallPoints.begin(), finalSideWallPoints.end());
+			}
+
 		}
+
+
 		this->finalSideWallPoints_ = finalSideWallPoints;
 
 		std::vector<Eigen::Vector3d> finalSideWallPointsC;
