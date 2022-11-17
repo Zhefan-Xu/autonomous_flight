@@ -6,7 +6,7 @@ inspection_width: 5.0
 
 
 # inspection
-inspection_velocity: 0.2
+inspection_velocity: 1.0
 min_wall_area: 15
 safe_distance_to_wall: 2.5
 side_safe_distance: 1.5

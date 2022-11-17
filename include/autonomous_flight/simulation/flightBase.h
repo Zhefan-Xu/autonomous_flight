@@ -128,6 +128,19 @@ namespace AutoFlight{
 			this->duration = this->timestep; 
 		}
 
+		// double getRemainDistance(){
+		// 	int currIdx = this->getCurrIdx();
+		// 	double dist = 0.0;
+		// 	for (size_t i=currIdx; i<this->trajectory.poses.size()-1; ++i){
+		// 		geometry_msgs::PoseStamped p1 = this->trajectory.poses[i];
+		// 		geometry_msgs::PoseStamped p2 = this->trajectory.poses[i+1];
+		// 		AutoFlight::pose ps1 (p1.pose.position.x, p1.pose.position.y, p1.pose.position.z);
+		// 		AutoFlight::pose ps2 (p2.pose.position.x, p2.pose.position.y, p2.pose.position.z);
+		// 		dist += AutoFlight::getPoseDistance(ps1, ps2);
+		// 	}
+		// 	return dist;
+		// }
+
 		double getRemainTime(){
 			ros::Time currTime = ros::Time::now();
 			double tCurr = (currTime - this->startTime).toSec() + this->timestep;
@@ -142,6 +155,15 @@ namespace AutoFlight{
 				return false;
 			}
 		}
+
+		// bool needReplan(double factor, double length){
+		// 	if (this->getRemainTime() <= this->duration * (1 - factor) and not (this->getRemainDistance() <= length)){
+		// 		return true;
+		// 	}
+		// 	else{
+		// 		return false;
+		// 	}			
+		// }
 	};
 
 	class flightBase{
