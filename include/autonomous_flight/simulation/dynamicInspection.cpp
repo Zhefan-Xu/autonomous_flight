@@ -272,6 +272,7 @@ namespace AutoFlight{
 
 	void dynamicInspection::plannerCB(const ros::TimerEvent&){
 		if (this->flightState_ == FLIGHT_STATE::FORWARD){
+			this->useYaw_ = true;
 			// navigate to the goal position			
 			// first try with pwl trajectory if not work try with the global path planner
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
@@ -280,14 +281,19 @@ namespace AutoFlight{
 			if (obstaclesPos.size() != 0){
 				planForDynamicObstacle = true;
 			}
-			bool replan = (this->td_.needReplan(1.0/2.0)) or this->isWallDetected() or (not this->trajValid_) or planForDynamicObstacle;
+
+			bool planForSideWall = false;
+			if (this->sideWallPoints_.size() != 0){
+				planForSideWall = true;
+			}
+			bool replan = (this->td_.needReplan(1.0/2.0)) or this->isWallDetected() or (not this->trajValid_) or planForDynamicObstacle or planForSideWall;
 			if (replan){
 				nav_msgs::Path simplePath;
 				geometry_msgs::PoseStamped pStart, pGoal;
 				pStart.pose = this->odom_.pose.pose;
 
 				// get the moving direction
-				this->moveToOrientation(this->getMovingDirection());
+				// this->moveToOrientation(this->getMovingDirection());
 			
 
 				pGoal = this->getForwardGoal();
@@ -322,6 +328,7 @@ namespace AutoFlight{
 			if (this->isReach(this->getForwardGoal(), false)){
 				if (this->isWallDetected() or this->inspectionGoalGiven_){
 					this->td_.stop(this->odom_.pose.pose);
+					this->useYaw_ = false;
 					this->changeState(FLIGHT_STATE::INSPECT);
 					cout << "[AutoFlight]: Switch from forward to inspection." << endl;
 					cout << "[AutoFlight]: Start Inspection..." << endl;
@@ -346,6 +353,7 @@ namespace AutoFlight{
 			}
 
 			if (this->countBsplineFailure_ > 3 and not this->isWallDetected()){
+				this->useYaw_ = false;
 				this->changeState(FLIGHT_STATE::EXPLORE); // for development
 				cout << "[AutoFlight]: Switch from forward to explore." << endl;
 				return;
@@ -384,6 +392,7 @@ namespace AutoFlight{
 				if (obstaclesPos.size() != 0){
 					planForDynamicObstacle = true;
 				}
+
 				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_) or planForDynamicObstacle;
 				if (replan){
 					// get the latest global waypoint path
@@ -764,8 +773,12 @@ namespace AutoFlight{
 		Eigen::Vector3d pGoal;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 
-		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-		Eigen::Vector3d direction (cos(currYaw), sin(currYaw), 0);
+
+		double targetYaw = this->getMovingDirection();
+		Eigen::Vector3d direction (cos(targetYaw), sin(targetYaw), 0);
+
+		// double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		// Eigen::Vector3d direction (cos(currYaw), sin(currYaw), 0);
 		
 		if (wallDetected){
 			double maxRayLength = 7.0;
@@ -787,7 +800,8 @@ namespace AutoFlight{
 		goal.pose.position.x = pGoal(0);
 		goal.pose.position.y = pGoal(1);
 		goal.pose.position.z = pGoal(2);
-		goal.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, currYaw);
+		goal.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, targetYaw);
+		// goal.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, currYaw);
 
 		this->goal_ = goal;
 		return goal;
