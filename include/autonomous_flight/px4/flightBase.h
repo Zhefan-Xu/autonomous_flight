@@ -27,8 +27,8 @@ namespace AutoFlight{
 		double duration;
 		double timestep;
 		bool init = false;
-		int forwardIdx = 5;
-		int minIdx = 3;
+		int forwardIdx = 3;
+		int minIdx = 5;
 
 		void updateTrajectory(const nav_msgs::Path& _trajectory, double _duration){
 			this->trajectory = _trajectory;
