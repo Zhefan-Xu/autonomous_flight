@@ -1,7 +1,7 @@
 # inspection target (Be careful. Only use it if you know the inspection goal)
-inspection_goal_given: false
+inspection_goal_given: true
 inspection_width_given: true
-inspection_goal: [2.85, -1.6, 1.17, -90]
+inspection_goal: [16.0, 0, 1.0, 0]
 inspection_width: 4
 
 

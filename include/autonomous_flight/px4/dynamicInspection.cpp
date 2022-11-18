@@ -354,19 +354,43 @@ namespace AutoFlight{
 				if (replan){
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
-					this->polyTraj_->updatePath(latestGLobalPath);
-					geometry_msgs::Twist vel;
-					double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-					Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-					startCondition *= this->desiredVel_;
-					vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
-					this->polyTraj_->updateInitVel(vel);
-					this->polyTraj_->makePlan(this->polyTrajMsg_);
+					double globalPathLength = this->getPathLength(latestGLobalPath);
+					double minLength = 3.0;
 
-					std::vector<Eigen::Vector3d> startEndCondition;		
-					this->getStartEndConditions(startEndCondition);
-					bool updateSuccess = false;
-					updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+					bool polySuccess = false;
+					bool updateSuccess = false; // update success for bspline
+					if (globalPathLength >= minLength){// if the lastest global path is long enough, we apply the polynomial trajectory
+						this->polyTraj_->updatePath(latestGLobalPath);
+						geometry_msgs::Twist vel;
+						double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+						Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+						startCondition *= this->desiredVel_;
+						vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
+						this->polyTraj_->updateInitVel(vel);
+						polySuccess = this->polyTraj_->makePlan(this->polyTrajMsg_);
+
+						if (polySuccess){
+							std::vector<Eigen::Vector3d> startEndCondition;		
+							this->getStartEndConditions(startEndCondition);
+							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+						}
+					}
+
+					if (globalPathLength < minLength or polySuccess == false){// if it is very short, we use piecewise linear trajectory 
+						nav_msgs::Path simplePath;
+						geometry_msgs::PoseStamped pStart, pGoal;
+						pStart.pose = this->odom_.pose.pose;
+						pGoal = latestGLobalPath.poses.back();
+			
+						std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
+						simplePath.poses = pathVec;
+						this->pwlTraj_->updatePath(simplePath);
+						this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+
+						std::vector<Eigen::Vector3d> startEndCondition;		
+						this->getStartEndConditions(startEndCondition);
+						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+					}
 
 					if (updateSuccess){
 						nav_msgs::Path bsplineTrajMsgTemp;
@@ -465,19 +489,43 @@ namespace AutoFlight{
 				if (replan){
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
-					this->polyTraj_->updatePath(latestGLobalPath);
-					geometry_msgs::Twist vel;
-					double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-					Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-					startCondition *= this->desiredVel_;
-					vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
-					this->polyTraj_->updateInitVel(vel);
-					this->polyTraj_->makePlan(this->polyTrajMsg_);
+					double globalPathLength = this->getPathLength(latestGLobalPath);
+					double minLength = 3.0;
 
-					std::vector<Eigen::Vector3d> startEndCondition;		
-					this->getStartEndConditions(startEndCondition);
-					bool updateSuccess = false;
-					updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+					bool polySuccess = false;
+					bool updateSuccess = false; // update success for bspline
+					if (globalPathLength >= minLength){// if the lastest global path is long enough, we apply the polynomial trajectory
+						this->polyTraj_->updatePath(latestGLobalPath);
+						geometry_msgs::Twist vel;
+						double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+						Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+						startCondition *= this->desiredVel_;
+						vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
+						this->polyTraj_->updateInitVel(vel);
+						polySuccess = this->polyTraj_->makePlan(this->polyTrajMsg_);
+
+						if (polySuccess){
+							std::vector<Eigen::Vector3d> startEndCondition;		
+							this->getStartEndConditions(startEndCondition);
+							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+						}
+					}
+
+					if (globalPathLength < minLength or polySuccess == false){// if it is very short, we use piecewise linear trajectory 
+						nav_msgs::Path simplePath;
+						geometry_msgs::PoseStamped pStart, pGoal;
+						pStart.pose = this->odom_.pose.pose;
+						pGoal = latestGLobalPath.poses.back();
+			
+						std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
+						simplePath.poses = pathVec;
+						this->pwlTraj_->updatePath(simplePath);
+						this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+
+						std::vector<Eigen::Vector3d> startEndCondition;		
+						this->getStartEndConditions(startEndCondition);
+						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+					}
 
 					if (updateSuccess){
 						nav_msgs::Path bsplineTrajMsgTemp;
@@ -843,6 +891,18 @@ namespace AutoFlight{
 		this->pwlTraj_->updatePath(waypointsMsg, desiredVel, true);
 		this->pwlTraj_->makePlan(resultPath, 0.1);
 		return this->pwlTraj_->getDuration();
+	}
+
+	double dynamicInspection::getPathLength(const nav_msgs::Path& path){
+		double length = 0.0;
+		for (size_t i=0; i<path.poses.size()-1; ++i){
+			geometry_msgs::PoseStamped ps1 = path.poses[i];
+			geometry_msgs::PoseStamped ps2 = path.poses[i+1];
+			Eigen::Vector3d p1 (ps1.pose.position.x, ps1.pose.position.y, ps1.pose.position.z);
+			Eigen::Vector3d p2 (ps2.pose.position.x, ps2.pose.position.y, ps2.pose.position.z);
+			length += (p1 - p2).norm();
+		}
+		return length;
 	}
 
 	bool dynamicInspection::getBestViewPoint(Eigen::Vector3d& bestPoint){

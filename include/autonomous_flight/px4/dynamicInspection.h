@@ -112,6 +112,7 @@ namespace AutoFlight{
 		bool moveToOrientation(double yaw);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, double desiredVel, nav_msgs::Path& resultPath);
+		double getPathLength(const nav_msgs::Path& path);
 
 
 		// exploration module
