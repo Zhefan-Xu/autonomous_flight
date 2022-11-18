@@ -154,6 +154,8 @@ namespace AutoFlight{
 		void checkSurroundings();
 		void inspectZigZag();
 		void inspectZigZagRange();
+		void inspectFringe();
+		void inspectFringeRange();
 
 
 		// side wall raycasting module

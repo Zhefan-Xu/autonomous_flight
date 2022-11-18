@@ -468,10 +468,13 @@ namespace AutoFlight{
 					this->checkSurroundings();
 					// 2. start inspection
 					this->inspectZigZag();
+					// 3. inspect frindge
+					this->inspectFringe();
 				}
 				else{
 					this->moveToPosition(Eigen::Vector3d (this->odom_.pose.pose.position.x, 0, this->takeoffHgt_), this->inspectionVel_);
 					this->inspectZigZagRange();
+					this->inspectFringeRange();
 				}
 
 				
@@ -479,6 +482,7 @@ namespace AutoFlight{
 			else{
 				this->moveToOrientation(this->inspectionOrientation_);
 				this->inspectZigZagRange();
+				this->inspectFringeRange();
 			}
 
 			// 3. directly change to back
@@ -1769,7 +1773,144 @@ namespace AutoFlight{
 		imgMsg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", img).toImageMsg();
 	}
 
+	void dynamicInspection::inspectFringe(){
+		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);
 
+		// double currX = this->odom_.pose.pose.position.x;
+		double currY = this->odom_.pose.pose.position.y;
+		double maxRayLength = 7.0;
+		bool ignoreUnknown = true;
+
+
+		// cast to left for current point
+		Eigen::Vector3d pLeftEnd;
+		this->map_->castRay(pCurr, Eigen::Vector3d (0, 1, 0), pLeftEnd, maxRayLength, ignoreUnknown);
+		pLeftEnd(1) = std::max(pLeftEnd(1) - this->sideSafeDistance_, currY); 
+		geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeftEnd);
+		psLeft.pose.orientation.w = 1.0;
+
+		// cast to right for current point
+		Eigen::Vector3d pRightEnd;
+		this->map_->castRay(pCurr, Eigen::Vector3d (0, -1, 0), pRightEnd, maxRayLength, ignoreUnknown);
+		pRightEnd(1) = std::min(pRightEnd(1) + this->sideSafeDistance_, currY); 
+		geometry_msgs::PoseStamped psRight = this->eigen2ps(pRightEnd);
+		psRight.pose.orientation.w = 1.0;	
+
+
+		// cast to left for height point
+		Eigen::Vector3d pLeftEndHeight;
+		this->map_->castRay(pHeight, Eigen::Vector3d (0, 1, 0), pLeftEndHeight, maxRayLength, ignoreUnknown);
+		pLeftEndHeight(1) = std::max(pLeftEndHeight(1) - this->sideSafeDistance_, currY); 
+		geometry_msgs::PoseStamped psLeftHeight = this->eigen2ps(pLeftEndHeight);
+		psLeftHeight.pose.orientation.w = 1.0;
+
+		// cast to right for height point
+		Eigen::Vector3d pRightEndHeight;
+		this->map_->castRay(pHeight, Eigen::Vector3d (0, -1, 0), pRightEndHeight, maxRayLength, ignoreUnknown);
+		pRightEndHeight(1) = std::min(pRightEndHeight(1) + this->sideSafeDistance_, currY); 
+		geometry_msgs::PoseStamped psRightHeight = this->eigen2ps(pRightEndHeight);
+		psRightHeight.pose.orientation.w = 1.0;
+
+
+		// start pose
+		geometry_msgs::PoseStamped psStart = this->eigen2ps(pCurr);
+		psStart.pose.orientation.w = 1.0;
+		geometry_msgs::PoseStamped psHeight = this->eigen2ps(pHeight);
+		psHeight.pose.orientation.w = 1.0;
+
+		this->moveToOrientation(PI_const/4.0);
+
+
+		std::vector<geometry_msgs::PoseStamped> pathVec1 {psStart, psLeft, psLeftHeight, psHeight};
+		double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
+		this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
+
+
+		ros::Rate r (50);
+		while ((ros::ok() and not (this->isReach(psHeight, false))) or (this->td_.getRemainTime() > 0)){
+			ros::spinOnce();
+			r.sleep();
+		}
+
+		this->moveToOrientation(-PI_const/4.0);
+
+		std::vector<geometry_msgs::PoseStamped> pathVec2 {psHeight, psRightHeight, psRight, psStart};
+		double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
+		this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
+
+		while ((ros::ok() and not (this->isReach(psStart, false))) or (this->td_.getRemainTime() > 0)){
+			ros::spinOnce();
+			r.sleep();
+		}
+	}
+
+	void dynamicInspection::inspectFringeRange(){
+		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);		
+		
+		double currX = this->odom_.pose.pose.position.x;
+		double currY = this->odom_.pose.pose.position.y;
+
+
+		double inspectionOrientation = 0;
+		if (this->inspectionGoalGiven_){
+			inspectionOrientation = this->inspectionOrientation_;
+		}
+
+		Eigen::Vector3d pLeft (currX - this->inspectionWidth_/2.0 * sin(inspectionOrientation), currY + this->inspectionWidth_/2.0 * cos(inspectionOrientation), pCurr(2));
+		geometry_msgs::PoseStamped psLeft = this->eigen2ps(pLeft);
+		psLeft.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation + PI_const/4.0);
+
+		Eigen::Vector3d pRight (currX + this->inspectionWidth_/2.0 * sin(inspectionOrientation), currY - this->inspectionWidth_/2.0 * cos(inspectionOrientation), pCurr(2));
+		geometry_msgs::PoseStamped psRight = this->eigen2ps(pRight);
+		psRight.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation - PI_const/4.0);
+
+		geometry_msgs::PoseStamped psLeftHeight = psLeft;
+		psLeftHeight.pose.position.z = this->inspectionHeight_;
+
+		geometry_msgs::PoseStamped psRightHeight = psRight;
+		psRightHeight.pose.position.z = this->inspectionHeight_;
+
+		geometry_msgs::PoseStamped psCurr1 = this->eigen2ps(pCurr);
+		psCurr1.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation + PI_const/4.0);
+
+		geometry_msgs::PoseStamped psCurr2 = this->eigen2ps(pCurr);
+		psCurr2.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation - PI_const/4.0);
+
+		geometry_msgs::PoseStamped psHeight1 = this->eigen2ps(pHeight);
+		psHeight1.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation + PI_const/4.0);
+
+		geometry_msgs::PoseStamped psHeight2 = this->eigen2ps(pHeight);
+		psHeight2.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation - PI_const/4.0);
+
+
+		this->moveToOrientation(inspectionOrientation + PI_const/4.0);
+
+		std::vector<geometry_msgs::PoseStamped> pathVec1 {psCurr1, psLeft, psLeftHeight, psHeight1};
+		double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
+		this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
+
+
+		ros::Rate r (50);
+		while ((ros::ok() and not (this->isReach(psHeight1, false))) or (this->td_.getRemainTime() > 0)){
+			ros::spinOnce();
+			r.sleep();
+		}
+
+		this->moveToOrientation(inspectionOrientation - PI_const/4.0);
+
+		std::vector<geometry_msgs::PoseStamped> pathVec2 {psHeight2, psRightHeight, psRight, psCurr2};
+		double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
+		this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
+
+		while ((ros::ok() and not (this->isReach(psCurr2, false))) or (this->td_.getRemainTime() > 0)){
+			ros::spinOnce();
+			r.sleep();
+		}	
+
+	}
+	
 	geometry_msgs::PoseStamped dynamicInspection::eigen2ps(const Eigen::Vector3d& p){
 		geometry_msgs::PoseStamped ps;
 		ps.pose.position.x = p(0);
