@@ -165,6 +165,24 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Inspection width is set to: " << this->inspectionWidth_ << "m." << endl;
 			}
 		}
+
+		// zigzag inspection path
+		if (not this->nh_.getParam("zigzag_inspection", this->zigzagInspection_)){
+			this->zigzagInspection_ = true;
+			cout << "[AutoFlight]: Use default mode" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Zig zag inspection is set to: " << this->zigzagInspection_ << endl;
+		}
+
+		// fringe inspection path
+		if (not this->nh_.getParam("fringe_inspection", this->fringeInspection_)){
+			this->fringeInspection_ = true;
+			cout << "[AutoFlight]: Use default mode" << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Fringe inspection is set to: " << this->fringeInspection_ << endl;
+		}
 	}
 
 	void dynamicInspection::initModules(){
@@ -336,9 +354,9 @@ namespace AutoFlight{
 				}
 				else{
 					cout << "[AutoFlight]: Looking around to increase map range..." << endl;
-					this->moveToOrientation(PI_const/2.0);
-					this->moveToOrientation(-PI_const/2.0);
-					this->moveToOrientation(0);
+					this->moveToOrientationStep(PI_const/2.0);
+					this->moveToOrientationStep(-PI_const/2.0);
+					this->moveToOrientationStep(0);
 				}
 				return;
 			}
@@ -433,23 +451,42 @@ namespace AutoFlight{
 				if (not this->inspectionWidthGiven_){
 					// 1. check surroundings at each height
 					this->checkSurroundings();
-					// 2. start inspection
-					this->inspectZigZag();
-					// 3. inspect frindge
-					this->inspectFringe();
+					if (this->zigzagInspection_){
+						// 2. start inspection
+						this->inspectZigZag();
+					}
+
+					if (this->fringeInspection_){
+						// 3. inspect frindge
+						this->inspectFringe();
+					}
 				}
 				else{
 					this->moveToPosition(Eigen::Vector3d (this->odom_.pose.pose.position.x, 0, this->takeoffHgt_), this->inspectionVel_);
-					this->inspectZigZagRange();
-					this->inspectFringeRange();
+					if (this->zigzagInspection_){
+						// 2. start inspection
+						this->inspectZigZagRange();
+					}
+
+					if (this->fringeInspection_){
+						// 3. inspect frindge
+						this->inspectFringeRange();
+					}
 				}
 
 				
 			}
 			else{
-				this->moveToOrientation(this->inspectionOrientation_);
-				this->inspectZigZagRange();
-				this->inspectFringeRange();
+				this->moveToOrientationStep(this->inspectionOrientation_);
+				if (this->zigzagInspection_){
+					// 2. start inspection
+					this->inspectZigZagRange();
+				}
+
+				if (this->fringeInspection_){
+					// 3. inspect frindge
+					this->inspectFringeRange();
+				}
 			}
 
 			int temp4 = system("rosnode kill /inspection_bag &");
@@ -469,7 +506,7 @@ namespace AutoFlight{
 		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
 			if (this->prevState_ == FLIGHT_STATE::INSPECT){
 				// turn back
-				this->moveToOrientation(-PI_const);
+				this->moveToOrientationStep(-PI_const);
 
 				// generate global waypoint path. set new goal to the origin position
 				geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (1.5, 0, this->takeoffHgt_));
@@ -876,6 +913,50 @@ namespace AutoFlight{
 		return true;
 	}
 
+	bool dynamicInspection::moveToOrientationStep(double yaw){
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		double angleDiff = AutoFlight::getAngleDiff(yaw, currYaw);
+		double delta = yaw - currYaw;
+		double direction = 1;
+		if ((delta >= 0) and (std::abs(delta) <= PI_const)){
+			direction = 1;
+		}
+		else if ((delta >=0) and (std::abs(delta) >= PI_const)){
+			direction = -1;
+		}
+		else if ((delta < 0) and (std::abs(delta) <= PI_const)){
+			direction = -1;
+		}
+		else if ((delta < 0) and (std::abs(delta) >= PI_const)){
+			direction = 1;
+		}
+
+		int count = 1; double divider = 1.0;
+		double maxRotationAngle = PI_const/3.0;
+		double newAngleDiff = angleDiff;
+		while (ros::ok() and newAngleDiff > maxRotationAngle){
+			count += 1;
+			divider += 1.0;
+			newAngleDiff = angleDiff / divider;
+		}
+
+		for (int i=1; i<=count; ++i){
+			this->moveToOrientation(currYaw + direction * newAngleDiff * i);
+			// wait for some time
+			ros::Rate r (10);
+			ros::Time startTime = ros::Time::now();
+			ros::Time endTime;
+			while (ros::ok()){
+				endTime = ros::Time::now();
+				if ((endTime - startTime).toSec() > 1.0){
+					break;
+				}
+				r.sleep();
+			}	
+		}
+		return true;
+	}
+
 	double dynamicInspection::makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath){
 		nav_msgs::Path waypointsMsg;
 		waypointsMsg.poses = waypoints;
@@ -1153,7 +1234,7 @@ namespace AutoFlight{
 			
 		
 			if (not castLeftSuccess){
-				this->moveToOrientation(PI_const/2);
+				this->moveToOrientationStep(PI_const/2);
 				// translation
 				while (ros::ok() and not castLeftSuccess){
 					geometry_msgs::PoseStamped pStart, pGoal;
@@ -1169,7 +1250,7 @@ namespace AutoFlight{
 					r.sleep();
 				}
 
-				this->moveToOrientation(0);
+				this->moveToOrientationStep(0);
 			}
 			
 
@@ -1192,7 +1273,7 @@ namespace AutoFlight{
 					r.sleep();
 				}
 
-				this->moveToOrientation(0);
+				this->moveToOrientationStep(0);
 			}
 
 			// c. back to the center of the wall
@@ -1210,6 +1291,7 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectZigZag(){
+		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
 		std::vector<geometry_msgs::PoseStamped> zigzagPathVec;
 
 		// 1. find all height levels
@@ -1290,6 +1372,7 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectZigZagRange(){
+		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
 		// 1. move to the desired height
 		geometry_msgs::PoseStamped psHeight;
 		psHeight.pose = this->odom_.pose.pose;
@@ -1369,6 +1452,7 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectFringe(){
+		cout << "[AutoFlight]: Start Fringe Inspection..." << endl;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);
 
@@ -1414,7 +1498,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped psHeight = this->eigen2ps(pHeight);
 		psHeight.pose.orientation.w = 1.0;
 
-		this->moveToOrientation(PI_const/4.0);
+		this->moveToOrientationStep(PI_const/4.0);
 
 
 		std::vector<geometry_msgs::PoseStamped> pathVec1 {psStart, psLeft, psLeftHeight, psHeight};
@@ -1428,7 +1512,7 @@ namespace AutoFlight{
 			r.sleep();
 		}
 
-		this->moveToOrientation(-PI_const/4.0);
+		this->moveToOrientationStep(-PI_const/4.0);
 
 		std::vector<geometry_msgs::PoseStamped> pathVec2 {psHeight, psRightHeight, psRight, psStart};
 		double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
@@ -1441,6 +1525,7 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectFringeRange(){
+		cout << "[AutoFlight]: Start Fringe Inspection..." << endl;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);		
 		
@@ -1480,7 +1565,7 @@ namespace AutoFlight{
 		psHeight2.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation - PI_const/4.0);
 
 
-		this->moveToOrientation(inspectionOrientation + PI_const/4.0);
+		this->moveToOrientationStep(inspectionOrientation + PI_const/4.0);
 
 		std::vector<geometry_msgs::PoseStamped> pathVec1 {psCurr1, psLeft, psLeftHeight, psHeight1};
 		double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
@@ -1493,7 +1578,7 @@ namespace AutoFlight{
 			r.sleep();
 		}
 
-		this->moveToOrientation(inspectionOrientation - PI_const/4.0);
+		this->moveToOrientationStep(inspectionOrientation - PI_const/4.0);
 
 		std::vector<geometry_msgs::PoseStamped> pathVec2 {psHeight2, psRightHeight, psRight, psCurr2};
 		double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);

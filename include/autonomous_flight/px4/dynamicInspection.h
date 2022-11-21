@@ -67,6 +67,8 @@ namespace AutoFlight{
 		double inspectionOrientation_;
 		bool inspectionWidthGiven_ = false;
 		double inspectionWidth_;
+		bool zigzagInspection_;
+		bool fringeInspection_;
 		// ***only used when we specify location***
 
 		// inspection data
@@ -110,6 +112,7 @@ namespace AutoFlight{
 		bool moveToPosition(const Eigen::Vector3d& position, double vel);
 		bool moveToOrientation(const geometry_msgs::Quaternion& orientation);
 		bool moveToOrientation(double yaw);
+		bool moveToOrientationStep(double yaw);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, double desiredVel, nav_msgs::Path& resultPath);
 		double getPathLength(const nav_msgs::Path& path);
