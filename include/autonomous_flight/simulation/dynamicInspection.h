@@ -66,6 +66,9 @@ namespace AutoFlight{
 		double inspectionOrientation_;
 		bool inspectionWidthGiven_ = false;
 		double inspectionWidth_;
+		bool zigzagInspection_;
+		bool fringeInspection_;
+		bool leftFirst_ = true;
 		// ***only used when we specify location***
 
 		// inspection data
