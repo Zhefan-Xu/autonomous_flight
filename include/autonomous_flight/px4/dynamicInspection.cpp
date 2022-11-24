@@ -169,7 +169,7 @@ namespace AutoFlight{
 		// zigzag inspection path
 		if (not this->nh_.getParam("zigzag_inspection", this->zigzagInspection_)){
 			this->zigzagInspection_ = true;
-			cout << "[AutoFlight]: Use default mode" << endl;
+			cout << "[AutoFlight]: Use default mode for zig zag." << endl;
 		}
 		else{
 			cout << "[AutoFlight]: Zig zag inspection is set to: " << this->zigzagInspection_ << endl;
@@ -178,11 +178,20 @@ namespace AutoFlight{
 		// fringe inspection path
 		if (not this->nh_.getParam("fringe_inspection", this->fringeInspection_)){
 			this->fringeInspection_ = true;
-			cout << "[AutoFlight]: Use default mode" << endl;
+			cout << "[AutoFlight]: Use default mode for fringe." << endl;
 		}
 		else{
 			cout << "[AutoFlight]: Fringe inspection is set to: " << this->fringeInspection_ << endl;
 		}
+
+		// inspection order
+		if (not this->nh_.getParam("inspect_left_first", this->leftFirst_)){
+			this->leftFirst_ = true;
+			cout << "[AutoFlight]: Inpsect left first." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Inspection order is set is set to: " << this->leftFirst_ << endl;
+		}		
 	}
 
 	void dynamicInspection::initModules(){
@@ -1341,15 +1350,27 @@ namespace AutoFlight{
 					psPrev.pose.position.z =  height;
 					zigzagPathVec.push_back(psPrev);
 				}
-				zigzagPathVec.push_back(psLeft);
-				zigzagPathVec.push_back(psRight);
+				if (this->leftFirst_){
+					zigzagPathVec.push_back(psLeft);
+					zigzagPathVec.push_back(psRight);
+				}
+				else{
+					zigzagPathVec.push_back(psRight);
+					zigzagPathVec.push_back(psLeft);			
+				}
 			}
 			else{
 				geometry_msgs::PoseStamped psPrev = zigzagPathVec.back();
 				psPrev.pose.position.z =  height;
 				zigzagPathVec.push_back(psPrev);
-				zigzagPathVec.push_back(psRight);
-				zigzagPathVec.push_back(psLeft);
+				if (this->leftFirst_){
+					zigzagPathVec.push_back(psRight);
+					zigzagPathVec.push_back(psLeft);
+				}	
+				else{
+					zigzagPathVec.push_back(psLeft);
+					zigzagPathVec.push_back(psRight);					
+				}	
 			}
 			++count;
 		}
@@ -1421,15 +1442,27 @@ namespace AutoFlight{
 					psPrev.pose.position.z =  height;
 					zigzagPathVec.push_back(psPrev);					
 				}
-				zigzagPathVec.push_back(psLeft);
-				zigzagPathVec.push_back(psRight);
+				if (this->leftFirst_){
+					zigzagPathVec.push_back(psLeft);
+					zigzagPathVec.push_back(psRight);
+				}
+				else{
+					zigzagPathVec.push_back(psRight);
+					zigzagPathVec.push_back(psLeft);			
+				}
 			}
 			else{
 				geometry_msgs::PoseStamped psPrev = zigzagPathVec.back();
 				psPrev.pose.position.z =  height;
 				zigzagPathVec.push_back(psPrev);
-				zigzagPathVec.push_back(psRight);
-				zigzagPathVec.push_back(psLeft);				
+				if (this->leftFirst_){
+					zigzagPathVec.push_back(psRight);
+					zigzagPathVec.push_back(psLeft);
+				}	
+				else{
+					zigzagPathVec.push_back(psLeft);
+					zigzagPathVec.push_back(psRight);					
+				}			
 			}
 			++count;
 		}
@@ -1498,10 +1531,18 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped psHeight = this->eigen2ps(pHeight);
 		psHeight.pose.orientation.w = 1.0;
 
-		this->moveToOrientationStep(PI_const/4.0);
 
-
-		std::vector<geometry_msgs::PoseStamped> pathVec1 {psStart, psLeft, psLeftHeight, psHeight};
+		std::vector<geometry_msgs::PoseStamped> pathVec1;
+		if (this->leftFirst_){
+			this->moveToOrientationStep(PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psStart, psLeft, psLeftHeight, psHeight};
+			pathVec1 = pathVecTemp;
+		}
+		else{
+			this->moveToOrientationStep(-PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psStart, psRight, psRightHeight, psHeight};
+			pathVec1 = pathVecTemp;
+		}
 		double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
 
@@ -1512,9 +1553,17 @@ namespace AutoFlight{
 			r.sleep();
 		}
 
-		this->moveToOrientationStep(-PI_const/4.0);
-
-		std::vector<geometry_msgs::PoseStamped> pathVec2 {psHeight, psRightHeight, psRight, psStart};
+		std::vector<geometry_msgs::PoseStamped> pathVec2;
+		if (this->leftFirst_){
+			this->moveToOrientationStep(-PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight, psRightHeight, psRight, psStart};
+			pathVec2 = pathVecTemp;
+		}
+		else{
+			this->moveToOrientationStep(PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight, psLeftHeight, psLeft, psStart};
+			pathVec2 = pathVecTemp;
+		}
 		double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
 
@@ -1565,29 +1614,62 @@ namespace AutoFlight{
 		psHeight2.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, inspectionOrientation - PI_const/4.0);
 
 
-		this->moveToOrientationStep(inspectionOrientation + PI_const/4.0);
+		std::vector<geometry_msgs::PoseStamped> pathVec1;
+		if (this->leftFirst_){
+			this->moveToOrientationStep(inspectionOrientation+PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psCurr1, psLeft, psLeftHeight, psHeight1};;
+			pathVec1 = pathVecTemp;
+			double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
+			this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
 
-		std::vector<geometry_msgs::PoseStamped> pathVec1 {psCurr1, psLeft, psLeftHeight, psHeight1};
-		double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
-		this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
+			ros::Rate r (50);
+			while ((ros::ok() and not (this->isReach(psHeight1, false))) or (this->td_.getRemainTime() > 0)){
+				ros::spinOnce();
+				r.sleep();
+			}
+		}
+		else{
+			this->moveToOrientationStep(inspectionOrientation-PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psCurr2, psRight, psRightHeight, psHeight2};
+			pathVec1 = pathVecTemp;
+			double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
+			this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
 
-
-		ros::Rate r (50);
-		while ((ros::ok() and not (this->isReach(psHeight1, false))) or (this->td_.getRemainTime() > 0)){
-			ros::spinOnce();
-			r.sleep();
+			ros::Rate r (50);
+			while ((ros::ok() and not (this->isReach(psHeight2, false))) or (this->td_.getRemainTime() > 0)){
+				ros::spinOnce();
+				r.sleep();
+			}
 		}
 
-		this->moveToOrientationStep(inspectionOrientation - PI_const/4.0);
 
-		std::vector<geometry_msgs::PoseStamped> pathVec2 {psHeight2, psRightHeight, psRight, psCurr2};
-		double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
-		this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
+		std::vector<geometry_msgs::PoseStamped> pathVec2;
+		if (this->leftFirst_){
+			this->moveToOrientationStep(inspectionOrientation-PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight2, psRightHeight, psRight, psCurr2};
+			pathVec2 = pathVecTemp;
 
-		while ((ros::ok() and not (this->isReach(psCurr2, false))) or (this->td_.getRemainTime() > 0)){
-			ros::spinOnce();
-			r.sleep();
-		}	
+			double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
+			this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
+			ros::Rate r (50);
+			while ((ros::ok() and not (this->isReach(psCurr2, false))) or (this->td_.getRemainTime() > 0)){
+				ros::spinOnce();
+				r.sleep();
+			}
+		}
+		else{
+			this->moveToOrientationStep(inspectionOrientation+PI_const/4.0);
+			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight1, psLeftHeight, psLeft, psCurr1};
+			pathVec2 = pathVecTemp;
+
+			double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
+			this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
+			ros::Rate r (50);
+			while ((ros::ok() and not (this->isReach(psCurr1, false))) or (this->td_.getRemainTime() > 0)){
+				ros::spinOnce();
+				r.sleep();
+			}
+		}
 
 	}
 
