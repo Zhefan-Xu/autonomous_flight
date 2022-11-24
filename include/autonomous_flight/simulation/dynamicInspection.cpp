@@ -1515,6 +1515,11 @@ namespace AutoFlight{
 		// if we did not detect the wall, we use the current direction
 		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 		double targetYaw = currYaw;
+
+		if (this->movingDirection_ != -12345.0){ // we have previous moving direction
+			targetYaw = this->movingDirection_;
+		}
+
 		if (this->finalSideWallPoints_.size() != 0){
 			Eigen::Vector3d lastWallPoint = this->finalSideWallPoints_[this->finalSideWallPoints_.size() - 1];
 			Eigen::Vector3d secondLastWallPoint = this->finalSideWallPoints_[this->finalSideWallPoints_.size() - 2];
@@ -1524,9 +1529,10 @@ namespace AutoFlight{
 		double angleDiff = AutoFlight::getAngleDiff(currYaw, targetYaw);
 		double maxTurningAngle = 75.0 * PI_const/180.0;
 		if (this->isWallDetected() or angleDiff > maxTurningAngle){
-			targetYaw = currYaw;
+			targetYaw = this->movingDirection_;
 		}
-
+		
+		this->movingDirection_ = targetYaw;
 		return targetYaw;
 	}
 

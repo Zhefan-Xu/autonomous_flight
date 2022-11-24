@@ -95,6 +95,7 @@ namespace AutoFlight{
 		std::vector<Eigen::Vector3d> finalSideWallPoints_;
 		std::vector<Eigen::Vector3d> finalSideWallPointsC_;
 		sensor_msgs::ImagePtr sideWallRaycastImg_;
+		double movingDirection_ = -12345.0;
 
 	public:
 		dynamicInspection();
