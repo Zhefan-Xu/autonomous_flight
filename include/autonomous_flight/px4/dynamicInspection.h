@@ -70,6 +70,8 @@ namespace AutoFlight{
 		bool zigzagInspection_;
 		bool fringeInspection_;
 		bool leftFirst_ = true;
+		double confirmMaxAngle_;
+		bool inspectionConfirm_;
 		// ***only used when we specify location***
 
 		// inspection data

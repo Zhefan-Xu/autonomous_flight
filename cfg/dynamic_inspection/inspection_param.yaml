@@ -1,7 +1,7 @@
 # inspection target (Be careful. Only use it if you know the inspection goal)
-inspection_goal_given: false
-inspection_width_given: false
-inspection_goal: [10.0, 0, 1.0, -90]
+inspection_goal_given: true
+inspection_width_given: true
+inspection_goal: [10.0, 0, 1.0, 0]
 inspection_width: 4
 
 
@@ -16,6 +16,8 @@ descend_step: 1.0 # zig zag descend step
 zigzag_inspection: true
 fringe_inspection: true
 inspect_left_first: false
+confirm_max_angle: 100
+inspection_confirm: true
 
 # explore
 sensor_range: 5.0

@@ -191,7 +191,26 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Inspection order is set is set to: " << this->leftFirst_ << endl;
+		}	
+
+		// confirm max angle
+		if (not this->nh_.getParam("confirm_max_angle", this->confirmMaxAngle_)){
+			this->confirmMaxAngle_ = PI_const*3.0/4.0;
+			cout << "[AutoFlight]: Default confirm max angle is set to 135 degree." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Confirm max angle is set is set to: " << this->confirmMaxAngle_ << endl;
+			this->confirmMaxAngle_ *= PI_const/180.0;
 		}		
+
+		// inspection confirm
+		if (not this->nh_.getParam("inspection_confirm", this->inspectionConfirm_)){
+			this->inspectionConfirm_ = true;
+			cout << "[AutoFlight]: Inpsect needs to be confirmed." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Inspection confirm is set is set to: " << this->inspectionConfirm_ << endl;
+		}	
 	}
 
 	void dynamicInspection::initModules(){
@@ -962,6 +981,12 @@ namespace AutoFlight{
 				}
 				r.sleep();
 			}	
+			if (angleDiff >= this->confirmMaxAngle_){
+				cout << "[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+				std::cin.clear();
+				fflush(stdin);
+				std::cin.get();			
+			}
 		}
 		return true;
 	}
@@ -1300,6 +1325,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectZigZag(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
 		std::vector<geometry_msgs::PoseStamped> zigzagPathVec;
 
@@ -1393,6 +1424,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectZigZagRange(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
 		// 1. move to the desired height
 		geometry_msgs::PoseStamped psHeight;
@@ -1485,6 +1522,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectFringe(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Fringe Inspection..." << endl;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);
@@ -1574,6 +1617,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectFringeRange(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Fringe Inspection..." << endl;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);		
