@@ -282,6 +282,14 @@ namespace AutoFlight{
 		std::cin.get();
 		this->takeoff();
 
+		int temp1 = system("mkdir ~/rosbag_inspection_info &");
+		int temp2 = system("mv ~/rosbag_inspection_info/inspection_info.bag ~/rosbag_inspection/previous.bag &");
+		int temp3 = system("rosbag record -O ~/rosbag_inspection_info/inspection_info.bag /inspection/rrt_path /inspection/poly_trajectory /inspection/pwl_trajectory /inspection/bspline_trajectory /dynamic_map/inflated_voxel_map_t /dynamic_map/box_visualization_marker /mavros/local_position/pose __name:=inspection_bag_info &");
+		if (temp1==-1 or temp2==-1 or temp3==-1){
+			cout << "[AutoFlight]: Recording fails." << endl;
+		}
+
+
 		cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
 		std::cin.clear();
 		fflush(stdin);
@@ -466,7 +474,7 @@ namespace AutoFlight{
 		if (this->flightState_ == FLIGHT_STATE::INSPECT){
 			// record rosbag
 			int temp1 = system("mkdir ~/rosbag_inspection &");
-			int temp2 = system("mv ~/rosbag_inspection/inspection.bag ~/rosbag_inspection/previous.bag &");
+			int temp2 = system("mv ~/rosbag_inspection/inspection.bag ~/rosbag_inspection_info/previous.bag &");
 			int temp3 = system("rosbag record -O ~/rosbag_inspection/inspection.bag /camera/color/image_raw_t /camera/depth/image_rect_raw_t /mavros/local_position/pose __name:=inspection_bag &");
 			if (temp1==-1 or temp2==-1 or temp3==-1){
 				cout << "[AutoFlight]: Recording fails." << endl;
@@ -532,12 +540,13 @@ namespace AutoFlight{
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
+			// generate global waypoint path. set new goal to the origin position
+			geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (1.5, 0, this->takeoffHgt_));
 			if (this->prevState_ == FLIGHT_STATE::INSPECT){
 				// turn back
 				this->moveToOrientationStep(-PI_const);
 
-				// generate global waypoint path. set new goal to the origin position
-				geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (1.5, 0, this->takeoffHgt_));
+
 				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
 				this->rrtPlanner_->updateGoal(psBack.pose);
 				this->rrtPlanner_->makePlan(this->rrtPathMsg_);
@@ -608,9 +617,9 @@ namespace AutoFlight{
 
 			}
 			this->prevState_ = this->flightState_;
+
 			return;
 		}
-
 	}
 
 	void dynamicInspection::trajExeCB(const ros::TimerEvent&){
@@ -967,6 +976,13 @@ namespace AutoFlight{
 			divider += 1.0;
 			newAngleDiff = angleDiff / divider;
 		}
+
+        if (angleDiff >= this->confirmMaxAngle_){
+            cout << "[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+            std::cin.clear();
+            fflush(stdin);
+            std::cin.get();
+        }
 
 		for (int i=1; i<=count; ++i){
 			this->moveToOrientation(currYaw + direction * newAngleDiff * i);
