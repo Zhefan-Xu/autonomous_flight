@@ -199,7 +199,7 @@ namespace AutoFlight{
 		this->map_.reset(new mapManager::dynamicMap (this->nh_));
 
 		// initialize fake detector
-		// this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
+		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
 
 		// initialize rrt planner
 		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
@@ -254,21 +254,31 @@ namespace AutoFlight{
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.03), &dynamicInspection::visCB, this);
+
+		// free map timer
+		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicInspection::freeMapCB, this);
 	}
 
 	void dynamicInspection::run(){
 		this->takeoff();
-
 		this->registerCallback();
+		this->setStartPositionFree();
 	}
 
 	void dynamicInspection::plannerCB(const ros::TimerEvent&){
 		if (this->flightState_ == FLIGHT_STATE::FORWARD){
+			// explore mode
+			// this->prevState_ = this->flightState_;
+			// this->changeState(FLIGHT_STATE::EXPLORE);
+			// return;
+			// explore mode
+
 			// navigate to the goal position
 
 			// first try with pwl trajectory if not work try with the global path planner
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 			bool planForDynamicObstacle = false;
 			if (obstaclesPos.size() != 0){
 				planForDynamicObstacle = true;
@@ -289,6 +299,9 @@ namespace AutoFlight{
 				bool updateSuccess = false;
 				updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
 
+				if (obstaclesPos.size() != 0){
+					this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}
 				if (updateSuccess){
 					nav_msgs::Path bsplineTrajMsgTemp;
 					bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -364,7 +377,9 @@ namespace AutoFlight{
 
 			if (this->prevState_ == FLIGHT_STATE::EXPLORE){
 				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+
 				bool planForDynamicObstacle = false;
 				if (obstaclesPos.size() != 0){
 					planForDynamicObstacle = true;
@@ -393,6 +408,9 @@ namespace AutoFlight{
 							this->getStartEndConditions(startEndCondition);
 							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
 						}
+						if (obstaclesPos.size() != 0){
+							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
 					}
 
 					if (globalPathLength < minLength or polySuccess == false){// if it is very short, we use piecewise linear trajectory 
@@ -409,6 +427,9 @@ namespace AutoFlight{
 						std::vector<Eigen::Vector3d> startEndCondition;		
 						this->getStartEndConditions(startEndCondition);
 						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+						if (obstaclesPos.size() != 0){
+							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
 					}
 
 					if (updateSuccess){
@@ -484,7 +505,9 @@ namespace AutoFlight{
 
 			if (this->prevState_ == FLIGHT_STATE::BACKWARD){
 				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+
 				bool planForDynamicObstacle = false;
 				if (obstaclesPos.size() != 0){
 					planForDynamicObstacle = true;
@@ -513,6 +536,9 @@ namespace AutoFlight{
 							this->getStartEndConditions(startEndCondition);
 							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
 						}
+						if (obstaclesPos.size() != 0){
+							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
 					}
 
 					if (globalPathLength < minLength or polySuccess == false){// if it is very short, we use piecewise linear trajectory 
@@ -529,6 +555,9 @@ namespace AutoFlight{
 						std::vector<Eigen::Vector3d> startEndCondition;		
 						this->getStartEndConditions(startEndCondition);
 						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+						if (obstaclesPos.size() != 0){
+							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
 					}
 
 					if (updateSuccess){
@@ -1009,8 +1038,8 @@ namespace AutoFlight{
 	void dynamicInspection::setStartPositionFree(){
 		Eigen::Vector3d lowerPos, upperPos;
 		Eigen::Vector3d centerPos (0 , 0, this->takeoffHgt_);
-		lowerPos = centerPos - Eigen::Vector3d (0.5, 0.5, 0.5);
-		upperPos = centerPos + Eigen::Vector3d (0.5, 0.5, 0.5);
+		lowerPos = centerPos - Eigen::Vector3d (2.5, 2.5, 1.5);
+		upperPos = centerPos + Eigen::Vector3d (2.5, 2.5, 1.5);
 		this->map_->freeRegion(lowerPos, upperPos);
 	}
 
@@ -1593,5 +1622,30 @@ namespace AutoFlight{
 		ps.pose.position.y = p(1);
 		ps.pose.position.z = p(2);
 		return ps;
+	}
+
+	void dynamicInspection::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
+		onboard_vision::ObstacleList msg;
+		this->detector_->getObstaclesInSensorRange(PI_const, msg);
+		for (onboard_vision::Obstacle ob : msg.obstacles){
+			Eigen::Vector3d pos (ob.px, ob.py, ob.pz);
+			Eigen::Vector3d vel (ob.vx, ob.vy, ob.vz);
+			Eigen::Vector3d size (ob.xsize, ob.ysize, ob.zsize);
+			obstaclesPos.push_back(pos);
+			obstaclesVel.push_back(vel);
+			obstaclesSize.push_back(size);
+		}
+	}
+
+	void dynamicInspection::freeMapCB(const ros::TimerEvent&){
+		onboard_vision::ObstacleList msg;
+		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
+		this->detector_->getObstacles(msg);
+		for (onboard_vision::Obstacle ob: msg.obstacles){
+			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
+			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
+			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+		}
+		this->map_->updateFreeRegions(freeRegions);
 	}
 }

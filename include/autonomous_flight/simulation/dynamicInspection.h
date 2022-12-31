@@ -11,6 +11,8 @@
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
+#include <onboard_vision/fakeDetector.h>
+
 
 namespace AutoFlight{
 	
@@ -24,12 +26,16 @@ namespace AutoFlight{
 		ros::Timer checkWallTimer_;
 		ros::Timer collisionCheckTimer_;
 		ros::Timer visTimer_;
+		ros::Timer freeMapTimer_;
 		ros::Publisher goalPub_;
 		ros::Publisher rrtPathPub_;
 		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
 		ros::Publisher wallVisPub_;
+
+		// fake detector
+		std::shared_ptr<onboardVision::fakeDetector> detector_;
 
 		// Map
 		std::shared_ptr<mapManager::dynamicMap> map_;
@@ -144,6 +150,10 @@ namespace AutoFlight{
 		
 		// utils
 		geometry_msgs::PoseStamped eigen2ps(const Eigen::Vector3d& p);
+
+		// fake detector
+		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
+		void freeMapCB(const ros::TimerEvent&);
 	};
 }
 
