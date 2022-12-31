@@ -323,7 +323,9 @@ namespace AutoFlight{
 				this->getStartEndConditions(startEndCondition);
 				bool updateSuccess = false;
 				updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
-
+				if (obstaclesPos.size() != 0){
+					this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}
 				if (updateSuccess){
 					nav_msgs::Path bsplineTrajMsgTemp;
 					bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -428,6 +430,9 @@ namespace AutoFlight{
 							this->getStartEndConditions(startEndCondition);
 							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
 						}
+						if (obstaclesPos.size() != 0){
+							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
 					}
 
 					if (globalPathLength < minLength or polySuccess == false){// if it is very short, we use piecewise linear trajectory 
@@ -444,6 +449,9 @@ namespace AutoFlight{
 						std::vector<Eigen::Vector3d> startEndCondition;		
 						this->getStartEndConditions(startEndCondition);
 						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+						if (obstaclesPos.size() != 0){
+							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
 					}
 
 					if (updateSuccess){
@@ -582,6 +590,9 @@ namespace AutoFlight{
 							std::vector<Eigen::Vector3d> startEndCondition;		
 							this->getStartEndConditions(startEndCondition);
 							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+							if (obstaclesPos.size() != 0){
+								this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+							}
 						}
 					}
 
@@ -599,6 +610,9 @@ namespace AutoFlight{
 						std::vector<Eigen::Vector3d> startEndCondition;		
 						this->getStartEndConditions(startEndCondition);
 						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+						if (obstaclesPos.size() != 0){
+							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
 					}
 
 					if (updateSuccess){
