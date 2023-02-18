@@ -68,7 +68,7 @@ namespace AutoFlight{
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::visCB, this);
 
 		// free map timer
-		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		// this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 
 
 		// collision check
@@ -154,7 +154,8 @@ namespace AutoFlight{
 		// update when current trajectory is not valid or new goal received
 
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		bool planForDynamicObstacle = false;
 		if (obstaclesPos.size() != 0){
 			planForDynamicObstacle = true;
@@ -267,10 +268,10 @@ namespace AutoFlight{
 		nav_msgs::Path currTrajectory = this->td_.currTrajectory;
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 		this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		Eigen::Vector3d obstaclePos, obstacleSize, diff;
 		double size, dist;
 
-		// this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 		for (geometry_msgs::PoseStamped ps : currTrajectory.poses){
 			Eigen::Vector3d p (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
 			if (this->map_->isInflatedOccupied(p)){
