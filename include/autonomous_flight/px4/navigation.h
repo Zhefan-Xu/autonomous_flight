@@ -43,6 +43,12 @@ namespace AutoFlight{
 		nav_msgs::Path bsplineTrajMsg_;
 
 
+		// For position, velocity, and acceleration tracking
+		ros::Time trajStartTime_;
+		trajPlanner::bspline trajectory_;
+		bool trajectoryReady_ = false;
+
+
 		double desiredVel_;
 		bool goalReceivedPWL_ = false;
 		bool rrtPathUpdated_ = false;

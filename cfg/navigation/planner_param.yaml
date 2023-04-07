@@ -1,5 +1,6 @@
 takeoff_height: 0.7
 sample_time: 0.1
+pose_control: false
 
 desired_velocity: 1.0
 desired_angular_velocity: 0.5

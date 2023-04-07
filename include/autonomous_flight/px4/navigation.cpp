@@ -172,10 +172,14 @@ namespace AutoFlight{
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
+				cout << "plan sucess: " << planSuccess << endl;
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
-					this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
+					this->trajStartTime_ = ros::Time::now();
+					this->trajectory_ = this->bsplineTraj_->getTrajectory();
+					this->trajectoryReady_ = true;
 					this->trajValid_ = true;
+					ROS_INFO("Trajectory plan success.");
 				}
 				else{
 					if (this->useGlobalTraj_){
@@ -202,11 +206,26 @@ namespace AutoFlight{
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
-		if (not this->td_.init){
-			return;
+		if (this->trajectoryReady_){
+			ros::Time currTime = ros::Time::now();
+			double t = (currTime - this->trajStartTime_).toSec();
+			Eigen::Vector3d pos = this->trajectory_.at(t);
+			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(t);
+			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(t);
+			
+			tracking_controller::Target target;
+			target.position.x = pos(0);
+			target.position.y = pos(1);
+			target.position.z = pos(2);
+			target.velocity.x = vel(0);
+			target.velocity.y = vel(1);
+			target.velocity.z = vel(2);
+			target.acceleration.x = acc(0);
+			target.acceleration.y = acc(1);
+			target.acceleration.z = acc(2);
+			target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			this->updateTargetWithState(target);			
 		}
-
-		this->updateTarget(this->td_.getPose());
 	}
 
 	void navigation::visCB(const ros::TimerEvent&){
