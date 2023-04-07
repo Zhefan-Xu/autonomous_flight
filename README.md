@@ -53,3 +53,11 @@ roslaunch autonomous_flight dynamic_inspection.launch
 
 ### IV. Parameter Tunning
 All the parameters are in ```autonomous/cfg``` folder. For example, the parameters for ```Dynamic Navigation``` can be found in ```autonomous_flight/cfg/dynamic_navgation/***.yaml```.
+
+
+### TODO: Navigation
+1. add flight speed parameter to navigation
+2. parameters for whether use global planner
+3. Target sending callback (yaw angle?)
+4. All planners in one callback function for replan (global planner not do replan every time)
+5. Collision checking failsafe (if trajectory has collision, stop motion)
