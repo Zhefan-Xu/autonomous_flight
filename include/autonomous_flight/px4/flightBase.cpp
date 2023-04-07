@@ -30,8 +30,10 @@ namespace AutoFlight{
     	}
 
 		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 1000);
-		this->posePubWorker_ = std::thread(&flightBase::pubPose, this);
-		this->posePubWorker_.detach();
+		this->statePub_ = this->nh_.advertise<tracking_controller::Target>("/autonomous_flight/target_state", 1000);
+		this->statePubWorker_ = std::thread(&flightBase::pubState, this);
+		this->statePubWorker_.detach();
+		
 
 		if (not this->nh_.getParam("takeoff_height", this->takeoffHgt_)){
 			this->takeoffHgt_ = 1.0;
@@ -40,11 +42,52 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Takeoff Height: " << this->takeoffHgt_ << "m." << endl;
 		}
+
+		if (not this->nh_.getParam("pose_control", this->poseControl_)){
+			this->poseControl_ = false;
+			ROS_INFO("No pose control param found. Use default: state control.");
+		}
+		else{
+			cout << "[AutoFlight]: Pose control (1)/State control(0): " << this->poseControl_ << endl;
+		}
 	}
 
 	flightBase::~flightBase(){}
 
 	void flightBase::takeoff(){
+		// if (this->poseControl_){
+		// 	// from cfg yaml read the flight height
+		// 	geometry_msgs::PoseStamped ps;
+		// 	ps.header.frame_id = "map";
+		// 	ps.header.stamp = ros::Time::now();
+		// 	ps.pose.position.x = 0.0;
+		// 	ps.pose.position.y = 0.0;
+		// 	// ps.pose.position.x = this->odom_.pose.pose.position.x;
+		// 	// ps.pose.position.y = this->odom_.pose.pose.position.y;
+		// 	ps.pose.position.z = this->takeoffHgt_;
+		// 	ps.pose.orientation.x = 0.0;
+		// 	ps.pose.orientation.y = 0.0;
+		// 	ps.pose.orientation.z = 0.0;
+		// 	ps.pose.orientation.w = 1.0;
+		// 	this->updateTarget(ps);
+		// }
+		// else{
+		// 	tracking_controller::Target tgt;
+		// 	tgt.header.frame_id = "map";
+		// 	tgt.header.stamp = ros::Time::now();
+		// 	tgt.position.x = 0.0;
+		// 	tgt.position.y = 0.0;
+		// 	tgt.position.z = this->takeoffHgt_;
+		// 	tgt.velocity.x = 0.0;
+		// 	tgt.velocity.y = 0.0;
+		// 	tgt.velocity.z = 0.0;
+		// 	tgt.acceleration.x = 0.0;
+		// 	tgt.acceleration.y = 0.0;
+		// 	tgt.acceleration.z = 0.0;
+		// 	tgt.yaw = 0.0;
+		// 	this->updateTargetWithState(tgt);
+		// }
+
 		// from cfg yaml read the flight height
 		geometry_msgs::PoseStamped ps;
 		ps.header.frame_id = "map";
@@ -58,7 +101,6 @@ namespace AutoFlight{
 		ps.pose.orientation.y = 0.0;
 		ps.pose.orientation.z = 0.0;
 		ps.pose.orientation.w = 1.0;
-
 		this->updateTarget(ps);
 		ROS_INFO("Start taking off...");
 		ros::Rate r (50);
@@ -73,17 +115,17 @@ namespace AutoFlight{
 		this->poseTgt_ = ps;
 		this->poseTgt_.header.frame_id = "map";
 		this->poseTgt_.header.stamp = ros::Time::now();
+		this->poseControl_ = true;
+	}
+
+	void flightBase::updateTargetWithState(const tracking_controller::Target& target){
+		this->stateTgt_ = target;
+		this->poseControl_ = false;
 	}
 
 
-	void flightBase::pubPose(){
+	void flightBase::pubState(){
 		ros::Rate r (1.0/this->sampleTime_);
-		// warmup
-		for(int i = 100; ros::ok() && i > 0; --i){
-	        this->poseTgt_.header.stamp = ros::Time::now();
-	        this->posePub_.publish(this->poseTgt_);
-	        r.sleep();
-    	}
 
 		mavros_msgs::SetMode offboardMode;
 		offboardMode.request.custom_mode = "OFFBOARD";
@@ -105,48 +147,77 @@ namespace AutoFlight{
 	            }
 	        }
 
-			this->posePub_.publish(this->poseTgt_);
+	        if (this->poseControl_){
+	        	this->posePub_.publish(this->poseTgt_);
+	        }
+	        else{
+				this->statePub_.publish(this->stateTgt_);
+			}
 			r.sleep();
 		}
 	}
 
 	void flightBase::run(){
-		std::string testMode;
-		if (not this->nh_.getParam("test_mode", testMode)){
-			testMode = "hover";
-			ROS_INFO("No test_mode param found. Use default: hover.");
+		double z = this->odom_.pose.pose.position.z;
+		// go to (1, 0, height) point
+		geometry_msgs::PoseStamped startPs;
+		startPs.pose.position.x = 2.0;
+		startPs.pose.position.y = 0.0;
+		startPs.pose.position.z = z;
+		this->updateTarget(startPs);
+		ROS_INFO("Go to start point...");
+		ros::Rate r1 (50);
+		while (ros::ok() and std::abs(this->odom_.pose.pose.position.x - startPs.pose.position.x) >= 0.1){
+			ros::spinOnce();
+			r1.sleep();
 		}
+		ROS_INFO("Start point reached!");
 
-		if (testMode == "hover"){
-			double duration;
-			if (not this->nh_.getParam("hover_duration", duration)){
-				duration = 5.0;
-				ROS_INFO("No hover_duration param found. Use default: 5.0 s.");
-			}
-			ROS_INFO("Starting hovering for %f second.", duration);
-			ros::Time startTime = ros::Time::now();
-			ros::Time endTime = ros::Time::now();
-			ros::Rate r (10);
-			while (ros::ok() and (endTime - startTime <= ros::Duration(duration))){
-				endTime = ros::Time::now();
-				r.sleep();
-			}
-		}
-		else if (testMode == "circular"){
-			double radius;
-			if (not this->nh_.getParam("radius", radius)){
-				radius = 5.0;
-				ROS_INFO("No radius param found. Use default: 2.0 m.");
-			}
-		}
-		else if (testMode == "square"){
 
-		}
-		else if (testMode == "eight"){
+		// flight test with circle
+		double r = 2.0; // radius
+		double v = 2.0; // 2.0 m
+		ros::Publisher targetPosePub = this->nh_.advertise<geometry_msgs::PoseStamped>("/autonomous_flight/test_target", 10);
+		ros::Rate rate (50);
+		ros::Time startTime = ros::Time::now();
+		while (ros::ok()){
+			ros::Time currTime = ros::Time::now();
+			double t = (currTime - startTime).toSec();
+			double rad = v * t / r;
+			double x = r * cos(rad);
+			double y = r * sin(rad);
+			double vx = -v * sin(rad);
+			double vy = v * cos(rad);
+			double vz = 0.0;
+			double aNorm = v*v/r;
+			Eigen::Vector3d accVec (x, y, 0);
+			accVec = -aNorm * accVec / accVec.norm();
+			double ax = accVec(0);
+			double ay = accVec(1);
+			double az = 0.0;
 
-		}
-		else{
-			ROS_INFO("Cannot find your test mode!");
+			// state target message
+			tracking_controller::Target target;
+			target.position.x = x;
+			target.position.y = y;
+			target.position.z = z;
+			target.velocity.x = vx;
+			target.velocity.y = vy;
+			target.velocity.z = vz;
+			target.acceleration.x = ax;
+			target.acceleration.y = ay;
+			target.acceleration.z = az;
+			this->updateTargetWithState(target);
+
+
+			geometry_msgs::PoseStamped ps;
+			ps.header.frame_id = "map";
+			ps.header.stamp = ros::Time::now();
+			ps.pose.position.x = x;
+			ps.pose.position.y = y;
+			ps.pose.position.z = z;
+			targetPosePub.publish(ps);
+			rate.sleep();
 		}
 	}
 

@@ -14,6 +14,8 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
+#include <tracking_controller/Target.h>
+#include <Eigen/Dense>
 #include <thread>
 #include <mutex>
 
@@ -138,12 +140,14 @@ namespace AutoFlight{
 		ros::Subscriber odomSub_;
 		ros::Subscriber clickSub_;
 		ros::Publisher posePub_;
+		ros::Publisher statePub_;
 		ros::ServiceClient armClient_;
 		ros::ServiceClient setModeClient_;
 		
 		nav_msgs::Odometry odom_;
 		mavros_msgs::State mavrosState_;
 		geometry_msgs::PoseStamped poseTgt_;
+		tracking_controller::Target stateTgt_;
 		geometry_msgs::PoseStamped goal_;
 		
 		// parameters
@@ -151,6 +155,7 @@ namespace AutoFlight{
 		double takeoffHgt_;
 
 		// status
+		bool poseControl_ = false;
 		bool odomReceived_;
 		bool mavrosStateReceived_;
 		bool firstGoal_ = false;
@@ -158,14 +163,15 @@ namespace AutoFlight{
 
 
 	public:
-		std::thread posePubWorker_;
+		std::thread statePubWorker_;
 
 		flightBase(const ros::NodeHandle& nh);
 		~flightBase();
 		void takeoff();
 		void updateTarget(const geometry_msgs::PoseStamped& ps);
+		void updateTargetWithState(const tracking_controller::Target& target);
+		void pubState();
 		void run();
-		void pubPose();
 		void stateCB(const mavros_msgs::State::ConstPtr& state);
 		void odomCB(const nav_msgs::Odometry::ConstPtr& odom);
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
