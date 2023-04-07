@@ -6,12 +6,7 @@
 #include <autonomous_flight/px4/flightBase.h>
 namespace AutoFlight{
 	flightBase::flightBase(const ros::NodeHandle& nh) : nh_(nh){
-    	// parameters
-    	if (not this->nh_.getParam("flight_base/sample_time", this->sampleTime_)){
-    		this->sampleTime_ = 0.1;
-    		cout << "[AutoFlight]: No sample time param. Use default: 0.1s." << endl;
-    	}
-    	
+    	// parameters    	
 		if (not this->nh_.getParam("flight_base/takeoff_height", this->takeoffHgt_)){
 			this->takeoffHgt_ = 1.0;
 			cout << "[AutoFlight]: No takeoff height param found. Use default: 1.0 m." << endl;
@@ -138,9 +133,13 @@ namespace AutoFlight{
 	}
 
 	void flightBase::run(){
+		// flight test with circle
+		double r = 2.0; // radius
+		double v = 2.0; // 2.0 m
+
 		double z = this->odom_.pose.pose.position.z;
 		geometry_msgs::PoseStamped startPs;
-		startPs.pose.position.x = 2.0;
+		startPs.pose.position.x = r;
 		startPs.pose.position.y = 0.0;
 		startPs.pose.position.z = z;
 		this->updateTarget(startPs);
@@ -153,9 +152,6 @@ namespace AutoFlight{
 		}
 		cout << "[AutoFlight]: Reach target point." << endl;
 
-		// flight test with circle
-		double r = 2.0; // radius
-		double v = 2.0; // 2.0 m
 		ros::Time startTime = ros::Time::now();
 		while (ros::ok()){
 			ros::Time currTime = ros::Time::now();

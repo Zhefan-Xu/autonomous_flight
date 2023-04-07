@@ -40,7 +40,6 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped goal_;
 		
 		// parameters
-		double sampleTime_;
 		double takeoffHgt_;
 
 		// status

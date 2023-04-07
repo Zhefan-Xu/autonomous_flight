@@ -28,6 +28,7 @@ namespace AutoFlight{
 		ros::Publisher avoidancePathVisPub_; // visualization
 
 		// parameters
+		double sampleTime_ = 0.1;
 		std::vector<double> collisionBox_;
 		double frontSafeDist_;
 		double avoidSafeDist_;
