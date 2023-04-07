@@ -10,10 +10,17 @@ odom_topic: /vins_estimator/imu_propagate
 # odom_topic: /CERLAB/quadcopter/odom
 
 # robot size
+<<<<<<< HEAD
 robot_size: [0.2, 0.2, 0.1]
 
 # Camera Parameters
 depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
+=======
+robot_size: [0.7, 0.7, 0.3]
+
+# Camera Parameters
+depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense small drone
+>>>>>>> 4d15477d930fbdae21efcd1c770da3925612174c
 # depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
 depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
 # depth_scale_factor: 10 # simulation

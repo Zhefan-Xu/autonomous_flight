@@ -1,7 +1,9 @@
 <launch>
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/detector_param.yaml" />
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_inspection/dynamic_detector_param.yaml" ns="/dynamic_detector" />
+
+
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/planner_param.yaml" />
-	<rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/mapping_param.yaml" ns="/dynamic_map" />
+	<rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/dynamic_map_param_new.yaml" ns="/dynamic_map" />
 	<node pkg="autonomous_flight" type="dynamic_navigation_node" name="dynamic_navigation_node" output="screen" />
 </launch>

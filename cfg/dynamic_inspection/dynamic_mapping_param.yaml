@@ -4,16 +4,28 @@ depth_image_topic: /camera/depth/image_rect_raw
 pose_topic: /mavros/local_position/pose
 odom_topic: /vins_estimator/imu_propagate
 
+<<<<<<< HEAD
 # for simulation (non px4)
+=======
+# for simulation
+>>>>>>> 4d15477d930fbdae21efcd1c770da3925612174c
 # depth_image_topic: /camera/depth/image_raw
 # pose_topic: /CERLAB/quadcopter/pose
 # odom_topic: /CERLAB/quadcopter/odom
 
+
 # robot size
+<<<<<<< HEAD
 robot_size: [0.2, 0.2, 0.1]
 
 # Camera Parameters
 depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense
+=======
+robot_size: [0.7, 0.7, 0.3]
+
+# Camera Parameters
+depth_intrinsics: [386.22674560546875, 386.22674560546875, 317.3930969238281, 239.78431701660156] # fx,  fy, cx, cy realsense small drone
+>>>>>>> 4d15477d930fbdae21efcd1c770da3925612174c
 # depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy simulation
 depth_scale_factor: 1000 # 1000 for Intel Realsense Camera
 # depth_scale_factor: 10 # simulation
@@ -39,7 +51,11 @@ p_occ: 0.80
 # Map
 map_resolution: 0.1
 ground_height: -0.1 # m
+<<<<<<< HEAD
 map_size: [20, 20, 3 ] # meter. in x y z direction (reserved size)
+=======
+map_size: [40, 20, 6] # meter. in x y z direction (reserved size)
+>>>>>>> 4d15477d930fbdae21efcd1c770da3925612174c
 local_update_range: [5, 5, 3]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
