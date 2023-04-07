@@ -7,7 +7,7 @@
 namespace AutoFlight{
 	flightBase::flightBase(const ros::NodeHandle& nh) : nh_(nh){
     	// parameters    	
-		if (not this->nh_.getParam("flight_base/takeoff_height", this->takeoffHgt_)){
+		if (not this->nh_.getParam("autonomous_flight/takeoff_height", this->takeoffHgt_)){
 			this->takeoffHgt_ = 1.0;
 			cout << "[AutoFlight]: No takeoff height param found. Use default: 1.0 m." << endl;
 		}
