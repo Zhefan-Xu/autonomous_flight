@@ -49,7 +49,11 @@ namespace AutoFlight{
 		bool trajectoryReady_ = false;
 
 
+		// parameters
+		bool useGlobalPlanner_;
 		double desiredVel_;
+		double desiredAngularVel_;
+
 		bool goalReceivedPWL_ = false;
 		bool rrtPathUpdated_ = false;
 		bool bsplineFailure_ = false;

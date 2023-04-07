@@ -13,7 +13,33 @@ namespace AutoFlight{
 	}
 
 	void navigation::initParam(){
-		this->desiredVel_ = this->pwlTraj_->getDesiredVel();
+    	// parameters    
+    	// use global planner or not	
+		if (not this->nh_.getParam("autonomous_flight/use_global_planner", this->useGlobalPlanner_)){
+			this->useGlobalPlanner_ = false;
+			cout << "[AutoFlight]: No use global planner param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Global planner use is set to: " << this->useGlobalPlanner_ << "." << endl;
+		}
+
+    	// desired linear velocity    	
+		if (not this->nh_.getParam("autonomous_flight/desired_velocity", this->desiredVel_)){
+			this->desiredVel_ = 1.0;
+			cout << "[AutoFlight]: No desired velocity param found. Use default: 1.0 m/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Desired velocity is set to: " << this->desiredVel_ << "m/s." << endl;
+		}
+
+    	// desired angular velocity    	
+		if (not this->nh_.getParam("autonomous_flight/desired_angular_velocity", this->desiredAngularVel_)){
+			this->desiredAngularVel_ = 1.0;
+			cout << "[AutoFlight]: No desired angular velocity param found. Use default: 0.5 rad/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Desired angular velocity is set to: " << this->desiredAngularVel_ << "rad/s." << endl;
+		}		
 	}
 
 	void navigation::initModules(){
