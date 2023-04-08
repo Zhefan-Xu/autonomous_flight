@@ -70,6 +70,7 @@ namespace AutoFlight{
 
 		void run();	
 		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
+		bool checkCollision();
 	};
 }
 

@@ -87,6 +87,7 @@ namespace AutoFlight{
 	}
 
 	void navigation::plannerCB(const ros::TimerEvent&){
+		if (not this->firstGoal_) return;
 		if (this->useGlobalPlanner_){
 			// only if a new goal is received, the global planner will make plan
 			if (this->goalReceived_){ 
@@ -142,6 +143,17 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
+
+		if (this->replan_ == false){
+			if (this->goalReceived_){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for new goal position." << endl; 
+			}
+
+
+		}
+
+
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
@@ -223,5 +235,9 @@ namespace AutoFlight{
 		startEndCondition.push_back(currAcc);
 		startEndCondition.push_back(endVel);
 		startEndCondition.push_back(endAcc);
+	}
+
+	bool navigation::checkCollision(){
+		
 	}
 }
