@@ -1,3 +1,4 @@
-autonomous_flight/takeoff_height: 1.0 # m
-autonomous_flight/desired_velocity: 1.0 # m/s
-autonomous_flight/desired_angular_velocity: 0.5 # rad/s
+takeoff_height: 1.0 # m
+use_global_planner: false
+desired_velocity: 1.0 # m/s
+desired_angular_velocity: 0.5 # rad/s

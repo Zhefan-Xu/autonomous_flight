@@ -7,8 +7,8 @@
 
 namespace AutoFlight{
 	navigation::navigation(const ros::NodeHandle& nh) : flightBase(nh){
-		this->initModules();
 		this->initParam();
+		this->initModules();
 		this->registerPub();
 	}
 
@@ -70,165 +70,78 @@ namespace AutoFlight{
 	}
 
 	void navigation::registerCallback(){
-		// rrt timer
-		this->rrtTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::rrtCB, this);
+		// planner callback
+		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.02), &navigation::plannerCB, this);
 
-		// poly traj timer
-		this->polyTrajTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::polyTrajCB, this);
+		// collision check callback
+		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
 
-		// pwl timer
-		this->pwlTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::pwlCB, this);
-		
-		// bspline timer
-		this->bsplineTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::bsplineCB, this);
+		// trajectory execution callback
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::trajExeCB, this);
 
-		// trajectory execution timer
-		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::trajExeCB, this);
+		// state update callback (velocity and acceleration)
+		this->stateUpdateTimer_ = this->nh_.createTimer(ros::Duration(0.033), &navigation::stateUpdateCB, this);
 
-		// visualization
-		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::visCB, this);
-
-		// collision check
-		this->collisionCheckTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::collisionCheckCB, this);
+		// visualization callback
+		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &navigation::visCB, this);
 	}
 
-	void navigation::run(){
-		// take off the drone
-		this->takeoff();
-
-		// register timer callback
-		this->registerCallback();
-	}
-
-	void navigation::rrtCB(const ros::TimerEvent&){
-		if (not this->bsplineFailure_) return;
-		if (not this->firstGoal_) return;		
-		
-		this->rrtPlanner_->updateStart(this->odom_.pose.pose);
-		this->rrtPlanner_->updateGoal(this->goal_.pose);
-		this->rrtPlanner_->makePlan(this->rrtPathMsg_);
-		this->rrtPathUpdated_ = true;
-	}
-
-	void navigation::polyTrajCB(const ros::TimerEvent&){
-		if (this->rrtPathMsg_.poses.size() == 0) return;
-		if (this->rrtPathUpdated_ == false) return;
-
-		this->polyTraj_->updatePath(this->rrtPathMsg_);
-		geometry_msgs::Twist vel;
-		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-		Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-		startCondition *= this->desiredVel_;
-		vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
-		this->polyTraj_->updateInitVel(vel);
-		this->polyTraj_->makePlan(this->polyTrajMsg_);
-		this->rrtPathUpdated_ = false;
-		this->useGlobalTraj_ = true;
-		this->bsplineFailure_ = false; // reset bspline failure
-		ROS_INFO("Global Trajectory Generated!");
-	}
-
-	void navigation::pwlCB(const ros::TimerEvent&){
-		if (not this->firstGoal_) return;
-
-		nav_msgs::Path simplePath;
-		geometry_msgs::PoseStamped pStart, pGoal;
-		pStart.pose = this->odom_.pose.pose;
-		pGoal = this->goal_;
-		std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
-		simplePath.poses = pathVec;
-
-		this->pwlTraj_->updatePath(simplePath);
-		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
-
-
-		if (this->goalReceived_){
-			// move to the correct orientation
-			double yaw = atan2(pGoal.pose.position.y - pStart.pose.position.y, pGoal.pose.position.x - pStart.pose.position.x);
-			geometry_msgs::PoseStamped poseTgt;
-			poseTgt.pose.position = pStart.pose.position;
-			poseTgt.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, yaw);
-			nav_msgs::Path rotationPath, rotationTraj;
-			std::vector<geometry_msgs::PoseStamped> rotationPathVec {pStart, poseTgt};
-			rotationPath.poses = rotationPathVec;
-			this->pwlTraj_->updatePath(rotationPath, true);
-			this->pwlTraj_->makePlan(rotationTraj, 0.1);
-			this->td_.updateTrajectory(rotationTraj, this->pwlTraj_->getDuration());
-	
-			ros::Rate r (50);
-			while (ros::ok() and not this->isReach(poseTgt)){
-				this->adjustingYaw_ = true;
-				ros::spinOnce();
-				r.sleep();
+	void navigation::plannerCB(const ros::TimerEvent&){
+		if (this->useGlobalPlanner_){
+			// only if a new goal is received, the global planner will make plan
+			if (this->goalReceived_){ 
 			}
-			this->adjustingYaw_ = false;
-			this->goalReceived_ = false;
-			this->goalReceivedPWL_ = true;	
 		}
-	}
 
-	void navigation::bsplineCB(const ros::TimerEvent&){
-		if (this->pwlTrajMsg_.poses.size() == 0) return;
-		// update when current trajectory is not valid or new goal received
-		if (this->goalReceivedPWL_ or not this->trajValid_ or this->useGlobalTraj_){
-			if (this->adjustingYaw_) return;
+		if (this->replan_){
+			// piecewise linear trajectory
+			nav_msgs::Path waypoints;
+			geometry_msgs::PoseStamped start, goal;
+			start.pose = this->odom_.pose.pose;
+			goal = this->goal_;
+			waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
+			this->pwlTraj_->updatePath(waypoints, this->desiredVel_);
+			this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
+
+			// bspline trajectory generation
+			nav_msgs::Path inputTraj;
+			inputTraj = this->pwlTrajMsg_;
+
 			std::vector<Eigen::Vector3d> startEndCondition;
-			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-			startCondition *= this->desiredVel_;
-			startEndCondition.push_back(startCondition); // start vel
-			startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //start acc condition
-			startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end vel condition
-			startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end acc condition
-
-			bool updateSuccess = false;
-			if (not this->useGlobalTraj_ and not this->bsplineFailure_){
-				updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
-			}
-
-			if (this->useGlobalTraj_){
-				updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
-			}
-
-			if (this->goalReceivedPWL_){
-				this->goalReceivedPWL_ = false;
-			}
-
+			this->getStartEndCondition(startEndCondition);
+			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
 
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
-				cout << "plan sucess: " << planSuccess << endl;
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->trajStartTime_ = ros::Time::now();
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 					this->trajectoryReady_ = true;
-					this->trajValid_ = true;
-					ROS_INFO("Trajectory plan success.");
+					this->replan_ = false;
+					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
 				}
 				else{
-					if (this->useGlobalTraj_){
-						ROS_INFO("Environment is not explored enough. Impossible to find a feasible trajectory!!! Please change your goal...");	
-					}
-					else{
-						// if the goal is not valid. Do not replan
-						if (this->map_->isInflatedOccupied(Eigen::Vector3d (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z))){
-							ROS_INFO("Your selected goal is not collision-free. Please change your goal.");
-						}
-						else{
-							this->bsplineFailure_ = true;
-							ROS_INFO("Bspline failure. Trying replan with global path!");
-						}
-					}
-					this->td_.stop(this->odom_.pose.pose); // update stop trajectory
+					// if the current trajectory is still valid, then just ignore this iteration
+					// if the current trajectory/or new goal point is assigned is not valid, then just stop
+					cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+					// TODO
 				}
 			}
-
-			if (this->useGlobalTraj_){
-				this->useGlobalTraj_ = false;
-			}
+			this->goalReceived_ = false;
 		}
+
+
+	}
+
+	void navigation::replanCheckCB(const ros::TimerEvent&){
+		/*
+			Replan if
+			1. collision detected
+			2. new goal point assigned
+			3. fixed distance
+		*/
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
@@ -254,6 +167,23 @@ namespace AutoFlight{
 		}
 	}
 
+	void navigation::stateUpdateCB(const ros::TimerEvent&){
+		Eigen::Vector3d currVelBody (this->odom_.twist.twist.linear.x, this->odom_.twist.twist.linear.y, this->odom_.twist.twist.linear.z);
+		Eigen::Vector4d orientationQuat (this->odom_.pose.pose.orientation.w, this->odom_.pose.pose.orientation.x, this->odom_.pose.pose.orientation.y, this->odom_.pose.pose.orientation.z);
+		Eigen::Matrix3d orientationRot = AutoFlight::quat2RotMatrix(orientationQuat);
+		this->currVel_ = orientationRot * currVelBody;		
+		if (this->stateUpdateFirstTime_){
+			this->currAcc_ = Eigen::Vector3d (0.0, 0.0, 0.0);
+			this->stateUpdateFirstTime_ = false;
+		}
+		else{
+			ros::Time currTime = ros::Time::now();
+			double dt = (currTime - this->prevStateTime_).toSec();
+			this->currAcc_ = (this->currVel_ - this->prevVel_)/dt;
+			this->prevVel_ = this->currVel_; 
+		}
+	}
+
 	void navigation::visCB(const ros::TimerEvent&){
 		if (this->rrtPathMsg_.poses.size() != 0){
 			this->rrtPathPub_.publish(this->rrtPathMsg_);
@@ -269,16 +199,29 @@ namespace AutoFlight{
 		}
 	}
 
-	void navigation::collisionCheckCB(const ros::TimerEvent&){
-		if (this->td_.currTrajectory.poses.size() == 0) return;
-		nav_msgs::Path currTrajectory = this->td_.currTrajectory;
-		for (geometry_msgs::PoseStamped ps : currTrajectory.poses){
-			Eigen::Vector3d p (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
-			if (this->map_->isInflatedOccupied(p)){
-				this->trajValid_ = false;
-				return;
-			}
-		}
-		this->trajValid_ = true;
+	void navigation::run(){
+		// take off the drone
+		this->takeoff();
+
+		// register timer callback
+		this->registerCallback();
+	}
+
+	void navigation::getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition){
+		/*	
+			1. start velocity
+			2. start acceleration (set to zero)
+			3. end velocity
+			4. end acceleration (set to zero) 
+		*/
+
+		Eigen::Vector3d currVel = this->currVel_;
+		Eigen::Vector3d currAcc = this->currAcc_;
+		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
+		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
+		startEndCondition.push_back(currVel);
+		startEndCondition.push_back(currAcc);
+		startEndCondition.push_back(endVel);
+		startEndCondition.push_back(endAcc);
 	}
 }

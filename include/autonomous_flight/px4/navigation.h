@@ -23,43 +23,36 @@ namespace AutoFlight{
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
 
-		ros::Timer rrtTimer_;
-		ros::Timer polyTrajTimer_;
-		ros::Timer pwlTimer_;
-		ros::Timer bsplineTimer_;
+		ros::Timer plannerTimer_;
+		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
+		ros::Timer stateUpdateTimer_;
 		ros::Timer visTimer_;
-		ros::Timer collisionCheckTimer_;
-		
+
 		ros::Publisher rrtPathPub_;
 		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
-
-		AutoFlight::trajData td_;
-		nav_msgs::Path rrtPathMsg_;
-		nav_msgs::Path polyTrajMsg_;
-		nav_msgs::Path pwlTrajMsg_;
-		nav_msgs::Path bsplineTrajMsg_;
-
-
-		// For position, velocity, and acceleration tracking
-		ros::Time trajStartTime_;
-		trajPlanner::bspline trajectory_;
-		bool trajectoryReady_ = false;
-
 
 		// parameters
 		bool useGlobalPlanner_;
 		double desiredVel_;
 		double desiredAngularVel_;
 
-		bool goalReceivedPWL_ = false;
-		bool rrtPathUpdated_ = false;
-		bool bsplineFailure_ = false;
-		bool useGlobalTraj_ = false;
-		bool adjustingYaw_ = false;
-		bool trajValid_ = true;
+		// navigation data
+		bool stateUpdateFirstTime_ = true;
+		ros::Time prevStateTime_;
+		Eigen::Vector3d currVel_, currAcc_, prevVel_;
+		bool replan_ = true;
+		nav_msgs::Path rrtPathMsg_;
+		nav_msgs::Path polyTrajMsg_;
+		nav_msgs::Path pwlTrajMsg_;
+		nav_msgs::Path bsplineTrajMsg_;
+		bool trajectoryReady_ = false;
+		ros::Time trajStartTime_;
+		trajPlanner::bspline trajectory_; // trajectory data for tracking
+		
+
 
 
 	public:
@@ -68,15 +61,15 @@ namespace AutoFlight{
 		void initModules();
 		void registerPub();
 		void registerCallback();
-		void run();
 
-		void rrtCB(const ros::TimerEvent&);
-		void polyTrajCB(const ros::TimerEvent&);
-		void pwlCB(const ros::TimerEvent&);
-		void bsplineCB(const ros::TimerEvent&);
+		void plannerCB(const ros::TimerEvent&);
+		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
+		void stateUpdateCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
-		void collisionCheckCB(const ros::TimerEvent&);
+
+		void run();	
+		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
 	};
 }
 
