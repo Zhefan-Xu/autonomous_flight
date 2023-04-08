@@ -50,6 +50,7 @@ namespace AutoFlight{
 		nav_msgs::Path bsplineTrajMsg_;
 		bool trajectoryReady_ = false;
 		ros::Time trajStartTime_;
+		double trajTime_; // current trajectory time
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
 		
 
@@ -70,7 +71,8 @@ namespace AutoFlight{
 
 		void run();	
 		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
-		bool checkCollision();
+		bool hasCollision();
+		double computeExecutionDistance();
 	};
 }
 

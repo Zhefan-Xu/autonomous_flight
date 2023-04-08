@@ -145,11 +145,20 @@ namespace AutoFlight{
 		*/
 
 		if (this->replan_ == false){
+			if (this->hasCollision()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for collision." << endl;
+			}
+
 			if (this->goalReceived_){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Replan for new goal position." << endl; 
 			}
 
+			if (this->computeExecutionDistance() >= 3.0){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Regular replan." << endl;
+			}
 
 		}
 
@@ -159,10 +168,10 @@ namespace AutoFlight{
 	void navigation::trajExeCB(const ros::TimerEvent&){
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
-			double t = (currTime - this->trajStartTime_).toSec();
-			Eigen::Vector3d pos = this->trajectory_.at(t);
-			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(t);
-			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(t);
+			this->trajTime_ = (currTime - this->trajStartTime_).toSec();
+			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
+			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_);
+			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_);
 			
 			tracking_controller::Target target;
 			target.position.x = pos(0);
@@ -237,7 +246,36 @@ namespace AutoFlight{
 		startEndCondition.push_back(endAcc);
 	}
 
-	bool navigation::checkCollision(){
-		
+	bool navigation::hasCollision(){
+		if (this->trajectoryReady_){
+			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
+				Eigen::Vector3d p = this->trajectory_.at(t);
+				bool hasCollision = this->map_->isInflatedOccupied(p);
+				if (hasCollision){
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	double navigation::computeExecutionDistance(){
+		if (this->trajectoryReady_){
+			Eigen::Vector3d prevP, currP;
+			bool firstTime = true;
+			double totalDistance = 0.0;
+			for (double t=0.0; t<=this->trajTime_; t+=0.1){
+				currP = this->trajectory_.at(t);
+				if (firstTime){
+					firstTime = false;
+				}
+				else{
+					totalDistance += (currP - prevP).norm();
+				}
+				prevP = currP;
+			}
+			return totalDistance;
+		}
+		return -1.0;
 	}
 }
