@@ -25,7 +25,7 @@ bspline_traj/distance_threshold: 2.0
 bspline_traj/max_vel: 1.0
 bspline_traj/max_acc: 0.5
 bspline_traj/weight_distance: 5.0
-bspline_traj/weight_smoothness: 1.0
+bspline_traj/weight_smoothness: 5.0
 bspline_traj/weight_feasibility: 1.0
 bspline_traj/min_height: 0.5
 bspline_traj/max_height: 1.5

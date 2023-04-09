@@ -64,6 +64,7 @@ namespace AutoFlight{
 
 		void takeoff();
 		void run(); // in flight base, this is a trajectory test function
+		void moveToOrientation(double yaw, double desiredAngularVel);
 
 		void updateTarget(const geometry_msgs::PoseStamped& ps);
 		void updateTargetWithState(const tracking_controller::Target& target);

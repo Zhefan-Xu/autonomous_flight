@@ -186,6 +186,56 @@ namespace AutoFlight{
 		}
 	}
 
+	void flightBase::moveToOrientation(double yaw, double desiredAngularVel){
+		double yawTgt = yaw;
+		geometry_msgs::Quaternion orientation = AutoFlight::quaternion_from_rpy(0, 0, yaw);
+		double yawCurr = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);		
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		ps.pose.orientation = orientation;
+
+		double yawDiff = yawTgt - yawCurr; // difference between yaw
+		double direction = 0;
+		double yawDiffAbs = std::abs(yawDiff);
+		if ((yawDiffAbs <= PI_const) and (yawDiff>0)){
+			direction = 1.0; // counter clockwise
+		} 
+		else if ((yawDiffAbs <= PI_const) and (yawDiff<0)){
+			direction = -1.0; // clockwise
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff>0)){
+			direction = -1.0; // rotate in clockwise direction
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff<0)){
+			direction = 1.0; // counter clockwise
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+
+		double endTime = yawDiffAbs/desiredAngularVel;
+		geometry_msgs::PoseStamped psT;
+		psT.pose = ps.pose;
+		ros::Time startTime = ros::Time::now();
+		ros::Rate r (50);
+		while (ros::ok() and not this->isReach(ps)){
+			ros::Time currTime = ros::Time::now();
+			double t = (currTime - startTime).toSec();
+
+			if (t >= endTime){
+				psT = ps;
+			}
+			else{
+				double currYawTgt = yawCurr + (double) direction * t/endTime * yawDiffAbs;
+				geometry_msgs::Quaternion quatT = AutoFlight::quaternion_from_rpy(0, 0, currYawTgt);
+				psT.pose.orientation = quatT;
+				this->updateTarget(psT);
+			}
+
+			ros::spinOnce();
+			r.sleep();
+		}
+	}
+
 	void flightBase::updateTarget(const geometry_msgs::PoseStamped& ps){
 		this->poseTgt_ = ps;
 		this->poseTgt_.header.frame_id = "map";

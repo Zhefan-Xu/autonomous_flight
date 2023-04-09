@@ -88,6 +88,7 @@ namespace AutoFlight{
 
 	void navigation::plannerCB(const ros::TimerEvent&){
 		if (not this->firstGoal_) return;
+
 		if (this->useGlobalPlanner_){
 			// only if a new goal is received, the global planner will make plan
 			if (this->goalReceived_){ 
@@ -132,8 +133,6 @@ namespace AutoFlight{
 			}
 			this->goalReceived_ = false;
 		}
-
-
 	}
 
 	void navigation::replanCheckCB(const ros::TimerEvent&){
@@ -159,10 +158,7 @@ namespace AutoFlight{
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan." << endl;
 			}
-
 		}
-
-
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
@@ -184,6 +180,7 @@ namespace AutoFlight{
 			target.acceleration.y = acc(1);
 			target.acceleration.z = acc(2);
 			target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			// target.yaw = atan2(vel(1), vel(0));
 			this->updateTargetWithState(target);			
 		}
 	}
@@ -192,16 +189,19 @@ namespace AutoFlight{
 		Eigen::Vector3d currVelBody (this->odom_.twist.twist.linear.x, this->odom_.twist.twist.linear.y, this->odom_.twist.twist.linear.z);
 		Eigen::Vector4d orientationQuat (this->odom_.pose.pose.orientation.w, this->odom_.pose.pose.orientation.x, this->odom_.pose.pose.orientation.y, this->odom_.pose.pose.orientation.z);
 		Eigen::Matrix3d orientationRot = AutoFlight::quat2RotMatrix(orientationQuat);
-		this->currVel_ = orientationRot * currVelBody;		
+		this->currVel_ = orientationRot * currVelBody;	
+		ros::Time currTime = ros::Time::now();	
 		if (this->stateUpdateFirstTime_){
 			this->currAcc_ = Eigen::Vector3d (0.0, 0.0, 0.0);
+			this->prevStateTime_ = currTime;
 			this->stateUpdateFirstTime_ = false;
 		}
 		else{
-			ros::Time currTime = ros::Time::now();
+			
 			double dt = (currTime - this->prevStateTime_).toSec();
 			this->currAcc_ = (this->currVel_ - this->prevVel_)/dt;
 			this->prevVel_ = this->currVel_; 
+			this->prevStateTime_ = currTime;
 		}
 	}
 
@@ -236,8 +236,9 @@ namespace AutoFlight{
 			4. end acceleration (set to zero) 
 		*/
 
-		Eigen::Vector3d currVel = this->currVel_;
-		Eigen::Vector3d currAcc = this->currAcc_;
+		Eigen::Vector3d currVel, currAcc;
+		currVel = this->currVel_;
+		currAcc = this->currAcc_;
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
 		startEndCondition.push_back(currVel);
@@ -278,4 +279,6 @@ namespace AutoFlight{
 		}
 		return -1.0;
 	}
+
+
 }
