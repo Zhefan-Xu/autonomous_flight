@@ -43,7 +43,7 @@ namespace AutoFlight{
 		bool stateUpdateFirstTime_ = true;
 		ros::Time prevStateTime_;
 		Eigen::Vector3d currVel_, currAcc_, prevVel_;
-		bool replan_ = true;
+		bool replan_ = false;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;

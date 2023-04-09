@@ -143,22 +143,24 @@ namespace AutoFlight{
 			3. fixed distance
 		*/
 
-		if (this->replan_ == false){
-			if (this->hasCollision()){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Replan for collision." << endl;
-			}
-
-			if (this->goalReceived_){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Replan for new goal position." << endl; 
-			}
-
-			if (this->computeExecutionDistance() >= 3.0){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Regular replan." << endl;
-			}
+		if (this->hasCollision()){
+			this->replan_ = true;
+			cout << "[AutoFlight]: Replan for collision." << endl;
 		}
+
+		if (this->goalReceived_){
+			this->trajectoryReady_ = false;
+			double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
+			this->moveToOrientation(yaw, this->desiredAngularVel_);
+			this->replan_ = true;
+			cout << "[AutoFlight]: Replan for new goal position." << endl; 
+		}
+
+		if (this->computeExecutionDistance() >= 3.0){
+			this->replan_ = true;
+			cout << "[AutoFlight]: Regular replan." << endl;
+		}
+		
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
