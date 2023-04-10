@@ -23,6 +23,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Global planner use is set to: " << this->useGlobalPlanner_ << "." << endl;
 		}
 
+		// full state control (yaw)
+		if (not this->nh_.getParam("autonomous_flight/use_yaw_control", this->useYawControl_)){
+			this->useYawControl_ = false;
+			cout << "[AutoFlight]: No yaw control param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Yaw control use is set to: " << this->useYawControl_ << "." << endl;
+		}		
+
     	// desired linear velocity    	
 		if (not this->nh_.getParam("autonomous_flight/desired_velocity", this->desiredVel_)){
 			this->desiredVel_ = 1.0;
@@ -150,8 +159,10 @@ namespace AutoFlight{
 
 		if (this->goalReceived_){
 			this->trajectoryReady_ = false;
-			double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
-			this->moveToOrientation(yaw, this->desiredAngularVel_);
+			if (not this->useYawControl_){
+				double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
+				this->moveToOrientation(yaw, this->desiredAngularVel_);
+			}
 			this->replan_ = true;
 			cout << "[AutoFlight]: Replan for new goal position." << endl; 
 		}
@@ -181,8 +192,12 @@ namespace AutoFlight{
 			target.acceleration.x = acc(0);
 			target.acceleration.y = acc(1);
 			target.acceleration.z = acc(2);
-			target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			// target.yaw = atan2(vel(1), vel(0));
+			if (not this->useYawControl_){
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			}
+			else{
+				target.yaw = atan2(vel(1), vel(0));
+			}
 			this->updateTargetWithState(target);			
 		}
 	}
