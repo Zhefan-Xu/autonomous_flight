@@ -41,6 +41,7 @@ namespace AutoFlight{
 		double desiredAngularVel_;
 
 		// navigation data
+		bool emergencyStop_ = false;
 		bool stateUpdateFirstTime_ = true;
 		ros::Time prevStateTime_;
 		Eigen::Vector3d currVel_, currAcc_, prevVel_;

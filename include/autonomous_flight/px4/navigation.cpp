@@ -136,8 +136,14 @@ namespace AutoFlight{
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
 					// if the current trajectory/or new goal point is assigned is not valid, then just stop
-					cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
-					// TODO
+					if (this->hasCollision()){
+						this->trajectoryReady_ = false;
+						this->stop();
+						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+					}
+					else{
+						cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+					}
 				}
 			}
 			this->goalReceived_ = false;
@@ -151,13 +157,8 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
-
-		if (this->hasCollision()){
-			this->replan_ = true;
-			cout << "[AutoFlight]: Replan for collision." << endl;
-		}
-
 		if (this->goalReceived_){
+			this->replan_ = false;
 			this->trajectoryReady_ = false;
 			if (not this->useYawControl_){
 				double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
@@ -165,11 +166,20 @@ namespace AutoFlight{
 			}
 			this->replan_ = true;
 			cout << "[AutoFlight]: Replan for new goal position." << endl; 
+			return;
 		}
+
+		if (this->hasCollision()){
+			this->replan_ = true;
+			cout << "[AutoFlight]: Replan for collision." << endl;
+			return;
+		}
+
 
 		if (this->computeExecutionDistance() >= 3.0){
 			this->replan_ = true;
 			cout << "[AutoFlight]: Regular replan." << endl;
+			return;
 		}
 		
 	}

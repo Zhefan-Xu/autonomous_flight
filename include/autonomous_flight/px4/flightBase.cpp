@@ -189,6 +189,12 @@ namespace AutoFlight{
 		}
 	}
 
+	void flightBase::stop(){
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		this->updateTarget(ps);
+	}
+
 	void flightBase::moveToOrientation(double yaw, double desiredAngularVel){
 		double yawTgt = yaw;
 		geometry_msgs::Quaternion orientation = AutoFlight::quaternion_from_rpy(0, 0, yaw);
