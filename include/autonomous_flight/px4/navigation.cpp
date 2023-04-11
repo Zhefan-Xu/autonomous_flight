@@ -259,8 +259,8 @@ namespace AutoFlight{
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
 		startEndCondition.push_back(currVel);
-		startEndCondition.push_back(currAcc);
 		startEndCondition.push_back(endVel);
+		startEndCondition.push_back(currAcc);
 		startEndCondition.push_back(endAcc);
 	}
 
