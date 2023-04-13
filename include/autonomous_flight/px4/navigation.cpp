@@ -169,26 +169,28 @@ namespace AutoFlight{
 			return;
 		}
 
-		if (this->hasCollision()){
-			this->replan_ = true;
-			cout << "[AutoFlight]: Replan for collision." << endl;
-			return;
+		if (this->trajectoryReady_){
+			if (this->hasCollision()){ // if trajectory not ready, do not replan
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for collision." << endl;
+				return;
+			}
+
+
+			if (this->computeExecutionDistance() >= 3.0){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Regular replan." << endl;
+				return;
+			}
+
+
+			// check whether reach the trajectory goal
+			if (this->isReach(this->bsplineTrajMsg_.poses.back())){
+				this->replan_  = true;
+				this->trajectoryReady_ = false;
+				return;
+			}
 		}
-
-
-		if (this->computeExecutionDistance() >= 3.0){
-			this->replan_ = true;
-			cout << "[AutoFlight]: Regular replan." << endl;
-			return;
-		}
-
-
-		// check whether reach the trajectory goal
-		if (this->trajectoryReady_ and this->isReach(this->bsplineTrajMsg_.poses.back())){
-			this->replan_  = true;
-			this->trajectoryReady_ = false;
-		}
-		
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
@@ -231,7 +233,6 @@ namespace AutoFlight{
 			this->stateUpdateFirstTime_ = false;
 		}
 		else{
-			
 			double dt = (currTime - this->prevStateTime_).toSec();
 			this->currAcc_ = (this->currVel_ - this->prevVel_)/dt;
 			this->prevVel_ = this->currVel_; 
@@ -278,7 +279,7 @@ namespace AutoFlight{
 		else{
 			double targetYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			currVel = this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);
-			currAcc = Eigen::Vector3d (0, 0, 0);			
+			currAcc = 3.0 * this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);			
 		}
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
