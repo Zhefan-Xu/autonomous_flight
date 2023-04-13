@@ -181,6 +181,13 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Regular replan." << endl;
 			return;
 		}
+
+
+		// check whether reach the trajectory goal
+		if (this->trajectoryReady_ and this->isReach(this->bsplineTrajMsg_.poses.back())){
+			this->replan_  = true;
+			this->trajectoryReady_ = false;
+		}
 		
 	}
 
@@ -264,8 +271,15 @@ namespace AutoFlight{
 		*/
 
 		Eigen::Vector3d currVel, currAcc;
-		currVel = this->currVel_;
-		currAcc = this->currAcc_;
+		if (this->trajectoryReady_){
+			currVel = this->currVel_;
+			currAcc = this->currAcc_;
+		}
+		else{
+			double targetYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			currVel = this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);
+			currAcc = Eigen::Vector3d (0, 0, 0);			
+		}
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
 		startEndCondition.push_back(currVel);
