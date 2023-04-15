@@ -279,7 +279,7 @@ namespace AutoFlight{
 		else{
 			double targetYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			currVel = this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);
-			currAcc = 3.0 * this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);			
+			currAcc = Eigen::Vector3d (0.0, 0.0, 0.0);			
 		}
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
