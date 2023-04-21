@@ -74,6 +74,7 @@ namespace AutoFlight{
 		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
 		bool hasCollision();
 		double computeExecutionDistance();
+		nav_msgs::Path getCurrentTraj(double dt);
 	};
 }
 

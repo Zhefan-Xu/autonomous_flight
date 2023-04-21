@@ -105,6 +105,7 @@ namespace AutoFlight{
 		}
 
 		if (this->replan_){
+			double sampleTime = 0.1;
 			// piecewise linear trajectory
 			nav_msgs::Path waypoints;
 			geometry_msgs::PoseStamped start, goal;
@@ -112,11 +113,16 @@ namespace AutoFlight{
 			goal = this->goal_;
 			waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
 			this->pwlTraj_->updatePath(waypoints, this->desiredVel_);
-			this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
+			this->pwlTraj_->makePlan(this->pwlTrajMsg_, sampleTime);
 
 			// bspline trajectory generation
 			nav_msgs::Path inputTraj;
-			inputTraj = this->pwlTrajMsg_;
+			if (not this->trajectoryReady_){
+				inputTraj = this->pwlTrajMsg_;
+			}
+			else{
+				inputTraj = this->getCurrentTraj(sampleTime);
+			}
 
 			std::vector<Eigen::Vector3d> startEndCondition;
 			this->getStartEndCondition(startEndCondition);
@@ -322,5 +328,21 @@ namespace AutoFlight{
 		return -1.0;
 	}
 
+	nav_msgs::Path navigation::getCurrentTraj(double dt){
+		nav_msgs::Path currentTraj;
+		if (this->trajectoryReady_){
+			ros::Time currTime = ros::Time::now();
+			double trajTime = (currTime - this->trajStartTime_).toSec();	
+			for (double t=trajTime; t<=this->trajectory_.getDuration(); t+=dt){
+				Eigen::Vector3d pos = this->trajectory_.at(t);
+				geometry_msgs::PoseStamped ps;
+				ps.pose.position.x = pos(0);
+				ps.pose.position.y = pos(1);
+				ps.pose.position.z = pos(2);
+				currentTraj.poses.push_back(ps);
+			}		
+		}
+		return currentTraj;
+	}
 
 }
