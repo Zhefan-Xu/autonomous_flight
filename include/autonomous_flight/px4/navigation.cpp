@@ -76,6 +76,7 @@ namespace AutoFlight{
 		this->polyTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/poly_traj", 10);
 		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/pwl_trajectory", 10);
 		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/bspline_trajectory", 10);
+		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/input_trajectory", 10);
 	}
 
 	void navigation::registerCallback(){
@@ -115,6 +116,9 @@ namespace AutoFlight{
 			this->pwlTraj_->updatePath(waypoints, this->desiredVel_);
 			this->pwlTraj_->makePlan(this->pwlTrajMsg_, sampleTime);
 
+
+
+
 			// bspline trajectory generation
 			nav_msgs::Path inputTraj;
 			if (not this->trajectoryReady_){
@@ -122,12 +126,24 @@ namespace AutoFlight{
 			}
 			else{
 				inputTraj = this->getCurrentTraj(sampleTime);
+				// check the distance between last point and the goal position
+				if (AutoFlight::getPoseDistance(inputTraj.poses.back(), this->goal_) >= 0.2){
+					// use polynomial trajectory to make the rest of the trajectory
+					nav_msgs::Path waypoints, polyTrajTemp;
+					waypoints.poses = std::vector<geometry_msgs::PoseStamped>{inputTraj.poses.back(), this->goal_};
+					this->polyTraj_->updatePath(waypoints, polyStartEndCondition);
+					this->polyTraj_->makePlan(polyTrajTemp, false); // no corridor constraint
+					for (geometry_msgs::PoseStamped ps : polyTrajTemp.poses){
+						inputTraj.poses.push_back(ps);
+					}
+				}
+				this->inputTrajMsg_ = inputTraj;
 			}
 
+			// start end conditions
 			std::vector<Eigen::Vector3d> startEndCondition;
 			this->getStartEndCondition(startEndCondition);
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
-
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -259,6 +275,9 @@ namespace AutoFlight{
 		if (this->bsplineTrajMsg_.poses.size() != 0){
 			this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
 		}
+		if (this->inputTrajMsg_.poses.size() != 0){
+			this->inputTrajPub_.publish(this->inputTrajMsg_);
+		}
 	}
 
 	void navigation::run(){
@@ -330,6 +349,8 @@ namespace AutoFlight{
 
 	nav_msgs::Path navigation::getCurrentTraj(double dt){
 		nav_msgs::Path currentTraj;
+		currentTraj.header.frame_id = "map";
+		currentTraj.header.stamp = ros::Time::now();
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double trajTime = (currTime - this->trajStartTime_).toSec();	

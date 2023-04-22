@@ -98,6 +98,10 @@ namespace AutoFlight{
 
     }
 
+    inline double getPoseDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2){
+        return sqrt(pow((p1.pose.position.x - p2.pose.position.x),2) + pow((p1.pose.position.y - p2.pose.position.y),2) + pow((p1.pose.position.z - p2.pose.position.z),2));    
+    }
+
     inline double getAngleDiff(double angle1, double angle2){
         double delta = std::abs(angle2 - angle1);
         if (delta > PI_const){

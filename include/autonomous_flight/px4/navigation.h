@@ -33,6 +33,7 @@ namespace AutoFlight{
 		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
+		ros::Publisher inputTrajPub_;
 
 		// parameters
 		bool useGlobalPlanner_;
@@ -49,6 +50,7 @@ namespace AutoFlight{
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
+		nav_msgs::Path inputTrajMsg_;
 		bool trajectoryReady_ = false;
 		ros::Time trajStartTime_;
 		double trajTime_; // current trajectory time
