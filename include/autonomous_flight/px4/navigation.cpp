@@ -131,19 +131,36 @@ namespace AutoFlight{
 					// use polynomial trajectory to make the rest of the trajectory
 					nav_msgs::Path waypoints, polyTrajTemp;
 					waypoints.poses = std::vector<geometry_msgs::PoseStamped>{inputTraj.poses.back(), this->goal_};
+					std::vector<Eigen::Vector3d> polyStartEndCondition;
+					Eigen::Vector3d polyStartVel = this->trajectory_.getDerivative().at(this->trajectory_.getDuration());
+					cout << "poly start vel: " << endl;
+					polyStartVel(0) = 1.0;
+					Eigen::Vector3d polyEndVel (0.0, 0.0, 0.0);
+					Eigen::Vector3d polyStartAcc = this->trajectory_.getDerivative().getDerivative().at(this->trajectory_.getDuration());
+					Eigen::Vector3d polyEndAcc (0.0, 0.0, 0.0);
+					polyStartEndCondition.push_back(polyStartVel);
+					polyStartEndCondition.push_back(polyEndVel);
+					polyStartEndCondition.push_back(polyStartAcc);
+					polyStartEndCondition.push_back(polyEndAcc);
+					cout << "update for pwl traj" << endl;
 					this->polyTraj_->updatePath(waypoints, polyStartEndCondition);
+					cout << "poly plan start" << endl;
 					this->polyTraj_->makePlan(polyTrajTemp, false); // no corridor constraint
+					cout << "poly plan success" << endl;
 					for (geometry_msgs::PoseStamped ps : polyTrajTemp.poses){
 						inputTraj.poses.push_back(ps);
 					}
+					this->polyTrajMsg_ = polyTrajTemp;
 				}
-				this->inputTrajMsg_ = inputTraj;
 			}
+			this->inputTrajMsg_ = inputTraj;
 
 			// start end conditions
 			std::vector<Eigen::Vector3d> startEndCondition;
 			this->getStartEndCondition(startEndCondition);
+			cout << "start update" << endl;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
+			cout << "update sucess." << endl;
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -168,7 +185,6 @@ namespace AutoFlight{
 					}
 				}
 			}
-			this->goalReceived_ = false;
 		}
 	}
 
@@ -187,6 +203,8 @@ namespace AutoFlight{
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 			}
 			this->replan_ = true;
+			this->goalReceived_ = false;
+
 			cout << "[AutoFlight]: Replan for new goal position." << endl; 
 			return;
 		}
