@@ -106,64 +106,97 @@ namespace AutoFlight{
 		}
 
 		if (this->replan_){
+			cout << "start replan" << endl;
 			double sampleTime = 0.1;
-			// piecewise linear trajectory
-			nav_msgs::Path waypoints;
-			geometry_msgs::PoseStamped start, goal;
-			start.pose = this->odom_.pose.pose;
-			goal = this->goal_;
-			waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
-			this->pwlTraj_->updatePath(waypoints, this->desiredVel_);
-			this->pwlTraj_->makePlan(this->pwlTrajMsg_, sampleTime);
-
-
+			// start end conditions
+			std::vector<Eigen::Vector3d> startEndCondition;
+			this->getStartEndCondition(startEndCondition);
+			cout << "after getting condition" << endl;
 
 
 			// bspline trajectory generation
 			nav_msgs::Path inputTraj;
+			// nav_msgs::Path waypoints;
+			// geometry_msgs::PoseStamped start, goal;
+			// start.pose = this->odom_.pose.pose;
+			// goal = this->goal_;
+			// waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
+			// cout << "1" << endl;
+			// this->pwlTraj_->updatePath(waypoints, this->desiredVel_);
+			// cout << "2" << endl;
+			// this->pwlTraj_->makePlan(this->pwlTrajMsg_, sampleTime);
+			// cout << "3" << endl;
+			// inputTraj = this->pwlTrajMsg_;
 			if (not this->trajectoryReady_){
-				inputTraj = this->pwlTrajMsg_;
+				// nav_msgs::Path waypoints;
+				// geometry_msgs::PoseStamped start, goal;
+				// start.pose = this->odom_.pose.pose;
+				// goal = this->goal_;
+				// waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
+				// cout << "1" << endl;
+				// this->pwlTraj_->updatePath(waypoints, this->desiredVel_);
+				// cout << "2" << endl;
+				// this->pwlTraj_->makePlan(this->pwlTrajMsg_, sampleTime);
+				// cout << "3" << endl;
+				// inputTraj = this->pwlTrajMsg_;
+
+				// modify 
+
+				nav_msgs::Path waypoints, polyTrajTemp;
+				geometry_msgs::PoseStamped start, goal;
+				start.pose = this->odom_.pose.pose; goal = this->goal_;
+				waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
+				cout << "updating waypoints to poly." << endl;
+				this->polyTraj_->updatePath(waypoints, startEndCondition);
+				cout << "starting making poly plan." << endl;
+				this->polyTraj_->makePlan(polyTrajTemp, false); // no corridor constraint
+				cout << "poly plan success" << endl;
+				inputTraj = polyTrajTemp;
+				this->polyTrajMsg_ = polyTrajTemp;
+
+				// modify end condition based on the polynomial trajectory
+				// startEndCondition[2] = this->polyTraj_->
 			}
 			else{
 				inputTraj = this->getCurrentTraj(sampleTime);
 				// check the distance between last point and the goal position
 				if (AutoFlight::getPoseDistance(inputTraj.poses.back(), this->goal_) >= 0.2){
+					cout << "use poly to make the rest of trajectory" << endl;
 					// use polynomial trajectory to make the rest of the trajectory
 					nav_msgs::Path waypoints, polyTrajTemp;
 					waypoints.poses = std::vector<geometry_msgs::PoseStamped>{inputTraj.poses.back(), this->goal_};
 					std::vector<Eigen::Vector3d> polyStartEndCondition;
-					Eigen::Vector3d polyStartVel = this->trajectory_.getDerivative().at(this->trajectory_.getDuration());
-					cout << "poly start vel: " << endl;
-					polyStartVel(0) = 1.0;
+					Eigen::Vector3d polyStartVel = this->polyTraj_->getVel(this->prevInputTrajTime_);
+					// Eigen::Vector3d polyStartVel (0.0, 0.0, 0.0);
 					Eigen::Vector3d polyEndVel (0.0, 0.0, 0.0);
-					Eigen::Vector3d polyStartAcc = this->trajectory_.getDerivative().getDerivative().at(this->trajectory_.getDuration());
+					Eigen::Vector3d polyStartAcc = this->polyTraj_->getAcc(this->prevInputTrajTime_);
+					// Eigen::Vector3d polyStartAcc (0.0, 0.0, 0.0);
 					Eigen::Vector3d polyEndAcc (0.0, 0.0, 0.0);
 					polyStartEndCondition.push_back(polyStartVel);
 					polyStartEndCondition.push_back(polyEndVel);
 					polyStartEndCondition.push_back(polyStartAcc);
 					polyStartEndCondition.push_back(polyEndAcc);
-					cout << "update for pwl traj" << endl;
+					cout << "1: update waypoints to poly" << endl;
 					this->polyTraj_->updatePath(waypoints, polyStartEndCondition);
-					cout << "poly plan start" << endl;
+					cout << "2: start make plan with poly" << endl;
 					this->polyTraj_->makePlan(polyTrajTemp, false); // no corridor constraint
-					cout << "poly plan success" << endl;
-					for (geometry_msgs::PoseStamped ps : polyTrajTemp.poses){
-						inputTraj.poses.push_back(ps);
+					cout << "3: make plan success" << endl;
+					for (size_t i=1; i<polyTrajTemp.poses.size(); ++i){
+						inputTraj.poses.push_back(polyTrajTemp.poses[i]);
 					}
 					this->polyTrajMsg_ = polyTrajTemp;
 				}
 			}
 			this->inputTrajMsg_ = inputTraj;
 
-			// start end conditions
-			std::vector<Eigen::Vector3d> startEndCondition;
-			this->getStartEndCondition(startEndCondition);
-			cout << "start update" << endl;
-			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
-			cout << "update sucess." << endl;
+			cout << "update bspline input" << endl;
+			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, this->prevInputTrajTime_);
+			cout << "update bspline sucess" << endl;
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
+				cout << "start making bspline traj" << endl;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
+				cout << "bspline traj sucess" << endl;
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->trajStartTime_ = ros::Time::now();
