@@ -160,7 +160,7 @@ namespace AutoFlight{
 			else{
 				inputTraj = this->getCurrentTraj(sampleTime);
 				// check the distance between last point and the goal position
-				if (AutoFlight::getPoseDistance(inputTraj.poses.back(), this->goal_) >= 0.2){
+				if (inputTraj.poses.size() != 0 and AutoFlight::getPoseDistance(inputTraj.poses.back(), this->goal_) >= 0.2){
 					cout << "use poly to make the rest of trajectory" << endl;
 					// use polynomial trajectory to make the rest of the trajectory
 					nav_msgs::Path waypoints, polyTrajTemp;
@@ -191,6 +191,7 @@ namespace AutoFlight{
 
 			cout << "update bspline input" << endl;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, this->prevInputTrajTime_);
+			// bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
 			cout << "update bspline sucess" << endl;
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
