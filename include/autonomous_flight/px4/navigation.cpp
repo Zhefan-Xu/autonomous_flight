@@ -72,6 +72,7 @@ namespace AutoFlight{
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
 		this->polyTraj_->setMap(this->map_);
 		this->polyTraj_->updateDesiredVel(this->desiredVel_);
+		this->polyTraj_->updateDesiredAcc(this->desiredAcc_);
 
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
@@ -230,6 +231,23 @@ namespace AutoFlight{
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
+
+					cout << "=============start==============" << endl;
+					cout << "first ten poses in the input trajectory: " << endl;
+					for (size_t i=0; i<50; ++i){
+						if (i >= inputTraj.poses.size()) break;
+						geometry_msgs::PoseStamped ps = inputTraj.poses[i];
+						cout << "pose " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
+					}
+
+					cout << "first ten poses in the optimized trajectory." << endl;
+					nav_msgs::Path testTrajMsg = this->bsplineTraj_->evalTrajToMsg(dt);
+					for (size_t i=0; i<50; ++i){
+						if (i >= testTrajMsg.poses.size()) break;
+						geometry_msgs::PoseStamped ps = testTrajMsg.poses[i];
+						cout << "pose " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
+					}
+					cout << "=================================" << endl;
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
@@ -383,8 +401,9 @@ namespace AutoFlight{
 			currAcc = this->currAcc_;
 		}
 		else{
-			double targetYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			currVel = this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);
+			// double targetYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			// currVel = this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);
+			currVel = Eigen::Vector3d (0.0, 0.0, 0.0);
 			currAcc = Eigen::Vector3d (0.0, 0.0, 0.0);			
 		}
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
