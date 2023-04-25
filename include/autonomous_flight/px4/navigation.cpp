@@ -144,14 +144,11 @@ namespace AutoFlight{
 				startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
 			}
 			else{
-				cout << "1" << endl;
 				Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
 				geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
 				Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
-				cout << "2" << endl;
 				// check the distance between last point and the goal position
 				if ((bsplineLastPos - goalPos).norm() >= 0.2){ // use polynomial trajectory to make the rest of the trajectory
-					cout << "poly" << endl;
 					nav_msgs::Path waypoints, polyTrajTemp;
 					waypoints.poses = std::vector<geometry_msgs::PoseStamped>{lastPs, this->goal_};
 					std::vector<Eigen::Vector3d> polyStartEndCondition;
@@ -163,10 +160,8 @@ namespace AutoFlight{
 					polyStartEndCondition.push_back(polyEndVel);
 					polyStartEndCondition.push_back(polyStartAcc);
 					polyStartEndCondition.push_back(polyEndAcc);
-					cout << "3" << endl;
 					this->polyTraj_->updatePath(waypoints, polyStartEndCondition);
 					this->polyTraj_->makePlan(false); // no corridor constraint
-					cout << "4" << endl;
 					
 					nav_msgs::Path adjustedInputCombinedTraj;
 					bool satisfyDistanceCheck = false;
@@ -184,9 +179,8 @@ namespace AutoFlight{
 						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
 						if (satisfyDistanceCheck) break;
 						
-						dtTemp *= 0.8;
+						dtTemp *= 0.8; // magic number 0.8
 					}
-					cout << "5" << endl;					
 					dt = dtTemp;
 					inputTraj = adjustedInputCombinedTraj;
 					finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
@@ -194,7 +188,6 @@ namespace AutoFlight{
 					startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
 				}
 				else{
-					cout << "prev" << endl;
 					nav_msgs::Path adjustedInputRestTraj;
 					bool satisfyDistanceCheck = false;
 					double dtTemp = initTs;
@@ -215,15 +208,10 @@ namespace AutoFlight{
 
 
 			this->inputTrajMsg_ = inputTraj;
-			cout << "current dt is: " << dt << endl;
-			cout << "update bspline input" << endl;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
-			cout << "update bspline sucess" << endl;
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
-				cout << "start making bspline traj" << endl;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
-				cout << "bspline traj sucess" << endl;
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->trajStartTime_ = ros::Time::now();
