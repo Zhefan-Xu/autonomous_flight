@@ -41,6 +41,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Desired velocity is set to: " << this->desiredVel_ << "m/s." << endl;
 		}
 
+		if (not this->nh_.getParam("autonomous_flight/desired_acceleration", this->desiredAcc_)){
+			this->desiredAcc_ = 1.0;
+			cout << "[AutoFlight]: No desired acceleration param found. Use default: 1.0 m/s^2." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Desired acceleration is set to: " << this->desiredAcc_ << "m/s^2." << endl;
+		}
+
+
     	// desired angular velocity    	
 		if (not this->nh_.getParam("autonomous_flight/desired_angular_velocity", this->desiredAngularVel_)){
 			this->desiredAngularVel_ = 1.0;
@@ -62,6 +71,7 @@ namespace AutoFlight{
 		// initialize polynomial trajectory planner
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
 		this->polyTraj_->setMap(this->map_);
+		this->polyTraj_->updateDesiredVel(this->desiredVel_);
 
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
@@ -69,6 +79,8 @@ namespace AutoFlight{
 		// initialize bspline trajectory planner
 		this->bsplineTraj_.reset(new trajPlanner::bsplineTraj (this->nh_));
 		this->bsplineTraj_->setMap(this->map_);
+		this->bsplineTraj_->updateMaxVel(this->desiredVel_);
+		this->bsplineTraj_->updateMaxAcc(this->desiredAcc_);
 	}
 
 	void navigation::registerPub(){
@@ -131,9 +143,8 @@ namespace AutoFlight{
 				while (ros::ok()){
 					nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
 					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
-					if (satisfyDistanceCheck){
-						break;
-					}
+					if (satisfyDistanceCheck) break;
+					
 					dtTemp *= 0.8;
 				}
 
@@ -206,7 +217,7 @@ namespace AutoFlight{
 				}
 			}
 
-
+			cout << "dt: " << dt << endl;
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
 			if (updateSuccess){
@@ -259,10 +270,13 @@ namespace AutoFlight{
 
 		if (this->trajectoryReady_){
 			// check whether reach the trajectory goal
-			if (this->isReach(this->bsplineTrajMsg_.poses.back())){
-				this->replan_  = true;
+			Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+			Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
+			if ((currPos - goalPos).norm() <= 0.2){
+				this->replan_  = false;
 				this->trajectoryReady_ = false;
 				this->goalReceived_ = false;
+				cout << "[AutoFlight]: Reach goal position." << endl;
 				return;
 			}
 

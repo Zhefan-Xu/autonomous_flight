@@ -39,6 +39,7 @@ namespace AutoFlight{
 		bool useGlobalPlanner_;
 		bool useYawControl_;
 		double desiredVel_;
+		double desiredAcc_;
 		double desiredAngularVel_;
 
 		// navigation data
