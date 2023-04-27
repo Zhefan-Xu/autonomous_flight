@@ -218,7 +218,7 @@ namespace AutoFlight{
 				}
 			}
 
-			cout << "dt: " << dt << endl;
+			// cout << "dt: " <gg< dt << endl;
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
 			if (updateSuccess){
@@ -231,23 +231,6 @@ namespace AutoFlight{
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
-
-					cout << "=============start==============" << endl;
-					cout << "first ten poses in the input trajectory: " << endl;
-					for (size_t i=0; i<50; ++i){
-						if (i >= inputTraj.poses.size()) break;
-						geometry_msgs::PoseStamped ps = inputTraj.poses[i];
-						cout << "pose " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
-					}
-
-					cout << "first ten poses in the optimized trajectory." << endl;
-					nav_msgs::Path testTrajMsg = this->bsplineTraj_->evalTrajToMsg(dt);
-					for (size_t i=0; i<50; ++i){
-						if (i >= testTrajMsg.poses.size()) break;
-						geometry_msgs::PoseStamped ps = testTrajMsg.poses[i];
-						cout << "pose " << i << ": " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << endl; 
-					}
-					cout << "=================================" << endl;
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
@@ -258,7 +241,13 @@ namespace AutoFlight{
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 					}
 					else{
-						cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+						if (this->trajectoryReady_){
+							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+						}
+						else{
+							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+						}
+						this->replan_ = false;
 					}
 				}
 			}
@@ -428,7 +417,7 @@ namespace AutoFlight{
 	}
 
 	double navigation::computeExecutionDistance(){
-		if (this->trajectoryReady_){
+		if (this->trajectoryReady_ and not this->replan_){
 			Eigen::Vector3d prevP, currP;
 			bool firstTime = true;
 			double totalDistance = 0.0;
