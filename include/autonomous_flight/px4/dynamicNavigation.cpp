@@ -225,7 +225,7 @@ namespace AutoFlight{
 				}
 			}
 
-			// cout << "dt: " <gg< dt << endl;
+			// cout << "dt: " << dt << endl;
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
 			if (updateSuccess){
