@@ -41,6 +41,7 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Desired velocity is set to: " << this->desiredVel_ << "m/s." << endl;
 		}
 
+		// desired acceleration
 		if (not this->nh_.getParam("autonomous_flight/desired_acceleration", this->desiredAcc_)){
 			this->desiredAcc_ = 1.0;
 			cout << "[AutoFlight]: No desired acceleration param found. Use default: 1.0 m/s^2." << endl;

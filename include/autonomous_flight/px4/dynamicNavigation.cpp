@@ -41,6 +41,7 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Desired velocity is set to: " << this->desiredVel_ << "m/s." << endl;
 		}
 
+		// desired acceleration
 		if (not this->nh_.getParam("autonomous_flight/desired_acceleration", this->desiredAcc_)){
 			this->desiredAcc_ = 1.0;
 			cout << "[AutoFlight]: No desired acceleration param found. Use default: 1.0 m/s^2." << endl;
@@ -63,6 +64,9 @@ namespace AutoFlight{
 	void dynamicNavigation::initModules(){
 		// initialize map
 		this->map_.reset(new mapManager::dynamicMap (this->nh_));
+
+		// initialize fake detector
+		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));		
 
 		// initialize rrt planner
 		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
@@ -107,6 +111,9 @@ namespace AutoFlight{
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicNavigation::visCB, this);
+
+		// free map callback
+		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 	}
 
 	void dynamicNavigation::plannerCB(const ros::TimerEvent&){
@@ -222,6 +229,13 @@ namespace AutoFlight{
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
 			if (updateSuccess){
+				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+				// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				if (obstaclesPos.size() != 0){
+					this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}
+
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 				if (planSuccess){
@@ -300,6 +314,14 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;
 			}
+
+			// replan for dynamic obstacles
+		
+			if (this->hasDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+				return;
+			}
 		}
 	}
 
@@ -366,6 +388,18 @@ namespace AutoFlight{
 		if (this->inputTrajMsg_.poses.size() != 0){
 			this->inputTrajPub_.publish(this->inputTrajMsg_);
 		}
+	}
+
+	void dynamicNavigation::freeMapCB(const ros::TimerEvent&){
+		onboard_vision::ObstacleList msg;
+		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
+		this->detector_->getObstacles(msg);
+		for (onboard_vision::Obstacle ob: msg.obstacles){
+			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
+			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
+			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+		}
+		this->map_->updateFreeRegions(freeRegions);		
 	}
 
 	void dynamicNavigation::run(){
@@ -436,6 +470,19 @@ namespace AutoFlight{
 		return -1.0;
 	}
 
+	bool dynamicNavigation::hasDynamicObstacle(){
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);	
+		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		cout << "dynamic obstacle size: " << obstaclesPos.size() << endl;
+		if (obstaclesPos.size() == 0){
+			return false;
+		}
+		else{
+			return true;
+		}
+	}
+
 	nav_msgs::Path dynamicNavigation::getCurrentTraj(double dt){
 		nav_msgs::Path currentTraj;
 		currentTraj.header.frame_id = "map";
@@ -453,6 +500,19 @@ namespace AutoFlight{
 			}		
 		}
 		return currentTraj;
+	}
+
+	void dynamicNavigation::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
+		onboard_vision::ObstacleList msg;
+		this->detector_->getObstaclesInSensorRange(PI_const, msg);
+		for (onboard_vision::Obstacle ob : msg.obstacles){
+			Eigen::Vector3d pos (ob.px, ob.py, ob.pz);
+			Eigen::Vector3d vel (ob.vx, ob.vy, ob.vz);
+			Eigen::Vector3d size (ob.xsize, ob.ysize, ob.zsize);
+			obstaclesPos.push_back(pos);
+			obstaclesVel.push_back(vel);
+			obstaclesSize.push_back(size);
+		}
 	}
 
 }

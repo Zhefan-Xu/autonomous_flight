@@ -9,6 +9,7 @@
 
 #include <autonomous_flight/px4/flightBase.h>
 #include <map_manager/dynamicMap.h>
+#include <onboard_vision/fakeDetector.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
@@ -18,6 +19,7 @@ namespace AutoFlight{
 	class dynamicNavigation : public flightBase{
 	private:
 		std::shared_ptr<mapManager::dynamicMap> map_;
+		std::shared_ptr<onboardVision::fakeDetector> detector_;
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
@@ -28,6 +30,7 @@ namespace AutoFlight{
 		ros::Timer trajExeTimer_;
 		ros::Timer stateUpdateTimer_;
 		ros::Timer visTimer_;
+		ros::Timer freeMapTimer_;
 
 		ros::Publisher rrtPathPub_;
 		ros::Publisher polyTrajPub_;
@@ -73,12 +76,15 @@ namespace AutoFlight{
 		void trajExeCB(const ros::TimerEvent&);
 		void stateUpdateCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
+		void freeMapCB(const ros::TimerEvent&); // using fake detector
 
 		void run();	
 		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
 		bool hasCollision();
 		double computeExecutionDistance();
+		bool hasDynamicObstacle();
 		nav_msgs::Path getCurrentTraj(double dt);
+		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 	};
 }
 
