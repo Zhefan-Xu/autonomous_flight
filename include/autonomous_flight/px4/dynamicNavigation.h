@@ -40,6 +40,7 @@ namespace AutoFlight{
 
 		// parameters
 		bool useGlobalPlanner_;
+		bool noYawTurning_;
 		bool useYawControl_;
 		double desiredVel_;
 		double desiredAcc_;

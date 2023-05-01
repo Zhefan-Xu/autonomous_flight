@@ -23,6 +23,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Global planner use is set to: " << this->useGlobalPlanner_ << "." << endl;
 		}
 
+		// No turning of yaw
+		if (not this->nh_.getParam("autonomous_flight/no_yaw_turning", this->noYawTurning_)){
+			this->noYawTurning_ = false;
+			cout << "[AutoFlight]: No yaw turning param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Yaw turning use is set to: " << this->noYawTurning_ << "." << endl;
+		}	
+		
 		// full state control (yaw)
 		if (not this->nh_.getParam("autonomous_flight/use_yaw_control", this->useYawControl_)){
 			this->useYawControl_ = false;
@@ -265,7 +274,7 @@ namespace AutoFlight{
 		if (this->goalReceived_){
 			this->replan_ = false;
 			this->trajectoryReady_ = false;
-			if (not this->useYawControl_){
+			if (not this->noYawTurning_ and not this->useYawControl_){
 				double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 			}
@@ -311,6 +320,10 @@ namespace AutoFlight{
 			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
 			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_);
 			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_);
+
+			// clip velocity and acceleration
+			// vel = this->desiredVel_ * vel/vel.norm();
+			// acc = this->desiredAcc_ * acc/acc.norm();
 			
 			tracking_controller::Target target;
 			target.position.x = pos(0);
@@ -322,7 +335,7 @@ namespace AutoFlight{
 			target.acceleration.x = acc(0);
 			target.acceleration.y = acc(1);
 			target.acceleration.z = acc(2);
-			if (not this->useYawControl_){
+			if (this->noYawTurning_ or not this->useYawControl_){
 				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			}
 			else{
