@@ -317,9 +317,11 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			this->trajTime_ = (currTime - this->trajStartTime_).toSec();
-			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_);
-			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_);
+			double reparamTime = this->bsplineTraj_->getLinearReparamTime(this->trajTime_);
+			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+			Eigen::Vector3d pos = this->trajectory_.at(reparamTime);
+			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(reparamTime) * linearReparamFactor;
+			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(reparamTime) * pow(linearReparamFactor, 2);
 
 			// clip velocity and acceleration
 			// vel = this->desiredVel_ * vel/vel.norm();
@@ -435,7 +437,8 @@ namespace AutoFlight{
 			Eigen::Vector3d prevP, currP;
 			bool firstTime = true;
 			double totalDistance = 0.0;
-			for (double t=0.0; t<=this->trajTime_; t+=0.1){
+			double reparamTime = this->bsplineTraj_->getLinearReparamTime(this->trajTime_);	
+			for (double t=0.0; t<=reparamTime; t+=0.1){
 				currP = this->trajectory_.at(t);
 				if (firstTime){
 					firstTime = false;
@@ -456,8 +459,9 @@ namespace AutoFlight{
 		currentTraj.header.stamp = ros::Time::now();
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
-			double trajTime = (currTime - this->trajStartTime_).toSec();	
-			for (double t=trajTime; t<=this->trajectory_.getDuration(); t+=dt){
+			double trajTime = (currTime - this->trajStartTime_).toSec();
+			double reparamTime = this->bsplineTraj_->getLinearReparamTime(trajTime);	
+			for (double t=reparamTime; t<=this->trajectory_.getDuration(); t+=dt){
 				Eigen::Vector3d pos = this->trajectory_.at(t);
 				geometry_msgs::PoseStamped ps;
 				ps.pose.position.x = pos(0);
