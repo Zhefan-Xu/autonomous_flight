@@ -126,6 +126,16 @@ namespace AutoFlight{
 		// ps.pose.orientation.w = 1.0;
 		ps.pose.orientation = this->odom_.pose.pose.orientation;
 		this->updateTarget(ps);
+
+		// tracking_controller::Target ps;
+		// ps.type_mask = ps.IGNORE_ACC_VEL;
+		// ps.header.frame_id = "map";
+		// ps.header.stamp = ros::Time::now();
+		// ps.position.x = this->odom_.pose.pose.position.x;
+		// ps.position.y = this->odom_.pose.pose.position.y;
+		// ps.position.z = this->takeoffHgt_;
+		// ps.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		// this->updateTargetWithState(ps);
 		cout << "[AutoFlight]: Start taking off..." << endl;
 		ros::Rate r (30);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1){
