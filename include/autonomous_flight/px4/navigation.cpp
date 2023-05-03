@@ -162,7 +162,7 @@ namespace AutoFlight{
 				dt = dtTemp;
 				inputTraj = adjustedInputPolyTraj;
 				finalTime = finalTimeTemp;
-				startEndCondition[2] = this->polyTraj_->getVel(finalTime);
+				startEndCondition[1] = this->polyTraj_->getVel(finalTime);
 				startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
 			}
 			else{
@@ -206,7 +206,7 @@ namespace AutoFlight{
 					dt = dtTemp;
 					inputTraj = adjustedInputCombinedTraj;
 					finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
-					startEndCondition[2] = this->polyTraj_->getVel(finalTime);
+					startEndCondition[1] = this->polyTraj_->getVel(finalTime);
 					startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
 				}
 				else{
@@ -224,7 +224,7 @@ namespace AutoFlight{
 					}
 					dt = dtTemp;
 					inputTraj = adjustedInputRestTraj;
-					finalTime = finalTimeTemp;			
+					// finalTime = finalTimeTemp;			
 				}
 			}
 
@@ -286,18 +286,6 @@ namespace AutoFlight{
 		}
 
 		if (this->trajectoryReady_){
-			// check whether reach the trajectory goal
-			Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-			Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
-			if ((currPos - goalPos).norm() <= 0.2){
-				this->replan_  = false;
-				this->trajectoryReady_ = false;
-				this->goalReceived_ = false;
-				cout << "[AutoFlight]: Reach goal position." << endl;
-				return;
-			}
-
-
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
 				this->replan_ = true;
 				cout << "[AutoFlight]: Replan for collision." << endl;
@@ -400,17 +388,8 @@ namespace AutoFlight{
 			4. end acceleration (set to zero) 
 		*/
 
-		Eigen::Vector3d currVel, currAcc;
-		if (this->trajectoryReady_){
-			currVel = this->currVel_;
-			currAcc = this->currAcc_;
-		}
-		else{
-			// double targetYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			// currVel = this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);
-			currVel = Eigen::Vector3d (0.0, 0.0, 0.0);
-			currAcc = Eigen::Vector3d (0.0, 0.0, 0.0);			
-		}
+		Eigen::Vector3d currVel = this->currVel_;
+		Eigen::Vector3d currAcc = this->currAcc_;
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
 		startEndCondition.push_back(currVel);
