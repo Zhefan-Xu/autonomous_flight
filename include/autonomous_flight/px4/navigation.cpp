@@ -437,6 +437,10 @@ namespace AutoFlight{
 		currentTraj.header.stamp = ros::Time::now();
 	
 		if (this->trajectoryReady_){
+			// include the current pose
+			// geometry_msgs::PoseStamped psCurr;
+			// psCurr.pose = this->odom_.pose.pose;
+			// currentTraj.poses.push_back(psCurr);
 			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=dt){
 				Eigen::Vector3d pos = this->trajectory_.at(t);
 				geometry_msgs::PoseStamped ps;
