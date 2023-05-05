@@ -104,7 +104,7 @@ namespace AutoFlight{
 
 	void navigation::registerCallback(){
 		// planner callback
-		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.02), &navigation::plannerCB, this);
+		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::plannerCB, this);
 
 		// collision check callback
 		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
@@ -135,7 +135,7 @@ namespace AutoFlight{
 
 			// bspline trajectory generation
 			nav_msgs::Path inputTraj;
-			double dt; // dt for bspline
+			double dt, dtAdjusted; // dt for bspline
 			double finalTime; // final time for bspline trajectory
 			double initTs = this->bsplineTraj_->getInitTs();
 
@@ -153,13 +153,14 @@ namespace AutoFlight{
 				double finalTimeTemp;
 				while (ros::ok()){
 					nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
-					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
+					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, dtAdjusted, finalTimeTemp);
 					if (satisfyDistanceCheck) break;
 					
 					dtTemp *= 0.8;
 				}
 
-				dt = dtTemp;
+				dt = dtAdjusted;
+
 				inputTraj = adjustedInputPolyTraj;
 				finalTime = finalTimeTemp;
 				startEndCondition[1] = this->polyTraj_->getVel(finalTime);
@@ -198,12 +199,12 @@ namespace AutoFlight{
 							inputCombinedTraj.poses.push_back(inputPolyTraj.poses[i]);
 						}
 						
-						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
+						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, dtAdjusted, finalTimeTemp);
 						if (satisfyDistanceCheck) break;
 						
 						dtTemp *= 0.8; // magic number 0.8
 					}
-					dt = dtTemp;
+					dt = dtAdjusted;
 					inputTraj = adjustedInputCombinedTraj;
 					finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
 					startEndCondition[1] = this->polyTraj_->getVel(finalTime);
@@ -217,19 +218,21 @@ namespace AutoFlight{
 					while (ros::ok()){
 						nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
 
-						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
+						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, dtAdjusted, finalTimeTemp);
 						if (satisfyDistanceCheck) break;
 						
 						dtTemp *= 0.8;
 					}
-					dt = dtTemp;
+					dt = dtAdjusted;
 					inputTraj = adjustedInputRestTraj;
-					// finalTime = finalTimeTemp;			
 				}
 			}
 
-			// cout << "dt: " <gg< dt << endl;
+			// cout << "dt: " << dt << endl;
 			this->inputTrajMsg_ = inputTraj;
+
+
+
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
@@ -285,6 +288,7 @@ namespace AutoFlight{
 			return;
 		}
 
+
 		if (this->trajectoryReady_){
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
 				this->replan_ = true;
@@ -304,16 +308,12 @@ namespace AutoFlight{
 	void navigation::trajExeCB(const ros::TimerEvent&){
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
-			this->trajTime_ = (currTime - this->trajStartTime_).toSec();
-			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(this->trajTime_);
+			double trajTime = (currTime - this->trajStartTime_).toSec();
+			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(trajTime);
 			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
 			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
 			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
 			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-
-			// clip velocity and acceleration
-			// vel = this->desiredVel_ * vel/vel.norm();
-			// acc = this->desiredAcc_ * acc/acc.norm();
 			
 			tracking_controller::Target target;
 			target.position.x = pos(0);
@@ -435,6 +435,7 @@ namespace AutoFlight{
 		nav_msgs::Path currentTraj;
 		currentTraj.header.frame_id = "map";
 		currentTraj.header.stamp = ros::Time::now();
+	
 		if (this->trajectoryReady_){
 			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=dt){
 				Eigen::Vector3d pos = this->trajectory_.at(t);
