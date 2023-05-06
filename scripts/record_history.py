@@ -63,6 +63,9 @@ def odomCB(odom):
 		if (t == 0):
 			t_first = (curr_time - prev_time).to_sec()
 		t += (curr_time - prev_time).to_sec()
+		if ((curr_time - prev_time).to_sec() <= 0.1):
+			return
+
 	quat = [odom.pose.pose.orientation.w, odom.pose.pose.orientation.x, odom.pose.pose.orientation.y, odom.pose.pose.orientation.z]
 	rot = quaternion_rotation_matrix(quat)
 
@@ -70,23 +73,25 @@ def odomCB(odom):
 	vel_world = rot @ vel_body
 
 	rospy.loginfo("Current velocity: %s %s %s", vel_world[0], vel_world[1], vel_world[2])
-	vel_world_with_time = np.insert(vel_world, 0, t)
-	vel_hist.append(vel_world_with_time)
 
 	if (first_time):
 		first_time = False
 		prev_time = curr_time
+		prev_vel = vel_world
 		rospy.sleep(rospy.Duration(0.1))
 		return
 
 	dt = (curr_time - prev_time).to_sec()
 	acc_world = (vel_world - prev_vel)/dt
 	prev_time = curr_time
+	prev_vel = vel_world
 	rospy.loginfo("Current acceleration: %s %s %s", acc_world[0], acc_world[1], acc_world[2])
+	vel_world_with_time = np.insert(vel_world, 0, t-t_first)
 	acc_world_with_time = np.insert(acc_world, 0, t-t_first)
+	vel_hist.append(vel_world_with_time)
 	acc_hist.append(acc_world_with_time)
 
-	rospy.sleep(rospy.Duration(0.1))
+	# rospy.sleep(rospy.Duration(0.1))
 
 
 def main():
