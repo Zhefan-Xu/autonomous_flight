@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # FILE: plot_record_history.py
 # ------------------------
 # Plot historical velocities and acceleration profiles
@@ -5,8 +7,11 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-file_dir = "."
+
+file_dir = Path(__file__).parent.parent.absolute()
+file_dir = os.path.join(file_dir, "log")
 vel_filename = "vel_hist.txt"
 acc_filename = "acc_hist.txt"
 vel_file_path = os.path.join(file_dir, vel_filename)

@@ -67,7 +67,16 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Desired angular velocity is set to: " << this->desiredAngularVel_ << "rad/s." << endl;
-		}		
+		}	
+
+    	// trajectory data save path   	
+		if (not this->nh_.getParam("autonomous_flight/trajectory_info_save_path", this->trajSavePath_)){
+			this->trajSavePath_ = "No";
+			cout << "[AutoFlight]: No trajectory info save path param found. Use current directory." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Trajectory info save path is set to: " << this->trajSavePath_ << "." << endl;
+		}			
 	}
 
 	void navigation::initModules(){
@@ -244,6 +253,11 @@ namespace AutoFlight{
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
+
+					if (this->trajSavePath_ != "No" and this->firstTimeSave_){
+						this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
+						this->firstTimeSave_ = false;
+					}
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
@@ -281,6 +295,7 @@ namespace AutoFlight{
 				double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 			}
+			this->firstTimeSave_ = true;
 			this->replan_ = true;
 			this->goalReceived_ = false;
 

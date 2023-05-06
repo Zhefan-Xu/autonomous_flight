@@ -42,6 +42,7 @@ namespace AutoFlight{
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
+		std::string trajSavePath_;
 
 		// navigation data
 		bool stateUpdateFirstTime_ = true;
@@ -58,6 +59,7 @@ namespace AutoFlight{
 		double trajTime_; // current trajectory time
 		double prevInputTrajTime_ = 0.0;
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
+		bool firstTimeSave_ = false;
 		
 
 

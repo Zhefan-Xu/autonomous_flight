@@ -7,6 +7,8 @@
 import rospy
 import numpy as np
 from nav_msgs.msg import Odometry
+from pathlib import Path
+import os
 
 vel_hist = []
 acc_hist = []
@@ -99,8 +101,12 @@ def main():
 	rospy.Subscriber("/mavros/local_position/odom", Odometry, odomCB)
 	rospy.spin()
 
-	np.savetxt("vel_hist.txt", vel_hist)
-	np.savetxt("acc_hist.txt", acc_hist)
+
+	save_path = Path(__file__).parent.parent.absolute()
+	save_path = os.path.join(save_path, "log")
+
+	np.savetxt(os.path.join(save_path, "vel_hist.txt"), vel_hist)
+	np.savetxt(os.path.join(save_path, "acc_hist.txt"), acc_hist)
 
 
 if __name__ == "__main__":
