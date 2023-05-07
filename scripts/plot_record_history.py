@@ -16,6 +16,7 @@ vel_filename = "vel_hist.txt"
 acc_filename = "acc_hist.txt"
 vel_file_path = os.path.join(file_dir, vel_filename)
 acc_file_path = os.path.join(file_dir, acc_filename)
+save_path = os.path.join(file_dir, "hist_plot.png")
 
 vel_data = np.loadtxt(vel_file_path)
 vel_time = vel_data[:, 0]
@@ -32,7 +33,7 @@ acc_z = acc_data[:, 3]
 acc_norm = np.sqrt(acc_x**2 + acc_y**2 + acc_z**2)
 
 fig, ax = plt.subplots(2, sharex='col', sharey='row')
-
+fig.set_size_inches(12, 10)
 ax[0].plot(vel_time, vel_norm, label="|V|")
 ax[0].plot(vel_time, vel_x, label="Vx")
 ax[0].plot(vel_time, vel_y, label="Vy")
@@ -50,7 +51,7 @@ ax[1].plot(acc_time, acc_y, label="Ay")
 ax[1].plot(acc_time, acc_z, label="Az")
 ax[1].set(xlabel='Time [s]', ylabel='Acceleration [m/s/s]', title='Acceleration Profile')
 ax[1].set_xlim([0, acc_time[-1]])
-ax[1].set_xticks(np.arange(0, acc_time[-1], int(acc_time[-1]/20)))
+# ax[1].set_xticks(np.arange(0, acc_time[-1], int(acc_time[-1]/20)))
 ax[1].legend()
 ax[1].grid()
 
@@ -58,3 +59,4 @@ ax[1].grid()
 # ax[1].legend(loc='upper left')
 
 plt.show()
+fig.savefig(save_path)
