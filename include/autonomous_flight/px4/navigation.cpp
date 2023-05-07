@@ -249,6 +249,7 @@ namespace AutoFlight{
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->trajStartTime_ = ros::Time::now();
+					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
@@ -329,6 +330,10 @@ namespace AutoFlight{
 			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
 			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
 			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.5 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
+				vel *= 0;
+				acc *= 0;
+			}
 			
 			tracking_controller::Target target;
 			target.position.x = pos(0);
