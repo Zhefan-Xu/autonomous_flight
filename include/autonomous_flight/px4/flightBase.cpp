@@ -127,19 +127,31 @@ namespace AutoFlight{
 		ps.pose.orientation = this->odom_.pose.pose.orientation;
 		this->updateTarget(ps);
 
-		// tracking_controller::Target ps;
-		// ps.type_mask = ps.IGNORE_ACC_VEL;
-		// ps.header.frame_id = "map";
-		// ps.header.stamp = ros::Time::now();
-		// ps.position.x = this->odom_.pose.pose.position.x;
-		// ps.position.y = this->odom_.pose.pose.position.y;
-		// ps.position.z = this->takeoffHgt_;
-		// ps.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-		// this->updateTargetWithState(ps);
+
 		cout << "[AutoFlight]: Start taking off..." << endl;
 		ros::Rate r (30);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1){
 			ros::spinOnce();
+			r.sleep();
+		}
+
+		tracking_controller::Target psT;
+		// psT.type_mask = psT.IGNORE_ACC_VEL;
+		psT.header.frame_id = "map";
+		psT.header.stamp = ros::Time::now();
+		psT.position.x = this->odom_.pose.pose.position.x;
+		psT.position.y = this->odom_.pose.pose.position.y;
+		psT.position.z = this->takeoffHgt_;
+		psT.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		this->updateTargetWithState(psT);
+		
+		cout << "[AutoFlight]: Start to estimate hover thrust." << endl;
+		ros::Time startTime = ros::Time::now();
+		while (ros::ok()){
+			ros::Time currTime = ros::Time::now();
+			if ((currTime - startTime).toSec() >= 3){
+				break;
+			}
 			r.sleep();
 		}
 		cout << "[AutoFlight]: Takeoff succeed!" << endl;
