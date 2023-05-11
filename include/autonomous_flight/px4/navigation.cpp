@@ -91,7 +91,7 @@ namespace AutoFlight{
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
 		this->polyTraj_->setMap(this->map_);
 		this->polyTraj_->updateDesiredVel(this->desiredVel_);
-		this->polyTraj_->updateDesiredAcc(this->desiredAcc_);
+		this->polyTraj_->updateDesiredAcc(this->desiredVel_);
 
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
@@ -237,9 +237,7 @@ namespace AutoFlight{
 				}
 			}
 
-			// cout << "dt: " << dt << endl;
 			this->inputTrajMsg_ = inputTraj;
-
 
 
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
@@ -330,12 +328,19 @@ namespace AutoFlight{
 			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
 			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
 			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+
+			
+			tracking_controller::Target target;
+			if (this->noYawTurning_ or not this->useYawControl_){
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			}
+			else{
+				target.yaw = atan2(vel(1), vel(0));
+			}
 			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.5 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
 				vel *= 0;
 				acc *= 0;
-			}
-			
-			tracking_controller::Target target;
+			}			
 			target.position.x = pos(0);
 			target.position.y = pos(1);
 			target.position.z = pos(2);
@@ -345,12 +350,6 @@ namespace AutoFlight{
 			target.acceleration.x = acc(0);
 			target.acceleration.y = acc(1);
 			target.acceleration.z = acc(2);
-			if (this->noYawTurning_ or not this->useYawControl_){
-				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			}
-			else{
-				target.yaw = atan2(vel(1), vel(0));
-			}
 			this->updateTargetWithState(target);			
 		}
 	}

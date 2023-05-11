@@ -115,21 +115,15 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped ps;
 		ps.header.frame_id = "map";
 		ps.header.stamp = ros::Time::now();
-		// ps.pose.position.x = 0.0;
-		// ps.pose.position.y = 0.0;
 		ps.pose.position.x = this->odom_.pose.pose.position.x;
 		ps.pose.position.y = this->odom_.pose.pose.position.y;
 		ps.pose.position.z = this->takeoffHgt_;
-		// ps.pose.orientation.x = 0.0;
-		// ps.pose.orientation.y = 0.0;
-		// ps.pose.orientation.z = 0.0;
-		// ps.pose.orientation.w = 1.0;
 		ps.pose.orientation = this->odom_.pose.pose.orientation;
 		this->updateTarget(ps);
 
 
 		cout << "[AutoFlight]: Start taking off..." << endl;
-		ros::Rate r (30);
+		ros::Rate r (100);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1){
 			ros::spinOnce();
 			r.sleep();
@@ -145,13 +139,14 @@ namespace AutoFlight{
 		psT.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 		this->updateTargetWithState(psT);
 		
-		cout << "[AutoFlight]: Start to estimate hover thrust." << endl;
+		cout << "[AutoFlight]: Switch to tracking controller." << endl;
 		ros::Time startTime = ros::Time::now();
 		while (ros::ok()){
 			ros::Time currTime = ros::Time::now();
 			if ((currTime - startTime).toSec() >= 3){
 				break;
 			}
+			ros::spinOnce();
 			r.sleep();
 		}
 		cout << "[AutoFlight]: Takeoff succeed!" << endl;
