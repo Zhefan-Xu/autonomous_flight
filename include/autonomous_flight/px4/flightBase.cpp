@@ -129,26 +129,26 @@ namespace AutoFlight{
 			r.sleep();
 		}
 
-		tracking_controller::Target psT;
-		// psT.type_mask = psT.IGNORE_ACC_VEL;
-		psT.header.frame_id = "map";
-		psT.header.stamp = ros::Time::now();
-		psT.position.x = this->odom_.pose.pose.position.x;
-		psT.position.y = this->odom_.pose.pose.position.y;
-		psT.position.z = this->takeoffHgt_;
-		psT.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-		this->updateTargetWithState(psT);
+		// tracking_controller::Target psT;
+		// // psT.type_mask = psT.IGNORE_ACC_VEL;
+		// psT.header.frame_id = "map";
+		// psT.header.stamp = ros::Time::now();
+		// psT.position.x = this->odom_.pose.pose.position.x;
+		// psT.position.y = this->odom_.pose.pose.position.y;
+		// psT.position.z = this->takeoffHgt_;
+		// psT.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		// this->updateTargetWithState(psT);
 		
-		cout << "[AutoFlight]: Switch to tracking controller." << endl;
-		ros::Time startTime = ros::Time::now();
-		while (ros::ok()){
-			ros::Time currTime = ros::Time::now();
-			if ((currTime - startTime).toSec() >= 3){
-				break;
-			}
-			ros::spinOnce();
-			r.sleep();
-		}
+		// cout << "[AutoFlight]: Switch to tracking controller." << endl;
+		// ros::Time startTime = ros::Time::now();
+		// while (ros::ok()){
+		// 	ros::Time currTime = ros::Time::now();
+		// 	if ((currTime - startTime).toSec() >= 3){
+		// 		break;
+		// 	}
+		// 	ros::spinOnce();
+		// 	r.sleep();
+		// }
 		cout << "[AutoFlight]: Takeoff succeed!" << endl;
 	}
 

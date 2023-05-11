@@ -144,7 +144,6 @@ namespace AutoFlight{
 
 			// bspline trajectory generation
 			nav_msgs::Path inputTraj;
-			double dt, dtAdjusted; // dt for bspline
 			double finalTime; // final time for bspline trajectory
 			double initTs = this->bsplineTraj_->getInitTs();
 
@@ -162,13 +161,11 @@ namespace AutoFlight{
 				double finalTimeTemp;
 				while (ros::ok()){
 					nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
-					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, dtAdjusted, finalTimeTemp);
+					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
 					if (satisfyDistanceCheck) break;
 					
 					dtTemp *= 0.8;
 				}
-
-				dt = dtAdjusted;
 
 				inputTraj = adjustedInputPolyTraj;
 				finalTime = finalTimeTemp;
@@ -208,12 +205,11 @@ namespace AutoFlight{
 							inputCombinedTraj.poses.push_back(inputPolyTraj.poses[i]);
 						}
 						
-						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, dtAdjusted, finalTimeTemp);
+						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
 						if (satisfyDistanceCheck) break;
 						
 						dtTemp *= 0.8; // magic number 0.8
 					}
-					dt = dtAdjusted;
 					inputTraj = adjustedInputCombinedTraj;
 					finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
 					startEndCondition[1] = this->polyTraj_->getVel(finalTime);
@@ -227,20 +223,18 @@ namespace AutoFlight{
 					while (ros::ok()){
 						nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
 
-						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, dtAdjusted, finalTimeTemp);
+						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
 						if (satisfyDistanceCheck) break;
 						
 						dtTemp *= 0.8;
 					}
-					dt = dtAdjusted;
 					inputTraj = adjustedInputRestTraj;
 				}
 			}
 
 			this->inputTrajMsg_ = inputTraj;
 
-
-			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
+			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
