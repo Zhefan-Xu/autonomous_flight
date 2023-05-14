@@ -319,6 +319,7 @@ namespace AutoFlight{
 			double trajTime = (currTime - this->trajStartTime_).toSec();
 			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(trajTime);
 			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+			double totalTime = this->bsplineTraj_->getLinearReparamTime(this->trajectory_.getDuration());
 			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
 			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
 			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
@@ -405,6 +406,13 @@ namespace AutoFlight{
 		Eigen::Vector3d currAcc = this->currAcc_;
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
+
+		if (not this->trajectoryReady_){
+			double yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			Eigen::Vector3d direction (cos(yaw), sin(yaw), 0.0);
+			currVel = this->desiredVel_ * direction;
+			currAcc = this->desiredAcc_ * direction;
+		}
 		startEndCondition.push_back(currVel);
 		startEndCondition.push_back(endVel);
 		startEndCondition.push_back(currAcc);
