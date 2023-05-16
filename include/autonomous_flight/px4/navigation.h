@@ -78,6 +78,7 @@ namespace AutoFlight{
 		void visCB(const ros::TimerEvent&);
 
 		void run();	
+		void generateGlobalPlan();
 		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
 		bool hasCollision();
 		double computeExecutionDistance();

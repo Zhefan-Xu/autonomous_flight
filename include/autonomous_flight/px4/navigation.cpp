@@ -331,6 +331,7 @@ namespace AutoFlight{
 			}
 			else{
 				target.yaw = atan2(vel(1), vel(0));
+				cout << "current vel: " << vel.transpose() << endl;
 			}
 			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.5 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
 				vel *= 0;
@@ -394,6 +395,10 @@ namespace AutoFlight{
 		this->registerCallback();
 	}
 
+	void navigation::generateGlobalPlan(){
+
+	}
+
 	void navigation::getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition){
 		/*	
 			1. start velocity
@@ -407,12 +412,12 @@ namespace AutoFlight{
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
 
-		if (not this->trajectoryReady_){
-			double yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			Eigen::Vector3d direction (cos(yaw), sin(yaw), 0.0);
-			currVel = this->desiredVel_ * direction;
-			currAcc = this->desiredAcc_ * direction;
-		}
+		// if (not this->trajectoryReady_){
+		// 	double yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		// 	Eigen::Vector3d direction (cos(yaw), sin(yaw), 0.0);
+		// 	currVel = this->desiredVel_ * direction;
+		// 	currAcc = this->desiredAcc_ * direction;
+		// }
 		startEndCondition.push_back(currVel);
 		startEndCondition.push_back(endVel);
 		startEndCondition.push_back(currAcc);
