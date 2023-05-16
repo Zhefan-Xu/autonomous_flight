@@ -319,7 +319,6 @@ namespace AutoFlight{
 			double trajTime = (currTime - this->trajStartTime_).toSec();
 			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(trajTime);
 			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-			double totalTime = this->bsplineTraj_->getLinearReparamTime(this->trajectory_.getDuration());
 			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
 			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
 			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
