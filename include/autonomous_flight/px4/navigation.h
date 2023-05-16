@@ -36,7 +36,6 @@ namespace AutoFlight{
 		ros::Publisher inputTrajPub_;
 
 		// parameters
-		bool useGlobalPlanner_;
 		bool noYawTurning_;
 		bool useYawControl_;
 		double desiredVel_;
@@ -49,6 +48,7 @@ namespace AutoFlight{
 		ros::Time prevStateTime_;
 		Eigen::Vector3d currVel_, currAcc_, prevVel_;
 		bool replan_ = false;
+		int nextWaypointIdx_ = 0;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
@@ -61,6 +61,7 @@ namespace AutoFlight{
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
 		bool firstTimeSave_ = false;
 		
+
 
 
 
@@ -78,7 +79,6 @@ namespace AutoFlight{
 		void visCB(const ros::TimerEvent&);
 
 		void run();	
-		void generateGlobalPlan();
 		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
 		bool hasCollision();
 		double computeExecutionDistance();

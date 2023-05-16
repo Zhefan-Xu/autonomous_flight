@@ -14,15 +14,6 @@ namespace AutoFlight{
 
 	void navigation::initParam(){
     	// parameters    
-    	// use global planner or not	
-		if (not this->nh_.getParam("autonomous_flight/use_global_planner", this->useGlobalPlanner_)){
-			this->useGlobalPlanner_ = false;
-			cout << "[AutoFlight]: No use global planner param found. Use default: false." << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Global planner use is set to: " << this->useGlobalPlanner_ << "." << endl;
-		}
-
 		// No turning of yaw
 		if (not this->nh_.getParam("autonomous_flight/no_yaw_turning", this->noYawTurning_)){
 			this->noYawTurning_ = false;
@@ -83,10 +74,6 @@ namespace AutoFlight{
 		// initialize map
 		this->map_.reset(new mapManager::occMap (this->nh_));
 
-		// initialize rrt planner
-		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
-		this->rrtPlanner_->setMap(this->map_);
-
 		// initialize polynomial trajectory planner
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
 		this->polyTraj_->setMap(this->map_);
@@ -114,7 +101,7 @@ namespace AutoFlight{
 	void navigation::registerCallback(){
 		// planner callback
 		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::plannerCB, this);
-
+		
 		// collision check callback
 		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
 
@@ -131,27 +118,21 @@ namespace AutoFlight{
 	void navigation::plannerCB(const ros::TimerEvent&){
 		if (not this->firstGoal_) return;
 
-		if (this->useGlobalPlanner_){
-			// only if a new goal is received, the global planner will make plan
-			if (this->goalReceived_){ 
-			}
-		}
-
 		if (this->replan_){
 			// get start and end condition for trajectory generation (the end condition is the final zero condition)
 			std::vector<Eigen::Vector3d> startEndCondition;
 			this->getStartEndCondition(startEndCondition); 
 
 			// bspline trajectory generation
-			nav_msgs::Path inputTraj;
 			double finalTime; // final time for bspline trajectory
 			double initTs = this->bsplineTraj_->getInitTs();
-
+			nav_msgs::Path inputTraj;
 			if (not this->trajectoryReady_){ // use polynomial trajectory as input
 				nav_msgs::Path waypoints, polyTrajTemp;
 				geometry_msgs::PoseStamped start, goal;
 				start.pose = this->odom_.pose.pose; goal = this->goal_;
-				waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
+				waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};					
+				
 				this->polyTraj_->updatePath(waypoints, startEndCondition);
 				this->polyTraj_->makePlan(false); // no corridor constraint
 				
@@ -231,6 +212,7 @@ namespace AutoFlight{
 					inputTraj = adjustedInputRestTraj;
 				}
 			}
+			
 
 			this->inputTrajMsg_ = inputTraj;
 
@@ -330,11 +312,12 @@ namespace AutoFlight{
 			}
 			else{
 				target.yaw = atan2(vel(1), vel(0));
-				cout << "current vel: " << vel.transpose() << endl;
+				// cout << "current vel: " << vel.transpose() << endl;
 			}
-			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.5 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
+			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
 				vel *= 0;
 				acc *= 0;
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			}			
 			target.position.x = pos(0);
 			target.position.y = pos(1);
@@ -394,9 +377,6 @@ namespace AutoFlight{
 		this->registerCallback();
 	}
 
-	void navigation::generateGlobalPlan(){
-
-	}
 
 	void navigation::getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition){
 		/*	
@@ -477,5 +457,4 @@ namespace AutoFlight{
 		}
 		return currentTraj;
 	}
-
 }
