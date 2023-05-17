@@ -1,5 +1,5 @@
 takeoff_height: 1.0 # m
-use_global_planner: false
+use_global_planner: true
 no_yaw_turning: false
 use_yaw_control: true
 desired_velocity: 1.5 # m/s
