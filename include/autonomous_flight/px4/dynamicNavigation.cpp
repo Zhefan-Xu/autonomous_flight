@@ -364,26 +364,21 @@ namespace AutoFlight{
 				double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 			}
+			this->firstTimeSave_ = true;
 			this->replan_ = true;
 			this->goalReceived_ = false;
+			if (this->useGlobalPlanner_){
+				cout << "[AutoFlight]: Start global planning." << endl;
+				this->needGlobalPlan_ = true;
+				this->globalPlanReady_ = false;
+			}
 
 			cout << "[AutoFlight]: Replan for new goal position." << endl; 
 			return;
 		}
 
+
 		if (this->trajectoryReady_){
-			// check whether reach the trajectory goal
-			Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-			Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
-			if ((currPos - goalPos).norm() <= 0.2){
-				this->replan_  = false;
-				this->trajectoryReady_ = false;
-				this->goalReceived_ = false;
-				cout << "[AutoFlight]: Reach goal position." << endl;
-				return;
-			}
-
-
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
 				this->replan_ = true;
 				cout << "[AutoFlight]: Replan for collision." << endl;
@@ -410,16 +405,27 @@ namespace AutoFlight{
 	void dynamicNavigation::trajExeCB(const ros::TimerEvent&){
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
-			this->trajTime_ = (currTime - this->trajStartTime_).toSec();
+			double trajTime = (currTime - this->trajStartTime_).toSec();
+			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(trajTime);
+			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
 			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_);
-			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_);
+			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
 
-			// clip velocity and acceleration
-			// vel = this->desiredVel_ * vel/vel.norm();
-			// acc = this->desiredAcc_ * acc/acc.norm();
 			
 			tracking_controller::Target target;
+			if (this->noYawTurning_ or not this->useYawControl_){
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			}
+			else{
+				target.yaw = atan2(vel(1), vel(0));
+				// cout << "current vel: " << vel.transpose() << endl;
+			}
+			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
+				vel *= 0;
+				acc *= 0;
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			}			
 			target.position.x = pos(0);
 			target.position.y = pos(1);
 			target.position.z = pos(2);
@@ -429,12 +435,6 @@ namespace AutoFlight{
 			target.acceleration.x = acc(0);
 			target.acceleration.y = acc(1);
 			target.acceleration.z = acc(2);
-			if (this->noYawTurning_ or not this->useYawControl_){
-				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			}
-			else{
-				target.yaw = atan2(vel(1), vel(0));
-			}
 			this->updateTargetWithState(target);			
 		}
 	}
@@ -504,19 +504,17 @@ namespace AutoFlight{
 			4. end acceleration (set to zero) 
 		*/
 
-		Eigen::Vector3d currVel, currAcc;
-		if (this->trajectoryReady_){
-			currVel = this->currVel_;
-			currAcc = this->currAcc_;
-		}
-		else{
-			// double targetYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			// currVel = this->desiredVel_ * Eigen::Vector3d (cos(targetYaw), sin(targetYaw), 0.0);
-			currVel = Eigen::Vector3d (0.0, 0.0, 0.0);
-			currAcc = Eigen::Vector3d (0.0, 0.0, 0.0);			
-		}
+		Eigen::Vector3d currVel = this->currVel_;
+		Eigen::Vector3d currAcc = this->currAcc_;
 		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
 		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
+
+		// if (not this->trajectoryReady_){
+		// 	double yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		// 	Eigen::Vector3d direction (cos(yaw), sin(yaw), 0.0);
+		// 	currVel = this->desiredVel_ * direction;
+		// 	currAcc = this->desiredAcc_ * direction;
+		// }
 		startEndCondition.push_back(currVel);
 		startEndCondition.push_back(endVel);
 		startEndCondition.push_back(currAcc);
@@ -573,10 +571,13 @@ namespace AutoFlight{
 		nav_msgs::Path currentTraj;
 		currentTraj.header.frame_id = "map";
 		currentTraj.header.stamp = ros::Time::now();
+	
 		if (this->trajectoryReady_){
-			ros::Time currTime = ros::Time::now();
-			double trajTime = (currTime - this->trajStartTime_).toSec();	
-			for (double t=trajTime; t<=this->trajectory_.getDuration(); t+=dt){
+			// include the current pose
+			// geometry_msgs::PoseStamped psCurr;
+			// psCurr.pose = this->odom_.pose.pose;
+			// currentTraj.poses.push_back(psCurr);
+			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=dt){
 				Eigen::Vector3d pos = this->trajectory_.at(t);
 				geometry_msgs::PoseStamped ps;
 				ps.pose.position.x = pos(0);
