@@ -150,7 +150,6 @@ namespace AutoFlight{
 						this->globalPlanReady_ = true;
 					}
 					this->needGlobalPlan_ = false;
-					cout << "complete global planner" << endl;
 				}
 				else{
 					if (this->globalPlanReady_){
@@ -158,16 +157,21 @@ namespace AutoFlight{
 						nav_msgs::Path restPath = this->getRestGlobalPath();
 						this->polyTraj_->updatePath(restPath, startEndCondition);
 						this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint		
-
 						nav_msgs::Path adjustedInputPolyTraj;
 						bool satisfyDistanceCheck = false;
 						double dtTemp = initTs;
 						double finalTimeTemp;
+						ros::Time startTime = ros::Time::now();
+						ros::Time currTime;
 						while (ros::ok()){
+							currTime = ros::Time::now();
+							if ((currTime - startTime).toSec() >= 0.05){
+								cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+								break;
+							}
 							nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
 							satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
 							if (satisfyDistanceCheck) break;
-							
 							dtTemp *= 0.8;
 						}
 
@@ -175,6 +179,7 @@ namespace AutoFlight{
 						finalTime = finalTimeTemp;
 						startEndCondition[1] = this->polyTraj_->getVel(finalTime);
 						startEndCondition[3] = this->polyTraj_->getAcc(finalTime);	
+
 					}
 					else{
 						cout << "[AutoFlight]: Global planner fails. Check goal and map." << endl;
@@ -195,7 +200,14 @@ namespace AutoFlight{
 					bool satisfyDistanceCheck = false;
 					double dtTemp = initTs;
 					double finalTimeTemp;
+					ros::Time startTime = ros::Time::now();
+					ros::Time currTime;
 					while (ros::ok()){
+						currTime = ros::Time::now();
+						if ((currTime - startTime).toSec() >= 0.05){
+							cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+							break;
+						}
 						nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
 						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
 						if (satisfyDistanceCheck) break;
@@ -232,7 +244,14 @@ namespace AutoFlight{
 						bool satisfyDistanceCheck = false;
 						double dtTemp = initTs;
 						double finalTimeTemp;
+						ros::Time startTime = ros::Time::now();
+						ros::Time currTime;
 						while (ros::ok()){
+							currTime = ros::Time::now();
+							if ((currTime - startTime).toSec() >= 0.05){
+								cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+								break;
+							}							
 							nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
 							nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
 							nav_msgs::Path inputCombinedTraj;
@@ -256,9 +275,15 @@ namespace AutoFlight{
 						bool satisfyDistanceCheck = false;
 						double dtTemp = initTs;
 						double finalTimeTemp;
+						ros::Time startTime = ros::Time::now();
+						ros::Time currTime;
 						while (ros::ok()){
+							currTime = ros::Time::now();
+							if ((currTime - startTime).toSec() >= 0.05){
+								cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+								break;
+							}
 							nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-
 							satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
 							if (satisfyDistanceCheck) break;
 							
