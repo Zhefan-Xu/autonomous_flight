@@ -67,7 +67,16 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Desired angular velocity is set to: " << this->desiredAngularVel_ << "rad/s." << endl;
-		}		
+		}	
+
+    	// trajectory data save path   	
+		if (not this->nh_.getParam("autonomous_flight/trajectory_info_save_path", this->trajSavePath_)){
+			this->trajSavePath_ = "No";
+			cout << "[AutoFlight]: No trajectory info save path param found. Use current directory." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Trajectory info save path is set to: " << this->trajSavePath_ << "." << endl;
+		}			
 	}
 
 	void dynamicNavigation::initModules(){
@@ -128,132 +137,196 @@ namespace AutoFlight{
 	void dynamicNavigation::plannerCB(const ros::TimerEvent&){
 		if (not this->firstGoal_) return;
 
-		if (this->useGlobalPlanner_){
-			// only if a new goal is received, the global planner will make plan
-			if (this->goalReceived_){ 
-			}
-		}
-
 		if (this->replan_){
 			// get start and end condition for trajectory generation (the end condition is the final zero condition)
 			std::vector<Eigen::Vector3d> startEndCondition;
 			this->getStartEndCondition(startEndCondition); 
-
-			// bspline trajectory generation
 			nav_msgs::Path inputTraj;
-			double dt; // dt for bspline
+			// bspline trajectory generation
 			double finalTime; // final time for bspline trajectory
 			double initTs = this->bsplineTraj_->getInitTs();
-
-			if (not this->trajectoryReady_){ // use polynomial trajectory as input
-				nav_msgs::Path waypoints, polyTrajTemp;
-				geometry_msgs::PoseStamped start, goal;
-				start.pose = this->odom_.pose.pose; goal = this->goal_;
-				waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};
-				this->polyTraj_->updatePath(waypoints, startEndCondition);
-				this->polyTraj_->makePlan(false); // no corridor constraint
-				
-				nav_msgs::Path adjustedInputPolyTraj;
-				bool satisfyDistanceCheck = false;
-				double dtTemp = initTs;
-				double finalTimeTemp;
-				while (ros::ok()){
-					nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
-					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
-					if (satisfyDistanceCheck) break;
-					
-					dtTemp *= 0.8;
-				}
-
-				dt = dtTemp;
-				inputTraj = adjustedInputPolyTraj;
-				finalTime = finalTimeTemp;
-				startEndCondition[2] = this->polyTraj_->getVel(finalTime);
-				startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
-			}
-			else{
-				Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
-				geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
-				Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
-				// check the distance between last point and the goal position
-				if ((bsplineLastPos - goalPos).norm() >= 0.2){ // use polynomial trajectory to make the rest of the trajectory
-					nav_msgs::Path waypoints, polyTrajTemp;
-					waypoints.poses = std::vector<geometry_msgs::PoseStamped>{lastPs, this->goal_};
-					std::vector<Eigen::Vector3d> polyStartEndCondition;
-					Eigen::Vector3d polyStartVel = this->trajectory_.getDerivative().at(this->trajectory_.getDuration());
-					Eigen::Vector3d polyEndVel (0.0, 0.0, 0.0);
-					Eigen::Vector3d polyStartAcc = this->trajectory_.getDerivative().getDerivative().at(this->trajectory_.getDuration());
-					Eigen::Vector3d polyEndAcc (0.0, 0.0, 0.0);
-					polyStartEndCondition.push_back(polyStartVel);
-					polyStartEndCondition.push_back(polyEndVel);
-					polyStartEndCondition.push_back(polyStartAcc);
-					polyStartEndCondition.push_back(polyEndAcc);
-					this->polyTraj_->updatePath(waypoints, polyStartEndCondition);
-					this->polyTraj_->makePlan(false); // no corridor constraint
-					
-					nav_msgs::Path adjustedInputCombinedTraj;
-					bool satisfyDistanceCheck = false;
-					double dtTemp = initTs;
-					double finalTimeTemp;
-					while (ros::ok()){
-						nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-						nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
-						nav_msgs::Path inputCombinedTraj;
-						inputCombinedTraj.poses = inputRestTraj.poses;
-						for (size_t i=1; i<inputPolyTraj.poses.size(); ++i){
-							inputCombinedTraj.poses.push_back(inputPolyTraj.poses[i]);
-						}
-						
-						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
-						if (satisfyDistanceCheck) break;
-						
-						dtTemp *= 0.8; // magic number 0.8
+			if (this->useGlobalPlanner_){
+				if (this->needGlobalPlan_){
+					this->rrtPlanner_->updateStart(this->odom_.pose.pose);
+					this->rrtPlanner_->updateGoal(this->goal_.pose);
+					nav_msgs::Path rrtPathMsgTemp;
+					this->rrtPlanner_->makePlan(rrtPathMsgTemp);
+					if (rrtPathMsgTemp.poses.size() >= 2){
+						this->rrtPathMsg_ = rrtPathMsgTemp;
+						this->globalPlanReady_ = true;
 					}
-					dt = dtTemp;
-					inputTraj = adjustedInputCombinedTraj;
-					finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
-					startEndCondition[2] = this->polyTraj_->getVel(finalTime);
-					startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
+					this->needGlobalPlan_ = false;
 				}
 				else{
-					nav_msgs::Path adjustedInputRestTraj;
+					if (this->globalPlanReady_){
+						// get rest of global plan
+						nav_msgs::Path restPath = this->getRestGlobalPath();
+						this->polyTraj_->updatePath(restPath, startEndCondition);
+						this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint		
+						nav_msgs::Path adjustedInputPolyTraj;
+						bool satisfyDistanceCheck = false;
+						double dtTemp = initTs;
+						double finalTimeTemp;
+						ros::Time startTime = ros::Time::now();
+						ros::Time currTime;
+						while (ros::ok()){
+							currTime = ros::Time::now();
+							if ((currTime - startTime).toSec() >= 0.05){
+								cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+								break;
+							}
+							nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+							satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
+							if (satisfyDistanceCheck) break;
+							dtTemp *= 0.8;
+						}
+
+						inputTraj = adjustedInputPolyTraj;
+						finalTime = finalTimeTemp;
+						startEndCondition[1] = this->polyTraj_->getVel(finalTime);
+						startEndCondition[3] = this->polyTraj_->getAcc(finalTime);	
+
+					}
+					else{
+						cout << "[AutoFlight]: Global planner fails. Check goal and map." << endl;
+					}		
+				}				
+			}
+			else{
+				if (not this->trajectoryReady_){ // use polynomial trajectory as input
+					nav_msgs::Path waypoints, polyTrajTemp;
+					geometry_msgs::PoseStamped start, goal;
+					start.pose = this->odom_.pose.pose; goal = this->goal_;
+					waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};					
+					
+					this->polyTraj_->updatePath(waypoints, startEndCondition);
+					this->polyTraj_->makePlan(false); // no corridor constraint
+					
+					nav_msgs::Path adjustedInputPolyTraj;
 					bool satisfyDistanceCheck = false;
 					double dtTemp = initTs;
 					double finalTimeTemp;
+					ros::Time startTime = ros::Time::now();
+					ros::Time currTime;
 					while (ros::ok()){
-						nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-
-						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
+						currTime = ros::Time::now();
+						if ((currTime - startTime).toSec() >= 0.05){
+							cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+							break;
+						}
+						nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
 						if (satisfyDistanceCheck) break;
 						
 						dtTemp *= 0.8;
 					}
-					dt = dtTemp;
-					inputTraj = adjustedInputRestTraj;
-					finalTime = finalTimeTemp;			
+
+					inputTraj = adjustedInputPolyTraj;
+					finalTime = finalTimeTemp;
+					startEndCondition[1] = this->polyTraj_->getVel(finalTime);
+					startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
+				}
+				else{
+					Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
+					geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
+					Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
+					// check the distance between last point and the goal position
+					if ((bsplineLastPos - goalPos).norm() >= 0.2){ // use polynomial trajectory to make the rest of the trajectory
+						nav_msgs::Path waypoints, polyTrajTemp;
+						waypoints.poses = std::vector<geometry_msgs::PoseStamped>{lastPs, this->goal_};
+						std::vector<Eigen::Vector3d> polyStartEndCondition;
+						Eigen::Vector3d polyStartVel = this->trajectory_.getDerivative().at(this->trajectory_.getDuration());
+						Eigen::Vector3d polyEndVel (0.0, 0.0, 0.0);
+						Eigen::Vector3d polyStartAcc = this->trajectory_.getDerivative().getDerivative().at(this->trajectory_.getDuration());
+						Eigen::Vector3d polyEndAcc (0.0, 0.0, 0.0);
+						polyStartEndCondition.push_back(polyStartVel);
+						polyStartEndCondition.push_back(polyEndVel);
+						polyStartEndCondition.push_back(polyStartAcc);
+						polyStartEndCondition.push_back(polyEndAcc);
+						this->polyTraj_->updatePath(waypoints, polyStartEndCondition);
+						this->polyTraj_->makePlan(false); // no corridor constraint
+						
+						nav_msgs::Path adjustedInputCombinedTraj;
+						bool satisfyDistanceCheck = false;
+						double dtTemp = initTs;
+						double finalTimeTemp;
+						ros::Time startTime = ros::Time::now();
+						ros::Time currTime;
+						while (ros::ok()){
+							currTime = ros::Time::now();
+							if ((currTime - startTime).toSec() >= 0.05){
+								cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+								break;
+							}							
+							nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
+							nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+							nav_msgs::Path inputCombinedTraj;
+							inputCombinedTraj.poses = inputRestTraj.poses;
+							for (size_t i=1; i<inputPolyTraj.poses.size(); ++i){
+								inputCombinedTraj.poses.push_back(inputPolyTraj.poses[i]);
+							}
+							
+							satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
+							if (satisfyDistanceCheck) break;
+							
+							dtTemp *= 0.8; // magic number 0.8
+						}
+						inputTraj = adjustedInputCombinedTraj;
+						finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
+						startEndCondition[1] = this->polyTraj_->getVel(finalTime);
+						startEndCondition[3] = this->polyTraj_->getAcc(finalTime);
+					}
+					else{
+						nav_msgs::Path adjustedInputRestTraj;
+						bool satisfyDistanceCheck = false;
+						double dtTemp = initTs;
+						double finalTimeTemp;
+						ros::Time startTime = ros::Time::now();
+						ros::Time currTime;
+						while (ros::ok()){
+							currTime = ros::Time::now();
+							if ((currTime - startTime).toSec() >= 0.05){
+								cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+								break;
+							}
+							nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
+							satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
+							if (satisfyDistanceCheck) break;
+							
+							dtTemp *= 0.8;
+						}
+						inputTraj = adjustedInputRestTraj;
+					}
 				}
 			}
+			
 
-			// cout << "dt: " << dt << endl;
 			this->inputTrajMsg_ = inputTraj;
-			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition, dt);
-			if (updateSuccess){
-				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-				// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-				if (obstaclesPos.size() != 0){
-					this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-				}
 
+			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+
+			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
+			if (obstaclesPos.size() != 0){
+				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
+
+			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->trajStartTime_ = ros::Time::now();
+					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
+
+					if (this->trajSavePath_ != "No" and this->firstTimeSave_){
+						this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
+						this->firstTimeSave_ = false;
+					}
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
@@ -326,11 +399,11 @@ namespace AutoFlight{
 
 			// replan for dynamic obstacles
 		
-			if (this->hasDynamicObstacle()){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
-				return;
-			}
+			// if (this->hasDynamicObstacle()){
+			// 	this->replan_ = true;
+			// 	cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+			// 	return;
+			// }
 		}
 	}
 
@@ -515,6 +588,40 @@ namespace AutoFlight{
 		return currentTraj;
 	}
 
+
+	nav_msgs::Path dynamicNavigation::getRestGlobalPath(){
+		nav_msgs::Path currPath;
+
+		int nextIdx = this->rrtPathMsg_.poses.size()-1;
+		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		double minDist = std::numeric_limits<double>::infinity();
+		for (size_t i=0; i<this->rrtPathMsg_.poses.size()-1; ++i){
+			geometry_msgs::PoseStamped ps = this->rrtPathMsg_.poses[i];
+			Eigen::Vector3d pEig (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
+			Eigen::Vector3d pDiff = pCurr - pEig;
+
+			geometry_msgs::PoseStamped psNext = this->rrtPathMsg_.poses[i+1];
+			Eigen::Vector3d pEigNext (psNext.pose.position.x, psNext.pose.position.y, psNext.pose.position.z);
+			Eigen::Vector3d diffToNext = pEigNext - pEig;
+			double dist = (pEig - pCurr).norm();
+			if (trajPlanner::angleBetweenVectors(diffToNext, pDiff) > PI_const/2){
+				if (dist < minDist){
+					nextIdx = i;
+					minDist = dist;
+				}
+			}
+		}
+
+
+		geometry_msgs::PoseStamped psCurr;
+		psCurr.pose = this->odom_.pose.pose;
+		currPath.poses.push_back(psCurr);
+		for (size_t i=nextIdx; i<this->rrtPathMsg_.poses.size(); ++i){
+			currPath.poses.push_back(this->rrtPathMsg_.poses[i]);
+		}
+		return currPath;		
+	}
+
 	void dynamicNavigation::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
 		onboard_vision::ObstacleList msg;
 		this->detector_->getObstaclesInSensorRange(PI_const, msg);
@@ -527,5 +634,4 @@ namespace AutoFlight{
 			obstaclesSize.push_back(size);
 		}
 	}
-
 }

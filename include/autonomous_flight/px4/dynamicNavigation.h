@@ -45,12 +45,16 @@ namespace AutoFlight{
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
+		std::string trajSavePath_;
 
 		// navigation data
 		bool stateUpdateFirstTime_ = true;
 		ros::Time prevStateTime_;
 		Eigen::Vector3d currVel_, currAcc_, prevVel_;
 		bool replan_ = false;
+		bool needGlobalPlan_ = false;
+		bool globalPlanReady_ = false;
+		int nextWaypointIdx_ = 0;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
@@ -61,6 +65,7 @@ namespace AutoFlight{
 		double trajTime_; // current trajectory time
 		double prevInputTrajTime_ = 0.0;
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
+		bool firstTimeSave_ = false;
 		
 
 
@@ -85,6 +90,7 @@ namespace AutoFlight{
 		double computeExecutionDistance();
 		bool hasDynamicObstacle();
 		nav_msgs::Path getCurrentTraj(double dt);
+		nav_msgs::Path getRestGlobalPath();
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 	};
 }
