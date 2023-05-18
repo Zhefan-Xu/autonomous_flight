@@ -1,3 +1,4 @@
+use_fake_detector: true
 takeoff_height: 1.0 # m
 use_global_planner: false
 no_yaw_turning: false

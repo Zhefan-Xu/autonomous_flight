@@ -14,6 +14,16 @@ namespace AutoFlight{
 
 	void dynamicNavigation::initParam(){
     	// parameters    
+    	// use simulation detector	
+		if (not this->nh_.getParam("autonomous_flight/use_fake_detector", this->useFakeDetector_)){
+			this->useFakeDetector_ = false;
+			cout << "[AutoFlight]: No use fake detector param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use fake detector is set to: " << this->useFakeDetector_ << "." << endl;
+		}
+
+
     	// use global planner or not	
 		if (not this->nh_.getParam("autonomous_flight/use_global_planner", this->useGlobalPlanner_)){
 			this->useGlobalPlanner_ = false;
@@ -81,10 +91,11 @@ namespace AutoFlight{
 
 	void dynamicNavigation::initModules(){
 		// initialize map
+		if (this->useFakeDetector_){
+			// initialize fake detector
+			this->detector_.reset(new onboardVision::fakeDetector (this->nh_));	
+		}
 		this->map_.reset(new mapManager::dynamicMap (this->nh_));
-
-		// initialize fake detector
-		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));		
 
 		// initialize rrt planner
 		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
@@ -130,8 +141,10 @@ namespace AutoFlight{
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicNavigation::visCB, this);
 
-		// free map callback
-		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		if (this->useFakeDetector_){
+			// free map callback
+			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		}
 	}
 
 	void dynamicNavigation::plannerCB(const ros::TimerEvent&){
@@ -304,8 +317,12 @@ namespace AutoFlight{
 			this->inputTrajMsg_ = inputTraj;
 
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-
+			if (this->useFakeDetector_){
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
+			else{ 
+				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndCondition);
 			if (obstaclesPos.size() != 0){
 				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -483,8 +500,10 @@ namespace AutoFlight{
 		for (onboard_vision::Obstacle ob: msg.obstacles){
 			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
 			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
+			this->map_->freeRegion(lowerBound, upperBound);
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
+
 		this->map_->updateFreeRegions(freeRegions);		
 	}
 
@@ -554,18 +573,6 @@ namespace AutoFlight{
 		return -1.0;
 	}
 
-	bool dynamicNavigation::hasDynamicObstacle(){
-		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-		// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);	
-		this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-		cout << "dynamic obstacle size: " << obstaclesPos.size() << endl;
-		if (obstaclesPos.size() == 0){
-			return false;
-		}
-		else{
-			return true;
-		}
-	}
 
 	nav_msgs::Path dynamicNavigation::getCurrentTraj(double dt){
 		nav_msgs::Path currentTraj;

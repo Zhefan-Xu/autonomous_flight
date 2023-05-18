@@ -39,6 +39,7 @@ namespace AutoFlight{
 		ros::Publisher inputTrajPub_;
 
 		// parameters
+		bool useFakeDetector_;
 		bool useGlobalPlanner_;
 		bool noYawTurning_;
 		bool useYawControl_;
@@ -88,7 +89,6 @@ namespace AutoFlight{
 		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
 		bool hasCollision();
 		double computeExecutionDistance();
-		bool hasDynamicObstacle();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
