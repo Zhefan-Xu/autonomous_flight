@@ -498,11 +498,11 @@ namespace AutoFlight{
 		for (onboard_vision::Obstacle ob: msg.obstacles){
 			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
 			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
-			this->map_->freeRegion(lowerBound, upperBound);
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
 
-		this->map_->updateFreeRegions(freeRegions);		
+		this->map_->updateFreeRegions(freeRegions);	
+		this->map_->freeHistRegions();
 	}
 
 	void dynamicNavigation::run(){
@@ -566,9 +566,13 @@ namespace AutoFlight{
 				for (size_t i=0; i<obstaclesPos.size(); ++i){
 					Eigen::Vector3d ob = obstaclesPos[i];
 					Eigen::Vector3d size = obstaclesSize[i];
-					if ((p - ob).norm() <= std::min(size(0), size(1))){
+					Eigen::Vector3d lowerBound = ob - size/2;
+					Eigen::Vector3d upperBound = ob + size/2;
+					if (p(0) >= lowerBound(0) and p(0) <= upperBound(0) and
+						p(1) >= lowerBound(1) and p(1) <= upperBound(1) and
+						p(2) >= lowerBound(2) and p(2) <= upperBound(2)){
 						return true;
-					}
+					}					
 				}
 			}
 		}
