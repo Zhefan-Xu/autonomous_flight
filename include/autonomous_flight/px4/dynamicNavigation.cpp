@@ -402,20 +402,18 @@ namespace AutoFlight{
 				return;
 			}
 
+			// replan for dynamic obstacles
+			if (this->hasDynamicCollision()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+				return;
+			}
 
 			if (this->computeExecutionDistance() >= 3.0){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;
 			}
-
-			// replan for dynamic obstacles
-		
-			// if (this->hasDynamicObstacle()){
-			// 	this->replan_ = true;
-			// 	cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
-			// 	return;
-			// }
 		}
 	}
 
@@ -547,6 +545,30 @@ namespace AutoFlight{
 				bool hasCollision = this->map_->isInflatedOccupied(p);
 				if (hasCollision){
 					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	bool dynamicNavigation::hasDynamicCollision(){
+		if (this->trajectoryReady_){
+			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+			if (this->useFakeDetector_){
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
+			else{ 
+				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}			
+			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
+				Eigen::Vector3d p = this->trajectory_.at(t);
+				
+				for (size_t i=0; i<obstaclesPos.size(); ++i){
+					Eigen::Vector3d ob = obstaclesPos[i];
+					Eigen::Vector3d size = obstaclesSize[i];
+					if ((p - ob).norm() <= std::min(size(0), size(1))){
+						return true;
+					}
 				}
 			}
 		}

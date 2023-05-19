@@ -11,7 +11,7 @@ robot_size: [0.7, 0.7, 0.4]
 depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy
 depth_scale_factor: 10 # 1000 for Intel Realsense Camera
 depth_min_value: 0.3
-depth_max_value: 5.0
+depth_max_value: 4.0
 depth_filter_margin: 2 # filter
 depth_skip_pixel: 2 # filter
 image_cols: 640
@@ -32,7 +32,7 @@ p_occ: 0.80
 
 # Map
 map_resolution: 0.1
-ground_height: -0.2 # m
+ground_height: -0.1 # m
 map_size: [40, 40, 3] # meter. in x y z direction (reserved size)
 local_update_range: [5, 5, 5]
 local_bound_inflation: 3.0 # inflate local bound in meter
