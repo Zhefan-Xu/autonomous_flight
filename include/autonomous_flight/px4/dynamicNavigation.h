@@ -67,6 +67,7 @@ namespace AutoFlight{
 		double prevInputTrajTime_ = 0.0;
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
 		bool firstTimeSave_ = false;
+		ros::Time lastDynamicObstacleTime_;
 		
 
 
@@ -90,6 +91,7 @@ namespace AutoFlight{
 		bool hasCollision();
 		bool hasDynamicCollision();
 		double computeExecutionDistance();
+		bool replanForDynamicObstacle();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);

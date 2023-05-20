@@ -360,7 +360,7 @@ namespace AutoFlight{
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
 					// if the current trajectory/or new goal point is assigned is not valid, then just stop
-					if (this->hasCollision()){
+					if (this->hasCollision() or this->hasDynamicCollision()){
 						this->trajectoryReady_ = false;
 						this->stop();
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
@@ -426,6 +426,12 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;
 			}
+
+			// if (this->replanForDynamicObstacle()){
+			// 	this->replan_ = true;
+			// 	cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
+			// 	return;
+			// }
 		}
 	}
 
@@ -571,7 +577,8 @@ namespace AutoFlight{
 			}
 			else{ 
 				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-			}			
+			}
+
 			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
 				Eigen::Vector3d p = this->trajectory_.at(t);
 				
@@ -611,6 +618,27 @@ namespace AutoFlight{
 		return -1.0;
 	}
 
+	bool dynamicNavigation::replanForDynamicObstacle(){
+		ros::Time currTime = ros::Time::now();
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		if (this->useFakeDetector_){
+			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+		else{ 
+			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+
+		bool replan = false;
+		bool hasDynamicObstacle = (obstaclesPos.size() != 0);
+		if (hasDynamicObstacle){
+			double timePassed = (currTime - this->lastDynamicObstacleTime_).toSec();
+			if (timePassed >= 0.3){
+				replan = true;
+				this->lastDynamicObstacleTime_ = currTime;
+			}
+		}
+		return replan;
+	}
 
 	nav_msgs::Path dynamicNavigation::getCurrentTraj(double dt){
 		nav_msgs::Path currentTraj;
