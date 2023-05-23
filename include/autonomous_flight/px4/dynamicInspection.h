@@ -24,6 +24,7 @@ namespace AutoFlight{
 		ros::Timer trajExeTimer_;
 		ros::Timer checkWallTimer_;
 		ros::Timer collisionCheckTimer_;
+		ros::Timer replanTimer_;
 		ros::Timer visTimer_;
 		ros::Publisher goalPub_;
 		ros::Publisher rrtPathPub_;
@@ -49,6 +50,7 @@ namespace AutoFlight{
 
 		// inspection parameters
 		double desiredVel_;
+		double desiredAcc_;
 		double desiredAngularVel_;
 		double inspectionVel_; 
 		double minWallArea_;
@@ -84,6 +86,11 @@ namespace AutoFlight{
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
 		visualization_msgs::MarkerArray wallVisMsg_;
+		bool trajectoryReady_ = false;
+		bool replan_ = true;
+		ros::Time trajStartTime_;
+		double trajTime_; // current trajectory time
+		trajPlanner::bspline trajectory_; // trajectory data for navigation
 		int countBsplineFailure_ = 0;
 
 	public:
@@ -100,6 +107,7 @@ namespace AutoFlight{
 		void trajExeCB(const ros::TimerEvent&);
 		void checkWallCB(const ros::TimerEvent&); // check whether the front wall is reached
 		void collisionCheckCB(const ros::TimerEvent&); // online collision checking
+		void replanCB(const ros::TimerEvent&); // replan callback
 		void visCB(const ros::TimerEvent&);
 
 		geometry_msgs::PoseStamped getForwardGoal();
@@ -145,6 +153,11 @@ namespace AutoFlight{
 		void inspectFringe();
 		void inspectFringeRange();
 
+		// navigation
+		bool hasCollision();
+		bool hasDynamicCollision();
+		double computeExecutionDistance();
+		nav_msgs::Path getCurrentTraj(double dt);
 		
 		// utils
 		geometry_msgs::PoseStamped eigen2ps(const Eigen::Vector3d& p);

@@ -31,13 +31,18 @@ namespace AutoFlight{
 		ros::Publisher statePub_;
 		ros::ServiceClient armClient_;
 		ros::ServiceClient setModeClient_;
-		ros::Timer targetPubTimer_;
+		ros::Timer stateUpdateTimer_;
 		
 		nav_msgs::Odometry odom_;
 		mavros_msgs::State mavrosState_;
 		geometry_msgs::PoseStamped poseTgt_;
 		tracking_controller::Target stateTgt_;
 		geometry_msgs::PoseStamped goal_;
+		Eigen::Vector3d currPos_;
+		double currYaw_;
+		Eigen::Vector3d currVel_, currAcc_, prevVel_; 
+		ros::Time prevStateTime_;
+		bool stateUpdateFirstTime_ = true;
 		
 		// parameters
 		double takeoffHgt_;
@@ -61,6 +66,7 @@ namespace AutoFlight{
 		void stateCB(const mavros_msgs::State::ConstPtr& state);
 		void odomCB(const nav_msgs::Odometry::ConstPtr& odom);
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
+		void stateUpdateCB(const ros::TimerEvent&);
 
 		void takeoff();
 		void run(); // in flight base, this is a trajectory test function

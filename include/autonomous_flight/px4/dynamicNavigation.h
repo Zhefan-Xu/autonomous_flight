@@ -28,7 +28,6 @@ namespace AutoFlight{
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
-		ros::Timer stateUpdateTimer_;
 		ros::Timer visTimer_;
 		ros::Timer freeMapTimer_;
 
@@ -49,13 +48,9 @@ namespace AutoFlight{
 		std::string trajSavePath_;
 
 		// navigation data
-		bool stateUpdateFirstTime_ = true;
-		ros::Time prevStateTime_;
-		Eigen::Vector3d currVel_, currAcc_, prevVel_;
 		bool replan_ = false;
 		bool needGlobalPlan_ = false;
 		bool globalPlanReady_ = false;
-		int nextWaypointIdx_ = 0;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
@@ -82,12 +77,11 @@ namespace AutoFlight{
 		void plannerCB(const ros::TimerEvent&);
 		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
-		void stateUpdateCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
 		void freeMapCB(const ros::TimerEvent&); // using fake detector
 
 		void run();	
-		void getStartEndCondition(std::vector<Eigen::Vector3d>& startEndCondition);	
+		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);	
 		bool hasCollision();
 		bool hasDynamicCollision();
 		double computeExecutionDistance();

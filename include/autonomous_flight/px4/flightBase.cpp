@@ -42,7 +42,10 @@ namespace AutoFlight{
 
     	// Tareget publish thread
 		this->targetPubWorker_ = std::thread(&flightBase::publishTarget, this);
-		this->targetPubWorker_.detach();	
+		this->targetPubWorker_.detach();
+
+		// state update callback (velocity and acceleration)
+		this->stateUpdateTimer_ = this->nh_.createTimer(ros::Duration(0.033), &flightBase::stateUpdateCB, this);	
 	}
 
 	void flightBase::publishTarget(){
@@ -93,6 +96,9 @@ namespace AutoFlight{
 
 	void flightBase::odomCB(const nav_msgs::Odometry::ConstPtr& odom){
 		this->odom_ = *odom;
+		this->currPos_(0) = this->odom_.pose.pose.position.x;
+		this->currPos_(1) = this->odom_.pose.pose.position.y;
+		this->currPos_(2) = this->odom_.pose.pose.position.z;
 		if (not this->odomReceived_){
 			this->odomReceived_ = true;
 		}
@@ -107,6 +113,25 @@ namespace AutoFlight{
 
 		if (not this->goalReceived_){
 			this->goalReceived_ = true;
+		}
+	}
+
+	void flightBase::stateUpdateCB(const ros::TimerEvent&){
+		Eigen::Vector3d currVelBody (this->odom_.twist.twist.linear.x, this->odom_.twist.twist.linear.y, this->odom_.twist.twist.linear.z);
+		Eigen::Vector4d orientationQuat (this->odom_.pose.pose.orientation.w, this->odom_.pose.pose.orientation.x, this->odom_.pose.pose.orientation.y, this->odom_.pose.pose.orientation.z);
+		Eigen::Matrix3d orientationRot = AutoFlight::quat2RotMatrix(orientationQuat);
+		this->currVel_ = orientationRot * currVelBody;	
+		ros::Time currTime = ros::Time::now();	
+		if (this->stateUpdateFirstTime_){
+			this->currAcc_ = Eigen::Vector3d (0.0, 0.0, 0.0);
+			this->prevStateTime_ = currTime;
+			this->stateUpdateFirstTime_ = false;
+		}
+		else{
+			double dt = (currTime - this->prevStateTime_).toSec();
+			this->currAcc_ = (this->currVel_ - this->prevVel_)/dt;
+			this->prevVel_ = this->currVel_; 
+			this->prevStateTime_ = currTime;
 		}
 	}
 
