@@ -165,15 +165,15 @@ namespace AutoFlight{
 		// this->updateTargetWithState(psT);
 		
 		// cout << "[AutoFlight]: Switch to tracking controller." << endl;
-		// ros::Time startTime = ros::Time::now();
-		// while (ros::ok()){
-		// 	ros::Time currTime = ros::Time::now();
-		// 	if ((currTime - startTime).toSec() >= 3){
-		// 		break;
-		// 	}
-		// 	ros::spinOnce();
-		// 	r.sleep();
-		// }
+		ros::Time startTime = ros::Time::now();
+		while (ros::ok()){
+			ros::Time currTime = ros::Time::now();
+			if ((currTime - startTime).toSec() >= 3){
+				break;
+			}
+			ros::spinOnce();
+			r.sleep();
+		}
 		cout << "[AutoFlight]: Takeoff succeed!" << endl;
 	}
 

@@ -6,6 +6,7 @@ rrt/goal_reach_distance: 0.4
 rrt/connect_goal_ratio: 0.2
 rrt/max_shortcut_dist: 5
 rrt/ignore_unknown: true
+rrt/pass_goal_check: true
 
 poly_traj/polynomial_degree: 7
 poly_traj/differential_degree: 4
