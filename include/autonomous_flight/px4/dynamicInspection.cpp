@@ -726,10 +726,11 @@ namespace AutoFlight{
 			if (this->prevState_ == FLIGHT_STATE::INSPECT){
 				// turn back
 				this->moveToOrientationStep(-PI_const);
-
+				cout << "[AutoFlight]: Start generating global plan..." << endl;
 				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
 				this->rrtPlanner_->updateGoal(psBack.pose);
 				this->rrtPlanner_->makePlan(this->rrtPathMsg_);
+				cout << "[AutoFlight]: Global planning finished." << endl;
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::BACKWARD){
