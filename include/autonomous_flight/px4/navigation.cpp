@@ -538,7 +538,7 @@ namespace AutoFlight{
 			Eigen::Vector3d pEigNext (psNext.pose.position.x, psNext.pose.position.y, psNext.pose.position.z);
 			Eigen::Vector3d diffToNext = pEigNext - pEig;
 			double dist = (pEig - pCurr).norm();
-			if (trajPlanner::angleBetweenVectors(diffToNext, pDiff) > PI_const/2){
+			if (trajPlanner::angleBetweenVectors(diffToNext, pDiff) > PI_const*3.0/4.0){
 				if (dist < minDist){
 					nextIdx = i;
 					minDist = dist;

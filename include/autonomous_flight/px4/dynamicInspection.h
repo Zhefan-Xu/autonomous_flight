@@ -81,6 +81,7 @@ namespace AutoFlight{
 		AutoFlight::trajData td_;
 		bool useYaw_ = false;
 		std::vector<double> wallRange_;
+		bool wallDetected_ = false;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
@@ -111,7 +112,7 @@ namespace AutoFlight{
 		void visCB(const ros::TimerEvent&);
 
 		geometry_msgs::PoseStamped getForwardGoal();
-		nav_msgs::Path getLatestGlobalPath();
+		nav_msgs::Path getRestGlobalPath();
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndCondition);
 		void changeState(const FLIGHT_STATE& flightState);
 

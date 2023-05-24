@@ -76,6 +76,7 @@ namespace AutoFlight{
 		void updateTarget(const geometry_msgs::PoseStamped& ps);
 		void updateTargetWithState(const tracking_controller::Target& target);
 		bool isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw=true);
+		bool isReach(const geometry_msgs::PoseStamped& poseTgt, double dist, bool useYaw=true);
 	};
 
 	struct trajData{

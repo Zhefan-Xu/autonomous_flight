@@ -328,4 +328,34 @@ namespace AutoFlight{
 			return false;
 		}
 	}
+
+	bool flightBase::isReach(const geometry_msgs::PoseStamped& poseTgt, double dist, bool useYaw){
+		double targetX, targetY, targetZ, targetYaw, currX, currY, currZ, currYaw;
+		targetX = poseTgt.pose.position.x;
+		targetY = poseTgt.pose.position.y;
+		targetZ = poseTgt.pose.position.z;
+		targetYaw = AutoFlight::rpy_from_quaternion(poseTgt.pose.orientation);
+		currX = this->odom_.pose.pose.position.x;
+		currY = this->odom_.pose.pose.position.y;
+		currZ = this->odom_.pose.pose.position.z;
+		currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		
+		bool reachX, reachY, reachZ, reachYaw;
+		reachX = std::abs(targetX - currX) < dist;
+		reachY = std::abs(targetY - currY) < dist;
+		reachZ = std::abs(targetZ - currZ) < dist;
+		if (useYaw){
+			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
+		}
+		else{
+			reachYaw = true;
+		}
+
+		if (reachX and reachY and reachZ and reachYaw){
+			return true;
+		}
+		else{
+			return false;
+		}
+	}
 }
