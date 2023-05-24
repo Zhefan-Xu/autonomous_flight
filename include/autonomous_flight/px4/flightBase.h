@@ -130,7 +130,11 @@ namespace AutoFlight{
 			int idx = this->getCurrIdx();
 			idx = std::max(idx+forwardIdx, minIdx);
 			int newIdx = std::min(idx, int(this->trajectory.poses.size()-1));
-
+			if (newIdx > int(this->trajectory.poses.size()) - 1){
+				geometry_msgs::PoseStamped ps;
+				ps.pose = psCurr;
+				return ps;
+			}
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			geometry_msgs::PoseStamped psFirst;
 			psFirst.pose = psCurr;
@@ -146,6 +150,11 @@ namespace AutoFlight{
 			int idx = this->getCurrIdx();
 			idx = std::max(idx+forwardIdx, minIdx);
 			int newIdx = std::min(idx, int(this->trajectory.poses.size()-1));
+			if (newIdx > int(this->trajectory.poses.size()) - 1){
+				geometry_msgs::PoseStamped ps;
+				ps.pose = psCurr;
+				return ps;
+			}
 
 			std::vector<geometry_msgs::PoseStamped> pathVec;
 			geometry_msgs::PoseStamped psFirst;

@@ -642,7 +642,7 @@ namespace AutoFlight{
 			if (this->trajectoryReady_){
 				Eigen::Vector3d goalEig = this->trajectory_.at(this->trajectory_.getDuration());
 				geometry_msgs::PoseStamped goalPs = eigen2ps(goalEig);
-				if (this->isReach(goalPs, 0.3, false) and this->prevState_ == FLIGHT_STATE::EXPLORE){
+				if (this->isReach(goalPs, 0.3, false)){
 					this->prevState_ = this->flightState_;
 					this->changeState(FLIGHT_STATE::FORWARD);
 					cout << "[AutoFlight]: Switch from explore to forward." << endl;
