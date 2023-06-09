@@ -78,12 +78,17 @@ namespace AutoFlight{
 		}		
 
 		// inspection height
-		if (not this->nh_.getParam("autonomous_flight/inspection_height", this->inspectionHeight_)){
+		std::vector<double> inspectionHeightsTemp;
+		if (not this->nh_.getParam("autonomous_flight/inspection_height", inspectionHeightsTemp)){
 			this->inspectionHeight_ = 2.5;
 			cout << "[AutoFlight]: No inspection height param. Use default 2.5m." << endl;
 		}
 		else{
-			cout << "[AutoFlight]: Inspection height is set to: " << this->inspectionHeight_ << "m." << endl;
+			this->inspectionHeight_ = inspectionHeightsTemp[0];
+			for (double h : inspectionHeightsTemp){
+				this->inspectionHeights_.push_back(h);
+				cout << "[AutoFlight]: Inspection height is set to: " << h << "m." << endl;
+			}
 		}		
 
 		// ascend step
@@ -162,31 +167,42 @@ namespace AutoFlight{
 
 		if (this->inspectionGoalGiven_){
 			// inspection location (last component is orientation in degree)
-			std::vector<double> inspectionGoalTemp;
-			if (not this->nh_.getParam("autonomous_flight/inspection_goal", inspectionGoalTemp)){
+			std::vector<double> inspectionGoalsTemp;
+			if (not this->nh_.getParam("autonomous_flight/inspection_goal", inspectionGoalsTemp)){
 				this->inspectionGoalGiven_ = false;
 				cout << "[AutoFlight]: Use default inspection mode." << endl;
 			}
 			else{
-				this->inspectionGoal_(0) = inspectionGoalTemp[0];
-				this->inspectionGoal_(1) = inspectionGoalTemp[1];
-				this->inspectionGoal_(2) = inspectionGoalTemp[2];
-				this->inspectionOrientation_ = inspectionGoalTemp[3];
-				cout << "[AutoFlight]: Inspection goal is set to: [" << this->inspectionGoal_(0)  << ", " << this->inspectionGoal_(1) << ", " <<  this->inspectionGoal_(2) << "]." << endl; 
-				cout << "[AutoFlight]: Inspection angle is set to: " << this->inspectionOrientation_ << " degree." << endl;
+				this->inspectionGoal_(0) = inspectionGoalsTemp[0];
+				this->inspectionGoal_(1) = inspectionGoalsTemp[1];
+				this->inspectionGoal_(2) = inspectionGoalsTemp[2];
+				this->inspectionOrientation_ = inspectionGoalsTemp[3];
 				this->inspectionOrientation_ *= PI_const/180;
+				for (size_t i=0; i<inspectionGoalsTemp.size(); i+=4){
+					Eigen::Vector3d p (inspectionGoalsTemp[i+0], inspectionGoalsTemp[i+1], inspectionGoalsTemp[i+2]);
+					this->inspectionGoals_.push_back(p);
+					this->inspectionOrientations_.push_back(inspectionGoalsTemp[i+3] * PI_const/180);
+					cout << "[AutoFlight]: Inspection goal is set to: [" << inspectionGoalsTemp[i+0]  << ", " << inspectionGoalsTemp[i+1] << ", " <<  inspectionGoalsTemp[i+2] << "]." << endl; 
+					cout << "[AutoFlight]: Inspection angle is set to: " << inspectionGoalsTemp[i+3] << " degree." << endl;
+				}
+				
 			}
 		}
 
 		if (this->inspectionWidthGiven_){
 			// inspection width
-			if (not this->nh_.getParam("autonomous_flight/inspection_width", this->inspectionWidth_)){
+			std::vector<double> inspectionWidthsTemp;
+			if (not this->nh_.getParam("autonomous_flight/inspection_width", inspectionWidthsTemp)){
 				this->inspectionWidthGiven_ = false;
 				cout << "[AutoFlight]: No inspection width parameter." << endl;
 			}
 			else{
 				this->inspectionWidthGiven_ = true;
-				cout << "[AutoFlight]: Inspection width is set to: " << this->inspectionWidth_ << "m." << endl;
+				this->inspectionWidth_ = inspectionWidthsTemp[0];
+				for (double w : inspectionWidthsTemp){
+					this->inspectionWidths_.push_back(w);
+					cout << "[AutoFlight]: Inspection width is set to: " << w << "m." << endl;
+				}
 			}
 		}
 

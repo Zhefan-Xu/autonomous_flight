@@ -6,8 +6,11 @@ desired_angular_velocity: 0.5 # rad/s
 # inspection target (Be careful. Only use it if you know the inspection goal)
 inspection_goal_given: true
 inspection_width_given: true
-inspection_goal: [45, 0, 1.0, 0]
-inspection_width: 4
+inspection_goal: [
+                  10, 0, 1.0, 0,
+                  10, 2, 1.0, 0
+                 ]
+inspection_width: [4, 3]
 
 
 # inspection
@@ -15,7 +18,7 @@ inspection_velocity: 1.0 #0.4
 min_wall_area: 15
 safe_distance_to_wall: 2.5
 side_safe_distance: 1.5
-inspection_height: 4
+inspection_height: [4, 3]
 ascend_step: 4.0 # every x meters will make a stop
 descend_step: 1.0 # zig zag descend step
 zigzag_inspection: true

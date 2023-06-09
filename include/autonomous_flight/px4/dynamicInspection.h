@@ -56,6 +56,7 @@ namespace AutoFlight{
 		double minWallArea_;
 		double safeDistance_;
 		double sideSafeDistance_;
+		std::vector<double> inspectionHeights_;
 		double inspectionHeight_;
 		double ascendStep_;
 		double descendStep_;
@@ -65,9 +66,12 @@ namespace AutoFlight{
 		int exploreSampleNum_;
 		// ***only used when we specify location***
 		bool inspectionGoalGiven_ = false;
-		Eigen::Vector3d inspectionGoal_; 
+		std::vector<Eigen::Vector3d> inspectionGoals_;
+		Eigen::Vector3d inspectionGoal_;
+		std::vector<double> inspectionOrientations_; 
 		double inspectionOrientation_;
 		bool inspectionWidthGiven_ = false;
+		std::vector<double> inspectionWidths_;
 		double inspectionWidth_;
 		bool zigzagInspection_;
 		bool fringeInspection_;
