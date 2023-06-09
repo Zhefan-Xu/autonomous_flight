@@ -710,15 +710,25 @@ namespace AutoFlight{
 				
 			}
 			else{
-				this->moveToOrientationStep(this->inspectionOrientation_);
-				if (this->zigzagInspection_){
-					// 2. start inspection
-					this->inspectZigZagRange();
-				}
+				for (size_t i=0; i<this->inspectionGoals_.size(); ++i){
+					cout << "[AutoFlight]: Inspectino ID: " << i << endl;
+					this->inspectionGoal_ = this->inspectionGoals_[i];
+					this->inspectionOrientation_ = this->inspectionOrientations_[i];
+					this->inspectionHeight_ = this->inspectionHeights_[i];
+					this->inspectionWidth_ = this->inspectionWidths_[i]; 
+					if (i != 0){
+						this->moveToPosition(this->inspectionGoal_);
+					}
+					this->moveToOrientationStep(this->inspectionOrientation_);
+					if (this->zigzagInspection_){
+						// 2. start inspection
+						this->inspectZigZagRange();
+					}
 
-				if (this->fringeInspection_){
-					// 3. inspect frindge
-					this->inspectFringeRange();
+					if (this->fringeInspection_){
+						// 3. inspect frindge
+						this->inspectFringeRange();
+					}
 				}
 			}
 
