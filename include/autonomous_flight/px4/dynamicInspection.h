@@ -78,6 +78,7 @@ namespace AutoFlight{
 		bool leftFirst_ = true;
 		double confirmMaxAngle_;
 		bool inspectionConfirm_;
+		bool backwardNoTurn_;
 		// ***only used when we specify location***
 
 		// inspection data

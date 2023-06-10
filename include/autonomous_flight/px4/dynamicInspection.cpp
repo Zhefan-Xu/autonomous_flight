@@ -251,6 +251,15 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Inspection confirm is set is set to: " << this->inspectionConfirm_ << endl;
 		}	
+
+		// backward no turn option
+		if (not this->nh_.getParam("autonomous_flight/backward_no_turn", this->backwardNoTurn_)){
+			this->backwardNoTurn_ = false;
+			cout << "[AutoFlight]: Backward will turn back." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Backward turn is set to: " << this->backwardNoTurn_ << endl;
+		}	
 	}
 
 	void dynamicInspection::initModules(){
@@ -517,7 +526,7 @@ namespace AutoFlight{
 
 
 			// if reach the wall, change the state to INSPECT
-			if (this->isReach(this->getForwardGoal(), 0.3, false)){
+			if (this->isReach(this->getForwardGoal(), 0.5, false)){
 				if (this->isWallDetected() or this->inspectionGoalGiven_){
 					this->stop();
 					this->changeState(FLIGHT_STATE::INSPECT);
@@ -751,7 +760,9 @@ namespace AutoFlight{
 			geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (0, 0, this->takeoffHgt_));
 			if (this->prevState_ == FLIGHT_STATE::INSPECT){
 				// turn back
-				this->moveToOrientationStep(-PI_const);
+				if (not this->backwardNoTurn_){
+					this->moveToOrientationStep(-PI_const);
+				}
 				cout << "[AutoFlight]: Start generating global plan..." << endl;
 				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
 				this->rrtPlanner_->updateGoal(psBack.pose);
