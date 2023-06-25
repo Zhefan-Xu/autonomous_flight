@@ -307,6 +307,40 @@ namespace AutoFlight{
 					this->replan_ = false;
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
 
+					// print the control points of current trajectory
+					// cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
+					// cout << "------------------------------------------------------------" << endl;
+					// Eigen::MatrixXd controlPoints = this->trajectory_.getControlPoints();
+					// for (int i=0; i<controlPoints.cols(); ++i){
+					// 	cout << controlPoints.col(i).transpose() << endl;
+					// }
+					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+
+
+					// print the trajectory points of the current trajectory
+					cout << "[AutoFlight]: Print current trajectory point with 0.1 time interval." << endl;					
+					cout << "--------------------------------------------------------------------" << endl;
+					for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
+						Eigen::Vector3d p = this->trajectory_.at(t);
+						cout << t << " " << p.transpose() << endl;
+					}
+					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+
+					cout << "[AutoFlight]: Print current trajectory velcoity with 0.1 time interval." << endl;					
+					cout << "--------------------------------------------------------------------" << endl;
+					for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
+						Eigen::Vector3d v = this->trajectory_.getDerivative().at(t) * this->bsplineTraj_->getLinearFactor();
+						cout << t << " " << v.transpose() << endl;
+					}
+					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+
+					cout << "[AutoFlight]: Print current trajectory acceleration with 0.1 time interval." << endl;					
+					cout << "--------------------------------------------------------------------" << endl;
+					for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
+						Eigen::Vector3d a = this->trajectory_.getDerivative().at(t) * pow(this->bsplineTraj_->getLinearFactor(), 2);
+						cout << t << " " << a.transpose() << endl;
+					}
+					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 					if (this->trajSavePath_ != "No" and this->firstTimeSave_){
 						this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
 						this->firstTimeSave_ = false;

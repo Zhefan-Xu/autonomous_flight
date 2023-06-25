@@ -1,0 +1,2 @@
+use_fake_detector: true
+takeoff_height: 1.0 # m

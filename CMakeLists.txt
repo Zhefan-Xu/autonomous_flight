@@ -134,6 +134,7 @@ add_library(${PROJECT_NAME}
    include/${PROJECT_NAME}/px4/navigation.cpp
    include/${PROJECT_NAME}/px4/dynamicNavigation.cpp
    include/${PROJECT_NAME}/px4/dynamicInspection.cpp
+   include/${PROJECT_NAME}/px4/dynamicExploration.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -152,6 +153,7 @@ add_executable(inspection_node src/px4/inspection_node.cpp)
 add_executable(navigation_node src/px4/navigation_node.cpp)
 add_executable(dynamic_navigation_node src/px4/dynamic_navigation_node.cpp)
 add_executable(dynamic_inspection_node src/px4/dynamic_inspection_node.cpp)
+add_executable(dynamic_exploration_node src/px4/dynamic_exploration_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -175,6 +177,7 @@ target_link_libraries(inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(dynamic_exploration_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
 
 #############
