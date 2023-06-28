@@ -66,11 +66,35 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::registerCallback(){
-
+		// initialize exploration planner replan in another thread
+		cout << "in regisuter callback" << endl;
+		this->exploreReplanWorker_ = std::thread(&dynamicExploration::exploreReplan, this);
+		this->exploreReplanWorker_.detach();
 	}
 
 	void dynamicExploration::run(){
 		this->takeoff();
 		this->registerCallback();
+	}
+
+	void dynamicExploration::exploreReplan(){
+		cout << "in replan function" << endl;
+		while (ros::ok()){
+			cout << "updating map..." << endl;
+			this->expPlanner_->setMap(this->map_);
+			cout << "start planning." << endl;
+			ros::Time startTime = ros::Time::now();
+			bool replanSuccess = this->expPlanner_->makePlan();
+			ros::Time endTime = ros::Time::now();
+			cout << "replan success: " << replanSuccess << endl;
+			cout << "planning time: " << (endTime - startTime).toSec() << "s." << endl;
+			cout << "end planning." << endl;
+
+
+			cout << "PRESS ENTER to Replan." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();					
+		}
 	}
 }

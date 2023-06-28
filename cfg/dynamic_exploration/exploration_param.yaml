@@ -1,4 +1,5 @@
-odom_topic: "/CERLAB/quadcopter/odom"
+# odom_topic: "/CERLAB/quadcopter/odom"
+odom_topic: "/mavros/local_position/odom"
 local_region_min: [-5, -5, -2]
 local_region_max: [5, 5, 2]
 global_region_min: [-20, -20, 0]
@@ -18,3 +19,5 @@ num_yaw_angles: 32
 min_voxel_thresh: 0.5
 min_goal_candidates: 3
 max_goal_candidates: 5
+
+information_gain_update_distance: 1.0

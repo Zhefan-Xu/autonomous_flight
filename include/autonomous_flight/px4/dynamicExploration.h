@@ -26,8 +26,13 @@ namespace AutoFlight{
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
+
+		// exploration data
+		std::vector<Eigen::Vector3d> waypoints_; // latest waypoints from exploration planner
+
 	
 	public:
+		std::thread exploreReplanWorker_;
 		dynamicExploration();
 		dynamicExploration(const ros::NodeHandle& nh);
 
@@ -36,6 +41,7 @@ namespace AutoFlight{
 		void registerCallback();
 
 		void run();
+		void exploreReplan();
 	};
 }
 #endif
