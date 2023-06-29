@@ -70,6 +70,30 @@ namespace AutoFlight{
 		cout << "in regisuter callback" << endl;
 		this->exploreReplanWorker_ = std::thread(&dynamicExploration::exploreReplan, this);
 		this->exploreReplanWorker_.detach();
+
+		// planner callback
+		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicExploration::plannerCB, this);
+
+		// replan check timer
+		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicExploration::replanCheckCB, this);
+		
+		// trajectory execution callback
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicExploration::trajExeCB, this);
+	}
+
+	void dynamicExploration::plannerCB(const ros::TimerEvent&){
+		// cout << "in planner callback" << endl;
+		if (this->newWaypoints_){
+			// TODO
+		}
+	}
+
+	void dynamicExploration::replanCheckCB(const ros::TimerEvent&){
+		// cout << "int replan check callback" << endl;
+	}
+
+	void dynamicExploration::trajExeCB(const ros::TimerEvent&){
+		// cout << "in traj exe callback" << endl;
 	}
 
 	void dynamicExploration::run(){
@@ -85,6 +109,10 @@ namespace AutoFlight{
 			cout << "start planning." << endl;
 			ros::Time startTime = ros::Time::now();
 			bool replanSuccess = this->expPlanner_->makePlan();
+			if (replanSuccess){
+				this->waypoints_ = this->expPlanner_->getBestPath();
+				this->newWaypoints_ = false;
+			}
 			ros::Time endTime = ros::Time::now();
 			cout << "replan success: " << replanSuccess << endl;
 			cout << "planning time: " << (endTime - startTime).toSec() << "s." << endl;
