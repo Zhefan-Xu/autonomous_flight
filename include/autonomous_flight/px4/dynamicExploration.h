@@ -11,11 +11,14 @@
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
 #include <map_manager/dynamicMap.h>
+#include <onboard_vision/fakeDetector.h>
+
 
 namespace AutoFlight{
 	class dynamicExploration : flightBase{
 	private:
 		std::shared_ptr<mapManager::dynamicMap> map_;
+		std::shared_ptr<onboardVision::fakeDetector> detector_;
 		std::shared_ptr<globalPlanner::DEP> expPlanner_;
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
@@ -25,10 +28,15 @@ namespace AutoFlight{
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
 		ros::Timer visTimer_;
+		ros::Timer freeMapTimer_;
 
+		ros::Publisher polyTrajPub_;
+		ros::Publisher pwlTrajPub_;
+		ros::Publisher bsplineTrajPub_;
 		ros::Publisher inputTrajPub_;
-
+		
 		// parameters
+		bool useFakeDetector_;
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
@@ -41,6 +49,10 @@ namespace AutoFlight{
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
+		bool trajectoryReady_ = false;
+		ros::Time trajStartTime_;
+		double trajTime_; // current trajectory time
+		trajPlanner::bspline trajectory_;
 	
 	public:
 		std::thread exploreReplanWorker_;
@@ -56,10 +68,14 @@ namespace AutoFlight{
 		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
+		void freeMapCB(const ros::TimerEvent&); // using fake detector
 
 		void run();
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);
+		bool hasCollision();
+		bool hasDynamicCollision();
 		void exploreReplan();
+		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 	};
 }
 #endif
