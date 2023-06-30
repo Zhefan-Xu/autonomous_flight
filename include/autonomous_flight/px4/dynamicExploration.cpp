@@ -14,6 +14,15 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::initParam(){
+    	// use simulation detector	
+		if (not this->nh_.getParam("autonomous_flight/use_fake_detector", this->useFakeDetector_)){
+			this->useFakeDetector_ = false;
+			cout << "[AutoFlight]: No use fake detector param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use fake detector is set to: " << this->useFakeDetector_ << "." << endl;
+		}
+		
 		// desired velocity
 		if (not this->nh_.getParam("autonomous_flight/desired_velocity", this->desiredVel_)){
 			this->desiredVel_ = 0.5;
@@ -182,7 +191,40 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::trajExeCB(const ros::TimerEvent&){
-		// cout << "in traj exe callback" << endl;
+		if (this->trajectoryReady_){
+			ros::Time currTime = ros::Time::now();
+			double trajTime = (currTime - this->trajStartTime_).toSec();
+			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(trajTime);
+			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
+			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+
+			
+			tracking_controller::Target target;
+			// if (this->noYawTurning_ or not this->useYawControl_){
+			// 	target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			// }
+			// else{
+				target.yaw = atan2(vel(1), vel(0));
+				// cout << "current vel: " << vel.transpose() << endl;
+			// }
+			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
+				vel *= 0;
+				acc *= 0;
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			}			
+			target.position.x = pos(0);
+			target.position.y = pos(1);
+			target.position.z = pos(2);
+			target.velocity.x = vel(0);
+			target.velocity.y = vel(1);
+			target.velocity.z = vel(2);
+			target.acceleration.x = acc(0);
+			target.acceleration.y = acc(1);
+			target.acceleration.z = acc(2);
+			this->updateTargetWithState(target);			
+		}
 	}
 
 	void dynamicExploration::visCB(const ros::TimerEvent&){
