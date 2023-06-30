@@ -24,6 +24,9 @@ namespace AutoFlight{
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
+		ros::Timer visTimer_;
+
+		ros::Publisher inputTrajPub_;
 
 		// parameters
 		double desiredVel_;
@@ -33,8 +36,11 @@ namespace AutoFlight{
 		// exploration data
 		bool replan_ = false;
 		bool newWaypoints_ = false;
-		std::vector<Eigen::Vector3d> waypoints_; // latest waypoints from exploration planner
-
+		nav_msgs::Path waypoints_; // latest waypoints from exploration planner
+		nav_msgs::Path inputTrajMsg_;
+		nav_msgs::Path polyTrajMsg_;
+		nav_msgs::Path pwlTrajMsg_;
+		nav_msgs::Path bsplineTrajMsg_;
 	
 	public:
 		std::thread exploreReplanWorker_;
@@ -44,12 +50,15 @@ namespace AutoFlight{
 		void initParam();
 		void initModules();
 		void registerCallback();
+		void registerPub();
 
 		void plannerCB(const ros::TimerEvent&);
 		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
+		void visCB(const ros::TimerEvent&);
 
 		void run();
+		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);
 		void exploreReplan();
 	};
 }
