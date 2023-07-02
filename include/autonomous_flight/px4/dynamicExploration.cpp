@@ -157,7 +157,8 @@ namespace AutoFlight{
 				// check the distance between last point and the goal position
 				if ((bsplineLastPos - goalPos).norm() >= 0.2){ // use polynomial trajectory to make the rest of the trajectory
 					nav_msgs::Path waypoints, polyTrajTemp;
-					waypoints.poses = std::vector<geometry_msgs::PoseStamped>{lastPs, this->goal_}; // TODO!!!!!!!!!!!
+					// waypoints.poses = std::vector<geometry_msgs::PoseStamped>{lastPs, this->goal_}; // TODO!!!!!!!!!!!
+					waypoints = this->getRestGlobalPath(bsplineLastPos);
 					std::vector<Eigen::Vector3d> polyStartEndConditions;
 					Eigen::Vector3d polyStartVel = this->trajectory_.getDerivative().at(this->trajectory_.getDuration());
 					Eigen::Vector3d polyEndVel (0.0, 0.0, 0.0);
@@ -517,6 +518,39 @@ namespace AutoFlight{
 
 		int nextIdx = this->waypoints_.poses.size()-1;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		double minDist = std::numeric_limits<double>::infinity();
+		for (size_t i=0; i<this->waypoints_.poses.size()-1; ++i){
+			geometry_msgs::PoseStamped ps = this->waypoints_.poses[i];
+			Eigen::Vector3d pEig (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
+			Eigen::Vector3d pDiff = pCurr - pEig;
+
+			geometry_msgs::PoseStamped psNext = this->waypoints_.poses[i+1];
+			Eigen::Vector3d pEigNext (psNext.pose.position.x, psNext.pose.position.y, psNext.pose.position.z);
+			Eigen::Vector3d diffToNext = pEigNext - pEig;
+			double dist = (pEig - pCurr).norm();
+			if (trajPlanner::angleBetweenVectors(diffToNext, pDiff) > PI_const*3.0/4.0){
+				if (dist < minDist){
+					nextIdx = i;
+					minDist = dist;
+				}
+			}
+		}
+
+
+		geometry_msgs::PoseStamped psCurr;
+		psCurr.pose = this->odom_.pose.pose;
+		currPath.poses.push_back(psCurr);
+		for (size_t i=nextIdx; i<this->waypoints_.poses.size(); ++i){
+			currPath.poses.push_back(this->waypoints_.poses[i]);
+		}
+		return currPath;		
+	}
+
+	nav_msgs::Path dynamicExploration::getRestGlobalPath(const Eigen::Vector3d& pos){
+		nav_msgs::Path currPath;
+
+		int nextIdx = this->waypoints_.poses.size()-1;
+		Eigen::Vector3d pCurr = pos;
 		double minDist = std::numeric_limits<double>::infinity();
 		for (size_t i=0; i<this->waypoints_.poses.size()-1; ++i){
 			geometry_msgs::PoseStamped ps = this->waypoints_.poses[i];
