@@ -75,6 +75,9 @@ namespace AutoFlight{
 		bool hasCollision();
 		bool hasDynamicCollision();
 		void exploreReplan();
+		double computeExecutionDistance();
+		nav_msgs::Path getCurrentTraj(double dt);
+		nav_msgs::Path getRestGlobalPath();
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 	};
 }

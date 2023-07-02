@@ -1,9 +1,13 @@
 # odom_topic: "/CERLAB/quadcopter/odom"
 odom_topic: "/mavros/local_position/odom"
+# local_region_min: [-5, -5, -2]
+# local_region_max: [5, 5, 2]
+# global_region_min: [-20, -20, 0]
+# global_region_max: [20, 20, 3]
 local_region_min: [-5, -5, -2]
 local_region_max: [5, 5, 2]
-global_region_min: [-20, -20, 0]
-global_region_max: [20, 20, 3]
+global_region_min: [-20, -20, 0.5]
+global_region_max: [20, 20, 1.0]
 sampleThresh: 50
 distThresh: 0.8
 
