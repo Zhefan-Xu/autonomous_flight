@@ -79,6 +79,7 @@ namespace AutoFlight{
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
 		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos);
+		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos, double yaw);
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 	};
 }

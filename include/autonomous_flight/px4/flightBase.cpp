@@ -267,7 +267,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped psT;
 		psT.pose = ps.pose;
 		ros::Time startTime = ros::Time::now();
-		ros::Rate r (50);
+		ros::Rate r (100);
 		while (ros::ok() and not this->isReach(ps)){
 			ros::Time currTime = ros::Time::now();
 			double t = (currTime - startTime).toSec();
