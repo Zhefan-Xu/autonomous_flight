@@ -101,6 +101,10 @@ namespace AutoFlight{
 		this->bsplineTraj_->setMap(this->map_);
 		this->bsplineTraj_->updateMaxVel(this->desiredVel_);
 		this->bsplineTraj_->updateMaxAcc(this->desiredAcc_);
+
+		// initialize the trajectory divider
+		this->trajDivider_.reset(new timeOptimizer::trajDivider (this->nh_));
+		this->trajDivider_->setMap(this->map_);
 	}
 
 	void navigation::registerPub(){
@@ -318,33 +322,56 @@ namespace AutoFlight{
 
 
 					// print the trajectory points of the current trajectory
-					cout << "[AutoFlight]: Print current trajectory point with 0.1 time interval." << endl;					
-					cout << "--------------------------------------------------------------------" << endl;
-					for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
+					// cout << "[AutoFlight]: Print current trajectory point with 0.1 time interval." << endl;					
+					// cout << "--------------------------------------------------------------------" << endl;
+					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
+					// 	Eigen::Vector3d p = this->trajectory_.at(t);
+					// 	cout << t << " " << p.transpose() << endl;
+					// }
+					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+
+					// cout << "[AutoFlight]: Print current trajectory velcoity with 0.1 time interval." << endl;					
+					// cout << "--------------------------------------------------------------------" << endl;
+					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
+					// 	Eigen::Vector3d v = this->trajectory_.getDerivative().at(t) * this->bsplineTraj_->getLinearFactor();
+					// 	cout << t << " " << v.transpose() << endl;
+					// }
+					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+
+					// cout << "[AutoFlight]: Print current trajectory acceleration with 0.1 time interval." << endl;					
+					// cout << "--------------------------------------------------------------------" << endl;
+					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
+					// 	Eigen::Vector3d a = this->trajectory_.getDerivative().at(t) * pow(this->bsplineTraj_->getLinearFactor(), 2);
+					// 	cout << t << " " << a.transpose() << endl;
+					// }
+					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+					// if (this->trajSavePath_ != "No" and this->firstTimeSave_){
+					// 	this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
+					// 	this->firstTimeSave_ = false;
+					// }
+
+					std::vector<Eigen::Vector3d> sampleTraj;
+					std::vector<double> sampleTime;
+					for (double t=0.0; t<=this->trajectory_.getDuration(); t+=0.1){
+						sampleTime.push_back(t);
 						Eigen::Vector3d p = this->trajectory_.at(t);
-						cout << t << " " << p.transpose() << endl;
+						sampleTraj.push_back(p);
 					}
-					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 
-					cout << "[AutoFlight]: Print current trajectory velcoity with 0.1 time interval." << endl;					
-					cout << "--------------------------------------------------------------------" << endl;
-					for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-						Eigen::Vector3d v = this->trajectory_.getDerivative().at(t) * this->bsplineTraj_->getLinearFactor();
-						cout << t << " " << v.transpose() << endl;
-					}
-					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+					this->trajDivider_->setTrajectory(sampleTraj, sampleTime);
 
-					cout << "[AutoFlight]: Print current trajectory acceleration with 0.1 time interval." << endl;					
-					cout << "--------------------------------------------------------------------" << endl;
-					for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-						Eigen::Vector3d a = this->trajectory_.getDerivative().at(t) * pow(this->bsplineTraj_->getLinearFactor(), 2);
-						cout << t << " " << a.transpose() << endl;
-					}
-					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-					if (this->trajSavePath_ != "No" and this->firstTimeSave_){
-						this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
-						this->firstTimeSave_ = false;
-					}
+					std::vector<std::pair<double, double>> tInterval;
+					std::vector<double> obstacleDist;
+					this->trajDivider_->run(tInterval, obstacleDist);
+
+					cout << "Total time is: " << this->trajectory_.getDuration() << endl;
+					for (size_t i=0; i<tInterval.size(); ++i){
+						std::pair<double, double> interval = tInterval[i];
+						double dist = obstacleDist[i];
+						cout << "Time interval: " << interval.first << " " << interval.second << endl;
+						cout << "Dist: " << dist << endl;
+					} 
+
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration

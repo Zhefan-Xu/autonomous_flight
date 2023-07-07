@@ -13,6 +13,7 @@
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
+#include <time_optimizer/trajectoryDivider.h>
 
 namespace AutoFlight{
 	class navigation : public flightBase{
@@ -22,6 +23,7 @@ namespace AutoFlight{
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
+		std::shared_ptr<timeOptimizer::trajDivider> trajDivider_;
 
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;

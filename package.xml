@@ -57,6 +57,7 @@
   <build_depend>trajectory_planner</build_depend>
   <build_depend>onboard_vision</build_depend>
   <build_depend>tracking_controller</build_depend>
+  <build_depend>time_optimizer</build_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>rospy</build_export_depend>
   <build_export_depend>std_msgs</build_export_depend>

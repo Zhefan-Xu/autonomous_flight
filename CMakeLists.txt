@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   map_manager
   onboard_vision
   tracking_controller
+  time_optimizer
 )
 
 ## System dependencies are found with CMake's conventions
