@@ -312,13 +312,13 @@ namespace AutoFlight{
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
 
 					// print the control points of current trajectory
-					// cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
-					// cout << "------------------------------------------------------------" << endl;
-					// Eigen::MatrixXd controlPoints = this->trajectory_.getControlPoints();
-					// for (int i=0; i<controlPoints.cols(); ++i){
-					// 	cout << controlPoints.col(i).transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+					cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
+					cout << "------------------------------------------------------------" << endl;
+					Eigen::MatrixXd controlPoints = this->trajectory_.getControlPoints();
+					for (int i=0; i<controlPoints.cols(); ++i){
+						cout << controlPoints.col(i).transpose() << endl;
+					}
+					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 
 
 					// print the trajectory points of the current trajectory
@@ -352,9 +352,10 @@ namespace AutoFlight{
 
 					std::vector<Eigen::Vector3d> sampleTraj;
 					std::vector<double> sampleTime;
-					for (double t=0.0; t<=this->trajectory_.getDuration(); t+=0.1){
+					double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+					for (double t=0.0; t * linearReparamFactor <= this->trajectory_.getDuration(); t+=0.1){
 						sampleTime.push_back(t);
-						Eigen::Vector3d p = this->trajectory_.at(t);
+						Eigen::Vector3d p = this->trajectory_.at(t*linearReparamFactor);
 						sampleTraj.push_back(p);
 					}
 
@@ -363,15 +364,24 @@ namespace AutoFlight{
 					std::vector<std::pair<double, double>> tInterval;
 					std::vector<double> obstacleDist;
 					this->trajDivider_->run(tInterval, obstacleDist);
-
-					cout << "Total time is: " << this->trajectory_.getDuration() << endl;
+					
+					cout << "Total time is: " << this->trajectory_.getDuration()/linearReparamFactor << endl;
 					for (size_t i=0; i<tInterval.size(); ++i){
 						std::pair<double, double> interval = tInterval[i];
 						double dist = obstacleDist[i];
-						cout << "Time interval: " << interval.first << " " << interval.second << endl;
-						cout << "Dist: " << dist << endl;
+						cout << "[AutoFlight]: Time interval: " << interval.first << " " << interval.second << endl;
+						// cout << "Dist: " << dist << endl;
 					} 
 
+					std::vector<bool> mask;
+					std::vector<Eigen::Vector3d> nearestObstacles;
+					this->trajDivider_->getNearestObstacles(nearestObstacles, mask);
+					cout << "[AutoFlight]: print nearest obstacles: " << endl;
+					cout << "------------------------------------------------------------" << endl;
+					for (size_t i=0; i<nearestObstacles.size(); ++i){
+						cout << mask[i] << " " << nearestObstacles[i].transpose() << endl;
+					}
+					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
