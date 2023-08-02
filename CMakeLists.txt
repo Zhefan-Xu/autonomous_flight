@@ -127,6 +127,8 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
 )
+message("include directories...")
+message(${catkin_INCLUDE_DIRS})
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}

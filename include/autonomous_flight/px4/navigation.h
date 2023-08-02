@@ -14,6 +14,7 @@
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
 #include <time_optimizer/trajectoryDivider.h>
+#include <time_optimizer/bsplineTimeOptimizer.h>
 
 namespace AutoFlight{
 	class navigation : public flightBase{
@@ -24,6 +25,7 @@ namespace AutoFlight{
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
 		std::shared_ptr<timeOptimizer::trajDivider> trajDivider_;
+		std::shared_ptr<timeOptimizer::bsplineTimeOptimizer> timeOptimizer_;
 
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
