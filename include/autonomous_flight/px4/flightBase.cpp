@@ -272,7 +272,7 @@ namespace AutoFlight{
 			ros::Time currTime = ros::Time::now();
 			double t = (currTime - startTime).toSec();
 
-			if (t >= endTime){
+			if (t >= endTime){ 
 				psT = ps;
 			}
 			else{

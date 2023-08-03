@@ -375,6 +375,14 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::exploreReplan(){
+		cout << "[AutoFlight]: Start initial scan..." << endl;
+		this->moveToOrientation(-PI_const/2, this->desiredAngularVel_);
+		this->moveToOrientation(-PI_const, this->desiredAngularVel_);
+		this->moveToOrientation(PI_const/2, this->desiredAngularVel_);
+		this->moveToOrientation(0, this->desiredAngularVel_);
+		cout << "[AutoFlight]: End initial scan." << endl; 
+		
+
 		cout << "in replan function" << endl;
 		while (ros::ok()){
 			cout << "updating map..." << endl;
