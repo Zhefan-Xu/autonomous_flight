@@ -376,6 +376,15 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::exploreReplan(){
+		// set start region to be free
+		Eigen::Vector3d range (2.0, 2.0, 1.0);
+		Eigen::Vector3d startPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		Eigen::Vector3d c1 = startPos - range;
+		Eigen::Vector3d c2 = startPos + range;
+		this->map_->freeRegion(c1, c2);
+		cout << "[AutoFlight]: Robot nearby region is set to free. Range: " << range.transpose() << endl;
+
+
 		cout << "[AutoFlight]: Start initial scan..." << endl;
 		this->moveToOrientation(-PI_const/2, this->desiredAngularVel_);
 		this->moveToOrientation(-PI_const, this->desiredAngularVel_);
