@@ -76,6 +76,7 @@ namespace AutoFlight{
 		bool hasDynamicCollision();
 		void exploreReplan();
 		double computeExecutionDistance();
+		bool reachExplorationGoal();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
 		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos);

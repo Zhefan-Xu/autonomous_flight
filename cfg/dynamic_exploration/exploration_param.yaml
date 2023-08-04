@@ -8,8 +8,8 @@ local_region_min: [-5, -5, -2]
 local_region_max: [5, 5, 2]
 global_region_min: [-20, -20, 0.7]
 global_region_max: [20, 20, 1.2]
-local_sample_thresh: 80
-global_sample_thresh: 50
+local_sample_thresh: 200
+global_sample_thresh: 100
 dist_thresh: 0.8 # minimum distance for sampling between two nodes
 
 # Camera Parameters

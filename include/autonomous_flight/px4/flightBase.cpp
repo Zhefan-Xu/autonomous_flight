@@ -281,7 +281,7 @@ namespace AutoFlight{
 				psT.pose.orientation = quatT;
 				this->updateTarget(psT);
 			}
-
+			// cout << "here" << endl;
 			ros::spinOnce();
 			r.sleep();
 		}

@@ -206,6 +206,17 @@ namespace AutoFlight{
 			return;
 		}
 
+		if (this->reachExplorationGoal()){
+			this->replan_ = false;
+			this->trajectoryReady_ = false;
+			geometry_msgs::Quaternion quat = this->waypoints_.poses.back().pose.orientation;
+			double yaw = AutoFlight::rpy_from_quaternion(quat);
+			cout << "[AutoFlight]: Reach exploration goal. Rotate and replan..." << endl;
+			this->moveToOrientation(yaw, this->desiredAngularVel_);
+			cout << "[AutoFlight]: Finish rotation. Start to replan." << endl;
+			this->replan_ = true;
+			return;
+		}
 
 		if (this->trajectoryReady_){
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
@@ -214,6 +225,7 @@ namespace AutoFlight{
 				return;
 			}
 
+
 			// replan for dynamic obstacles
 			if (this->hasDynamicCollision()){
 				this->replan_ = true;
@@ -221,18 +233,15 @@ namespace AutoFlight{
 				return;
 			}
 
+
 			if (this->computeExecutionDistance() >= 3.0){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;
 			}
 
-			// if (this->replanForDynamicObstacle()){
-			// 	this->replan_ = true;
-			// 	cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
-			// 	return;
-			// }
-		}	}
+		}	
+	}
 
 	void dynamicExploration::trajExeCB(const ros::TimerEvent&){
 		if (this->trajectoryReady_){
@@ -246,13 +255,7 @@ namespace AutoFlight{
 
 			
 			tracking_controller::Target target;
-			// if (this->noYawTurning_ or not this->useYawControl_){
-			// 	target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			// }
-			// else{
-				target.yaw = atan2(vel(1), vel(0));
-				// cout << "current vel: " << vel.transpose() << endl;
-			// }
+			target.yaw = atan2(vel(1), vel(0));
 			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
 				vel *= 0;
 				acc *= 0;
@@ -398,28 +401,6 @@ namespace AutoFlight{
 		}
 	}
 
-	nav_msgs::Path dynamicExploration::getCurrentTraj(double dt){
-		nav_msgs::Path currentTraj;
-		currentTraj.header.frame_id = "map";
-		currentTraj.header.stamp = ros::Time::now();
-	
-		if (this->trajectoryReady_){
-			// include the current pose
-			// geometry_msgs::PoseStamped psCurr;
-			// psCurr.pose = this->odom_.pose.pose;
-			// currentTraj.poses.push_back(psCurr);
-			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=dt){
-				Eigen::Vector3d pos = this->trajectory_.at(t);
-				geometry_msgs::PoseStamped ps;
-				ps.pose.position.x = pos(0);
-				ps.pose.position.y = pos(1);
-				ps.pose.position.z = pos(2);
-				currentTraj.poses.push_back(ps);
-			}		
-		}
-		return currentTraj;
-	}
-
 	double dynamicExploration::computeExecutionDistance(){
 		if (this->trajectoryReady_ and not this->replan_){
 			Eigen::Vector3d prevP, currP;
@@ -447,6 +428,42 @@ namespace AutoFlight{
 			return totalDistance;
 		}
 		return -1.0;
+	}
+
+	bool dynamicExploration::reachExplorationGoal(){
+		if (this->waypoints_.poses.size() == 0) return false;
+		double distThresh = 0.1;
+		double yawDiffThresh = 0.1;
+		Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		Eigen::Vector3d targetPos (this->waypoints_.poses.back().pose.position.x, this->waypoints_.poses.back().pose.position.y, this->waypoints_.poses.back().pose.position.z);
+		double yawTarget = AutoFlight::rpy_from_quaternion(this->waypoints_.poses.back().pose.orientation); 
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		if ((currPos - targetPos).norm() <= distThresh and std::abs(currYaw - yawTarget) >= yawDiffThresh){
+			return true;
+		}
+		return false;
+	}
+
+	nav_msgs::Path dynamicExploration::getCurrentTraj(double dt){
+		nav_msgs::Path currentTraj;
+		currentTraj.header.frame_id = "map";
+		currentTraj.header.stamp = ros::Time::now();
+	
+		if (this->trajectoryReady_){
+			// include the current pose
+			// geometry_msgs::PoseStamped psCurr;
+			// psCurr.pose = this->odom_.pose.pose;
+			// currentTraj.poses.push_back(psCurr);
+			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=dt){
+				Eigen::Vector3d pos = this->trajectory_.at(t);
+				geometry_msgs::PoseStamped ps;
+				ps.pose.position.x = pos(0);
+				ps.pose.position.y = pos(1);
+				ps.pose.position.z = pos(2);
+				currentTraj.poses.push_back(ps);
+			}		
+		}
+		return currentTraj;
 	}
 
 	nav_msgs::Path dynamicExploration::getRestGlobalPath(){
