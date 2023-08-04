@@ -8,8 +8,9 @@ local_region_min: [-5, -5, -2]
 local_region_max: [5, 5, 2]
 global_region_min: [-20, -20, 0.7]
 global_region_max: [20, 20, 1.2]
-sampleThresh: 50
-distThresh: 0.8
+local_sample_thresh: 80
+global_sample_thresh: 50
+dist_thresh: 0.8 # minimum distance for sampling between two nodes
 
 # Camera Parameters
 horizontal_FOV: 1.57

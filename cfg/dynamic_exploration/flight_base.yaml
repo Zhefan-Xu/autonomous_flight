@@ -1,4 +1,3 @@
-use_fake_detector: true
 takeoff_height: 1.0 # m
 use_fake_detector: false
 desired_velocity: 1.0 # m/s

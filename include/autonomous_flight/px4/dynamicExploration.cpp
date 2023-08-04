@@ -113,8 +113,6 @@ namespace AutoFlight{
 		// cout << "in planner callback" << endl;
 
 		if (this->replan_){
-			cout << "new waypoints size: " << this->waypoints_.poses.size() << endl;
-			cout << "start generating poly traj" << endl;
 			nav_msgs::Path inputTraj;
 			std::vector<Eigen::Vector3d> startEndConditions;
 			this->getStartEndConditions(startEndConditions); 
@@ -383,11 +381,8 @@ namespace AutoFlight{
 		cout << "[AutoFlight]: End initial scan." << endl; 
 		
 
-		cout << "in replan function" << endl;
 		while (ros::ok()){
-			cout << "updating map..." << endl;
 			this->expPlanner_->setMap(this->map_);
-			cout << "start planning." << endl;
 			ros::Time startTime = ros::Time::now();
 			bool replanSuccess = this->expPlanner_->makePlan();
 			if (replanSuccess){
@@ -395,10 +390,6 @@ namespace AutoFlight{
 				this->newWaypoints_ = true;
 			}
 			ros::Time endTime = ros::Time::now();
-			cout << "replan success: " << replanSuccess << endl;
-			cout << "planning time: " << (endTime - startTime).toSec() << "s." << endl;
-			cout << "end planning." << endl;
-
 
 			cout << "PRESS ENTER to Replan." << endl;
 			std::cin.clear();
