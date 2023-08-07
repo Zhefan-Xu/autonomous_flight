@@ -240,6 +240,7 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
+
 		if (this->newWaypoints_){
 			this->replan_ = false;
 			this->trajectoryReady_ = false;
@@ -275,10 +276,19 @@ namespace AutoFlight{
 				}
 
 				this->replan_ = true;
+				this->trajectoryReady_ = false;
 				return;
 			}			
 		}
 
+		if (this->waypoints_.poses.size() != 0){
+			if (not this->isGoalValid()){
+				this->replan_ = false;
+				this->trajectoryReady_ = false;
+				cout << "[AutoFlight]: Current goal is invalid. Need new plan." << endl;
+				return;
+			}
+		}
 
 		// if (this->reachExplorationGoal()){
 		// 	this->replan_ = false;
@@ -526,6 +536,16 @@ namespace AutoFlight{
 			return true;
 		}
 		return false;
+	}
+
+	bool dynamicExploration::isGoalValid(){
+		Eigen::Vector3d pGoal (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
+		if (this->map_->isInflatedOccupied(pGoal)){
+			return false;
+		}
+		else{
+			return true;
+		}
 	}
 
 	nav_msgs::Path dynamicExploration::getCurrentTraj(double dt){

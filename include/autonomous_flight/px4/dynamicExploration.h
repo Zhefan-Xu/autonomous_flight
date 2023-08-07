@@ -78,6 +78,7 @@ namespace AutoFlight{
 		void exploreReplan();
 		double computeExecutionDistance();
 		bool reachExplorationGoal();
+		bool isGoalValid();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
 		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos);
