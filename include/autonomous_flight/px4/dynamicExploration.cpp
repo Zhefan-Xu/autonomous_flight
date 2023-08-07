@@ -62,6 +62,7 @@ namespace AutoFlight{
 		// initialize exploration planner
 		this->expPlanner_.reset(new globalPlanner::DEP (this->nh_));
 		this->expPlanner_->setMap(this->map_);
+		this->expPlanner_->loadVelocity(this->desiredVel_, this->desiredAngularVel_);
 
 		// initialize polynomial trajectory planner
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
