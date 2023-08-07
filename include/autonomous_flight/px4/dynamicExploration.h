@@ -44,6 +44,7 @@ namespace AutoFlight{
 		// exploration data
 		bool replan_ = false;
 		bool newWaypoints_ = false;
+		int waypointIdx_ = 1;
 		nav_msgs::Path waypoints_; // latest waypoints from exploration planner
 		nav_msgs::Path inputTrajMsg_;
 		nav_msgs::Path polyTrajMsg_;

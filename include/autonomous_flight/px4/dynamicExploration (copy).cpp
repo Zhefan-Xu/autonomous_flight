@@ -116,84 +116,40 @@ namespace AutoFlight{
 			nav_msgs::Path inputTraj;
 			std::vector<Eigen::Vector3d> startEndConditions;
 			this->getStartEndConditions(startEndConditions); 
+			double finalTime; // final time for bspline trajectory
 			double initTs = this->bsplineTraj_->getInitTs();
-			if (not this->trajectoryReady_){
-				// generate new trajectory
-				nav_msgs::Path simplePath;
-				geometry_msgs::PoseStamped pStart, pGoal;
-				pStart.pose = this->odom_.pose.pose;
-				pGoal = this->goal_;
-				simplePath.poses = {pStart, pGoal};
-				this->pwlTraj_->updatePath(simplePath, false);
-				this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());
-			}
-			else{
-				Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
-				geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
-				Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
-				// if ((bsplineLastPos - goalPos).norm() >= 0.1){
-				nav_msgs::Path inputPWLTraj;
-				nav_msgs::Path simplePath;
-				geometry_msgs::PoseStamped pStart, pGoal;
-				pStart = lastPs;
-				pGoal = this->goal_;
-				simplePath.poses = {pStart, pGoal};
-				this->pwlTraj_->updatePath(simplePath, false);
-				this->pwlTraj_->makePlan(inputPWLTraj, this->bsplineTraj_->getControlPointDist());
-
-
-				nav_msgs::Path adjustedInputCombinedTraj;
-				bool satisfyDistanceCheck = false;
-				double dtTemp = initTs;
-				double finalTimeTemp;
-				ros::Time startTime = ros::Time::now();
-				ros::Time currTime;
-				while (ros::ok()){
-					currTime = ros::Time::now();
-					if ((currTime - startTime).toSec() >= 0.05){
-						cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
-						break;
-					}							
-					nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-					nav_msgs::Path inputCombinedTraj;
-					inputCombinedTraj.poses = inputRestTraj.poses;
-					for (size_t i=1; i<inputPWLTraj.poses.size(); ++i){
-						inputCombinedTraj.poses.push_back(inputPWLTraj.poses[i]);
-					}
-					
-					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
-					if (satisfyDistanceCheck) break;
-					
-					dtTemp *= 0.8; // magic number 0.8
+			Eigen::Vector3d currPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+			double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			// nav_msgs::Path latestGLobalPath = this->getRestGlobalPath(currPos, currYaw);
+			nav_msgs::Path latestGLobalPath = this->getRestGlobalPath();
+			this->polyTraj_->updatePath(latestGLobalPath);
+			this->polyTraj_->makePlan(this->polyTrajMsg_);
+			nav_msgs::Path adjustedInputPolyTraj;
+			bool satisfyDistanceCheck = false;
+			double dtTemp = initTs;
+			double finalTimeTemp;
+			ros::Time startTime = ros::Time::now();
+			ros::Time currTime;
+			while (ros::ok()){
+				currTime = ros::Time::now();
+				if ((currTime - startTime).toSec() >= 0.05){
+					cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+					break;
 				}
-				inputTraj = adjustedInputCombinedTraj;
-				// }
-				// else{
-				// 	nav_msgs::Path adjustedInputRestTraj;
-				// 	bool satisfyDistanceCheck = false;
-				// 	double dtTemp = initTs;
-				// 	double finalTimeTemp;
-				// 	ros::Time startTime = ros::Time::now();
-				// 	ros::Time currTime;
-				// 	while (ros::ok()){
-				// 		currTime = ros::Time::now();
-				// 		if ((currTime - startTime).toSec() >= 0.05){
-				// 			cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
-				// 			break;
-				// 		}
-				// 		nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-				// 		satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
-				// 		if (satisfyDistanceCheck) break;
-						
-				// 		dtTemp *= 0.8;
-				// 	}
-				// 	inputTraj = adjustedInputRestTraj;					
-				// }
-
+				nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+				satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
+				// if (adjustedInputPolyTraj.poses.size() >= 4 and satisfyDistanceCheck) break;
+				if (satisfyDistanceCheck) break;
+				dtTemp *= 0.8;
 			}
-
+			inputTraj = adjustedInputPolyTraj;
+			finalTime = finalTimeTemp;
+			startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+			startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
 			
+			// cout << "poly traj generated" << endl;
 
+			this->newWaypoints_ = false;
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
 
@@ -246,50 +202,21 @@ namespace AutoFlight{
 			this->moveToOrientation(yaw, this->desiredAngularVel_);
 			this->replan_ = true;
 			this->newWaypoints_ = false;
-			this->goal_ = this->waypoints_.poses[this->waypointIdx_];
-			++this->waypointIdx_;
 			cout << "[AutoFlight]: Replan for new waypoints." << endl; 
 			return;
 		}
 
-		if (this->isReach(this->goal_, 0.25, false)){
-			// cout << "[AutoFlight]: Reach waypoint." << endl;
-			if (not this->isReach(this->goal_, 0.25, true)){
-				this->replan_ = false;
-				this->trajectoryReady_ = false;
-				geometry_msgs::Quaternion quat = this->goal_.pose.orientation;
-				double yaw = AutoFlight::rpy_from_quaternion(quat);
-				cout << "[AutoFlight]: Rotate and replan..." << endl;
-				this->moveToOrientation(yaw, this->desiredAngularVel_);
-				cout << "[AutoFlight]: Finish rotation. Start to replan." << endl;
-				if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
-					this->goal_ = this->waypoints_.poses[this->waypointIdx_];
-				}
-
-				if (this->waypointIdx_ + 1 < int(this->waypoints_.poses.size())){
-					++this->waypointIdx_;
-				}
-				else{
-					cout << "[AutoFlight]: Finishing entire path. Wait for new path." << endl;
-				}
-
-				this->replan_ = true;
-				return;
-			}			
+		if (this->reachExplorationGoal()){
+			this->replan_ = false;
+			this->trajectoryReady_ = false;
+			geometry_msgs::Quaternion quat = this->waypoints_.poses.back().pose.orientation;
+			double yaw = AutoFlight::rpy_from_quaternion(quat);
+			cout << "[AutoFlight]: Reach exploration goal. Rotate and replan..." << endl;
+			this->moveToOrientation(yaw, this->desiredAngularVel_);
+			cout << "[AutoFlight]: Finish rotation. Start to replan." << endl;
+			this->replan_ = true;
+			return;
 		}
-
-
-		// if (this->reachExplorationGoal()){
-		// 	this->replan_ = false;
-		// 	this->trajectoryReady_ = false;
-		// 	geometry_msgs::Quaternion quat = this->waypoints_.poses.back().pose.orientation;
-		// 	double yaw = AutoFlight::rpy_from_quaternion(quat);
-		// 	cout << "[AutoFlight]: Reach exploration goal. Rotate and replan..." << endl;
-		// 	this->moveToOrientation(yaw, this->desiredAngularVel_);
-		// 	cout << "[AutoFlight]: Finish rotation. Start to replan." << endl;
-		// 	this->replan_ = true;
-		// 	return;
-		// }
 
 		if (this->trajectoryReady_){
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
@@ -473,7 +400,6 @@ namespace AutoFlight{
 			if (replanSuccess){
 				this->waypoints_ = this->expPlanner_->getBestPath();
 				this->newWaypoints_ = true;
-				this->waypointIdx_ = 1;
 			}
 			ros::Time endTime = ros::Time::now();
 
