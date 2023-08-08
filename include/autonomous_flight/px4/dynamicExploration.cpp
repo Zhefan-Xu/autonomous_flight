@@ -282,7 +282,7 @@ namespace AutoFlight{
 		}
 
 		if (this->waypoints_.poses.size() != 0){
-			if (not this->isGoalValid()){
+			if (not this->isGoalValid() and (this->replan_ or this->trajectoryReady_)){
 				this->replan_ = false;
 				this->trajectoryReady_ = false;
 				cout << "[AutoFlight]: Current goal is invalid. Need new plan." << endl;
