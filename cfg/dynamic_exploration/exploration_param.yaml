@@ -10,19 +10,24 @@ global_region_min: [-20, -20, 0.7]
 global_region_max: [20, 20, 1.2]
 local_sample_thresh: 200
 global_sample_thresh: 100
+frontier_sample_thresh: 100
 dist_thresh: 0.8 # minimum distance for sampling between two nodes
+safe_distance: 0.3
 
 # Camera Parameters
 horizontal_FOV: 1.57
 vertical_FOV: 1.57
-dmin: 0
-dmax: 1.0
+dmin: 0.3
+dmax: 2.0
 
+nearest_neighbor_number: 15
+frontier_nearest_neighbor_number: 15
+max_connect_dist: 1.5
 num_yaw_angles: 32
 
 # Goal Candidate
 min_voxel_thresh: 0.5
-min_goal_candidates: 3
-max_goal_candidates: 5
+min_goal_candidates: 5
+max_goal_candidates: 10
 
 information_gain_update_distance: 1.0

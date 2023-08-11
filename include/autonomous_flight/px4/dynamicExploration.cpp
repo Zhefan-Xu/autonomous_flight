@@ -224,6 +224,7 @@ namespace AutoFlight{
 						}
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+							cout << "[AutoFlight]: Wait for new waypoints." << endl;
 						}
 						this->replan_ = false;
 					}
@@ -254,31 +255,37 @@ namespace AutoFlight{
 			return;
 		}
 
-		if (this->isReach(this->goal_, 0.25, false)){
-			// cout << "[AutoFlight]: Reach waypoint." << endl;
+		if (this->isReach(this->goal_, 0.25, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
+			// when reach current goal point, reset replan and trajectory ready
+			this->replan_ = false;
+			this->trajectoryReady_ = false;
+
+			// if need rotation, do the rotation
 			if (not this->isReach(this->goal_, 0.25, true)){
-				this->replan_ = false;
-				this->trajectoryReady_ = false;
 				geometry_msgs::Quaternion quat = this->goal_.pose.orientation;
 				double yaw = AutoFlight::rpy_from_quaternion(quat);
 				cout << "[AutoFlight]: Rotate and replan..." << endl;
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 				cout << "[AutoFlight]: Finish rotation. Start to replan." << endl;
-				if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
-					this->goal_ = this->waypoints_.poses[this->waypointIdx_];
-				}
+			}
 
-				if (this->waypointIdx_ + 1 < int(this->waypoints_.poses.size())){
-					++this->waypointIdx_;
-				}
-				else{
-					cout << "[AutoFlight]: Finishing entire path. Wait for new path." << endl;
-				}
 
+			// change current goal
+			if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
+				this->goal_ = this->waypoints_.poses[this->waypointIdx_];
+			}
+
+			if (this->waypointIdx_ + 1 > int(this->waypoints_.poses.size())){
+				cout << "[AutoFlight]: Finishing entire path. Wait for new path." << endl;
+				this->replan_ = false;
+			}
+			else{
+				cout << "[AutoFlight]: Start planning for next waypoint." << endl;
 				this->replan_ = true;
-				this->trajectoryReady_ = false;
-				return;
-			}			
+			}
+			++this->waypointIdx_;
+			this->trajectoryReady_ = false;
+			return;		
 		}
 
 		if (this->waypoints_.poses.size() != 0){

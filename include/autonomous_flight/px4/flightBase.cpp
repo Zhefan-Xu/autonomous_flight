@@ -49,7 +49,7 @@ namespace AutoFlight{
 	}
 
 	void flightBase::publishTarget(){
-		ros::Rate r (50);
+		ros::Rate r (30);
 
 		// warmup
 		for(int i = 100; ros::ok() && i > 0; --i){
@@ -148,7 +148,7 @@ namespace AutoFlight{
 
 
 		cout << "[AutoFlight]: Start taking off..." << endl;
-		ros::Rate r (100);
+		ros::Rate r (30);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1){
 			ros::spinOnce();
 			r.sleep();
@@ -267,7 +267,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped psT;
 		psT.pose = ps.pose;
 		ros::Time startTime = ros::Time::now();
-		ros::Rate r (100);
+		ros::Rate r (30);
 		while (ros::ok() and not this->isReach(ps)){
 			ros::Time currTime = ros::Time::now();
 			double t = (currTime - startTime).toSec();
