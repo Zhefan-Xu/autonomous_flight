@@ -255,13 +255,13 @@ namespace AutoFlight{
 			return;
 		}
 
-		if (this->isReach(this->goal_, 0.25, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
+		if (this->isReach(this->goal_, 0.1, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
 			// when reach current goal point, reset replan and trajectory ready
 			this->replan_ = false;
 			this->trajectoryReady_ = false;
 
 			// if need rotation, do the rotation
-			if (not this->isReach(this->goal_, 0.25, true)){
+			if (not this->isReach(this->goal_, 0.1, true)){
 				geometry_msgs::Quaternion quat = this->goal_.pose.orientation;
 				double yaw = AutoFlight::rpy_from_quaternion(quat);
 				cout << "[AutoFlight]: Rotate and replan..." << endl;

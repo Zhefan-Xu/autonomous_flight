@@ -49,7 +49,7 @@ namespace AutoFlight{
 	}
 
 	void flightBase::publishTarget(){
-		ros::Rate r (30);
+		ros::Rate r (50);
 
 		// warmup
 		for(int i = 100; ros::ok() && i > 0; --i){
@@ -78,6 +78,7 @@ namespace AutoFlight{
 	        }
 
 	        if (this->poseControl_){
+	        	this->poseTgt_.header.stamp = ros::Time::now();
 	        	this->posePub_.publish(this->poseTgt_);
 	        }
 	        else{
@@ -148,7 +149,7 @@ namespace AutoFlight{
 
 
 		cout << "[AutoFlight]: Start taking off..." << endl;
-		ros::Rate r (30);
+		ros::Rate r (50);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1){
 			ros::spinOnce();
 			r.sleep();
@@ -190,7 +191,7 @@ namespace AutoFlight{
 		this->updateTarget(startPs);
 		
 		cout << "[AutoFlight]: Go to target point..." << endl;
-		ros::Rate rate (30);
+		ros::Rate rate (50);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.x - startPs.pose.position.x) >= 0.1){
 			ros::spinOnce();
 			rate.sleep();
@@ -267,9 +268,10 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped psT;
 		psT.pose = ps.pose;
 		ros::Time startTime = ros::Time::now();
-		ros::Rate r (30);
+		ros::Time currTime = ros::Time::now();
+		ros::Rate r (50);
 		while (ros::ok() and not this->isReach(ps)){
-			ros::Time currTime = ros::Time::now();
+			currTime = ros::Time::now();
 			double t = (currTime - startTime).toSec();
 
 			if (t >= endTime){ 
@@ -279,8 +281,9 @@ namespace AutoFlight{
 				double currYawTgt = yawCurr + (double) direction * t/endTime * yawDiffAbs;
 				geometry_msgs::Quaternion quatT = AutoFlight::quaternion_from_rpy(0, 0, currYawTgt);
 				psT.pose.orientation = quatT;
-				this->updateTarget(psT);
+				
 			}
+			this->updateTarget(psT);
 			// cout << "here" << endl;
 			ros::spinOnce();
 			r.sleep();
@@ -290,7 +293,6 @@ namespace AutoFlight{
 	void flightBase::updateTarget(const geometry_msgs::PoseStamped& ps){
 		this->poseTgt_ = ps;
 		this->poseTgt_.header.frame_id = "map";
-		this->poseTgt_.header.stamp = ros::Time::now();
 		this->poseControl_ = true;
 	}
 
