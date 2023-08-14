@@ -40,6 +40,7 @@ namespace AutoFlight{
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
+		double wpStablizeTime_;
 
 		// exploration data
 		bool replan_ = false;
@@ -84,6 +85,7 @@ namespace AutoFlight{
 		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos);
 		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos, double yaw);
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
+		void waitTime(double time);
 	};
 }
 #endif

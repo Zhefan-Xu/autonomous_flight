@@ -49,6 +49,15 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Angular velocity is set to: " << this->desiredAngularVel_ << "rad/s." << endl;
 		}	
+
+		//  desired angular velocity
+		if (not this->nh_.getParam("autonomous_flight/waypoint_stablize_time", this->wpStablizeTime_)){
+			this->wpStablizeTime_ = 1.0;
+			cout << "[AutoFlight]: No waypoint stablize time param. Use default 1.0s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Waypoint stablize time is set to: " << this->wpStablizeTime_ << "s." << endl;
+		}	
 	}
 
 	void dynamicExploration::initModules(){
@@ -224,7 +233,7 @@ namespace AutoFlight{
 						}
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
-							cout << "[AutoFlight]: Wait for new waypoints." << endl;
+							cout << "[AutoFlight]: Wait for new path. Press ENTER to Replan" << endl;
 						}
 						this->replan_ = false;
 					}
@@ -265,6 +274,7 @@ namespace AutoFlight{
 				geometry_msgs::Quaternion quat = this->goal_.pose.orientation;
 				double yaw = AutoFlight::rpy_from_quaternion(quat);
 				cout << "[AutoFlight]: Rotate and replan..." << endl;
+				this->waitTime(this->wpStablizeTime_);
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 				cout << "[AutoFlight]: Finish rotation. Start to replan." << endl;
 			}
@@ -276,7 +286,7 @@ namespace AutoFlight{
 			}
 
 			if (this->waypointIdx_ + 1 > int(this->waypoints_.poses.size())){
-				cout << "[AutoFlight]: Finishing entire path. Wait for new path." << endl;
+				cout << "[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan" << endl;
 				this->replan_ = false;
 			}
 			else{
@@ -292,7 +302,7 @@ namespace AutoFlight{
 			if (not this->isGoalValid() and (this->replan_ or this->trajectoryReady_)){
 				this->replan_ = false;
 				this->trajectoryReady_ = false;
-				cout << "[AutoFlight]: Current goal is invalid. Need new plan." << endl;
+				cout << "[AutoFlight]: Current goal is invalid. Need new path. Press ENTER to Replan" << endl;
 				return;
 			}
 		}
@@ -495,7 +505,7 @@ namespace AutoFlight{
 			}
 			ros::Time endTime = ros::Time::now();
 
-			cout << "PRESS ENTER to Replan." << endl;
+			// cout << "[AutoFlight]: PRESS ENTER to Replan." << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();					
@@ -686,6 +696,20 @@ namespace AutoFlight{
 			obstaclesPos.push_back(pos);
 			obstaclesVel.push_back(vel);
 			obstaclesSize.push_back(size);
+		}
+	}
+
+
+	void dynamicExploration::waitTime(double time){
+		ros::Rate r (30);
+		ros::Time startTime = ros::Time::now();
+		ros::Time currTime = ros::Time::now();
+		double passtime = 0.0;
+		while (ros::ok() and passtime < time){
+			currTime = ros::Time::now();
+			passtime = (currTime - startTime).toSec();
+			ros::spinOnce();
+			r.sleep();
 		}
 	}
 }

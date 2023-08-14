@@ -269,7 +269,7 @@ namespace AutoFlight{
 		psT.pose = ps.pose;
 		ros::Time startTime = ros::Time::now();
 		ros::Time currTime = ros::Time::now();
-		ros::Rate r (10);
+		ros::Rate r (30);
 		while (ros::ok() and not this->isReach(ps)){
 			currTime = ros::Time::now();
 			double t = (currTime - startTime).toSec();
