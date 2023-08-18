@@ -43,6 +43,7 @@ namespace AutoFlight{
 		double wpStablizeTime_;
 
 		// exploration data
+		bool exploreReplan_ = true;
 		bool replan_ = false;
 		bool newWaypoints_ = false;
 		int waypointIdx_ = 1;

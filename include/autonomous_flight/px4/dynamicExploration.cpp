@@ -113,10 +113,10 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::registerPub(){
-		this->polyTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/poly_traj", 10);
-		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/pwl_trajectory", 10);
-		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/bspline_trajectory", 10);
-		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/input_trajectory", 10);
+		this->polyTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/poly_traj", 1000);
+		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/pwl_trajectory", 1000);
+		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/bspline_trajectory", 1000);
+		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("dynamicExploration/input_trajectory", 1000);
 	}
 
 	void dynamicExploration::plannerCB(const ros::TimerEvent&){
@@ -264,13 +264,16 @@ namespace AutoFlight{
 			return;
 		}
 
-		if (this->isReach(this->goal_, 0.1, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
+		// if (this->isReach(this->goal_, 0.1, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
+		if (this->waypoints_.poses.size() != 0 and this->isReach(this->goal_, 0.1, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
+			// cout << "1" << endl;
 			// when reach current goal point, reset replan and trajectory ready
 			this->replan_ = false;
 			this->trajectoryReady_ = false;
 
 			// if need rotation, do the rotation
 			if (not this->isReach(this->goal_, 0.1, true)){
+				// cout << "2" << endl;
 				geometry_msgs::Quaternion quat = this->goal_.pose.orientation;
 				double yaw = AutoFlight::rpy_from_quaternion(quat);
 				cout << "[AutoFlight]: Rotate and replan..." << endl;
@@ -278,13 +281,13 @@ namespace AutoFlight{
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 				cout << "[AutoFlight]: Finish rotation. Start to replan." << endl;
 			}
-
+			// cout << "3" << endl;
 
 			// change current goal
 			if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
 				this->goal_ = this->waypoints_.poses[this->waypointIdx_];
 			}
-
+			// cout << "4" << endl;
 			if (this->waypointIdx_ + 1 > int(this->waypoints_.poses.size())){
 				cout << "[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan" << endl;
 				this->replan_ = false;
@@ -405,7 +408,16 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::run(){
+		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop." << endl;
+		std::cin.clear();
+		fflush(stdin);
+		std::cin.get();
 		this->takeoff();
+
+		cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.clear();
+		fflush(stdin);
+		std::cin.get();
 		this->registerCallback();
 	}
 
@@ -493,8 +505,11 @@ namespace AutoFlight{
 		this->moveToOrientation(0, this->desiredAngularVel_);
 		cout << "[AutoFlight]: End initial scan." << endl; 
 		
-
+		cout << "[AutoFlight]: PRESS ENTER to Start Planning." << endl;
 		while (ros::ok()){
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();			
 			this->expPlanner_->setMap(this->map_);
 			ros::Time startTime = ros::Time::now();
 			bool replanSuccess = this->expPlanner_->makePlan();
@@ -503,12 +518,10 @@ namespace AutoFlight{
 				this->newWaypoints_ = true;
 				this->waypointIdx_ = 1;
 			}
-			ros::Time endTime = ros::Time::now();
 
-			// cout << "[AutoFlight]: PRESS ENTER to Replan." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();					
+			ros::Time endTime = ros::Time::now();
+			cout << "[AutoFlight]: DEP planning time: " << (endTime - startTime).toSec() << "s." << endl;
+
 		}
 	}
 

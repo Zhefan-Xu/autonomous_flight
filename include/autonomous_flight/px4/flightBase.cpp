@@ -84,6 +84,7 @@ namespace AutoFlight{
 	        else{
 				this->statePub_.publish(this->stateTgt_);
 			}
+			// ros::spinOnce();
 			r.sleep();
 		}		
 	}
