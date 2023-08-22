@@ -24,6 +24,7 @@ namespace AutoFlight{
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
 
+		ros::Timer explorationTimer_;
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
@@ -41,8 +42,10 @@ namespace AutoFlight{
 		double desiredAcc_;
 		double desiredAngularVel_;
 		double wpStablizeTime_;
+		bool initialScan_;
 
 		// exploration data
+		bool explorationReplan_ = true;
 		bool replan_ = false;
 		bool newWaypoints_ = false;
 		int waypointIdx_ = 1;
@@ -66,6 +69,7 @@ namespace AutoFlight{
 		void registerCallback();
 		void registerPub();
 
+		void explorationCB(const ros::TimerEvent&);
 		void plannerCB(const ros::TimerEvent&);
 		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
@@ -73,6 +77,7 @@ namespace AutoFlight{
 		void freeMapCB(const ros::TimerEvent&); // using fake detector
 
 		void run();
+		void initExplore();
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);
 		bool hasCollision();
 		bool hasDynamicCollision();

@@ -49,7 +49,7 @@ namespace AutoFlight{
 	}
 
 	void flightBase::publishTarget(){
-		ros::Rate r (30);
+		ros::Rate r (100);
 
 		// warmup
 		for(int i = 100; ros::ok() && i > 0; --i){
@@ -84,7 +84,7 @@ namespace AutoFlight{
 	        else{
 				this->statePub_.publish(this->stateTgt_);
 			}
-			// ros::spinOnce();
+			ros::spinOnce();
 			r.sleep();
 		}		
 	}

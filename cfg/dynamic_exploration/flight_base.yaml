@@ -3,4 +3,5 @@ use_fake_detector: false
 desired_velocity: 1.0 # m/s
 desired_acceleration: 3.0 # m/s^2
 desired_angular_velocity: 0.5 # rad/s
-waypoint_stablize_time: 3.0
+waypoint_stablize_time: 0.0
+initial_scan: false
