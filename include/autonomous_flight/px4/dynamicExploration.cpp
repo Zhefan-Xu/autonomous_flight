@@ -100,11 +100,11 @@ namespace AutoFlight{
 
 	void dynamicExploration::registerCallback(){
 		// initialize exploration planner replan in another thread
-		// this->exploreReplanWorker_ = std::thread(&dynamicExploration::exploreReplan, this);
-		// this->exploreReplanWorker_.detach();
+		this->exploreReplanWorker_ = std::thread(&dynamicExploration::exploreReplan, this);
+		this->exploreReplanWorker_.detach();
 
 		// exploration callback
-		this->explorationTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicExploration::explorationCB, this);
+		// this->explorationTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicExploration::explorationCB, this);
 
 		// planner callback
 		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicExploration::plannerCB, this);
@@ -262,7 +262,7 @@ namespace AutoFlight{
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
 							cout << "[AutoFlight]: Wait for new path. Press ENTER to Replan" << endl;
-							this->explorationReplan_ = true;
+							// this->explorationReplan_ = true;
 						}
 						this->replan_ = false;
 					}
@@ -284,15 +284,15 @@ namespace AutoFlight{
 			this->replan_ = false;
 			this->trajectoryReady_ = false;
 			double yaw = atan2(this->waypoints_.poses[1].pose.position.y - this->odom_.pose.pose.position.y, this->waypoints_.poses[1].pose.position.x - this->odom_.pose.pose.position.x);
-			cout << "[AutoFlight]: Go to next waypoint. Press ENTER to continue rotation." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
+			// cout << "[AutoFlight]: Go to next waypoint. Press ENTER to continue rotation." << endl;
+			// std::cin.clear();
+			// fflush(stdin);
+			// std::cin.get();
 			this->moveToOrientation(yaw, this->desiredAngularVel_);
-			cout << "[AutoFlight]: Press ENTER to relan forward." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();		
+			// cout << "[AutoFlight]: Press ENTER to move forward." << endl;
+			// std::cin.clear();
+			// fflush(stdin);
+			// std::cin.get();		
 			this->replan_ = true;
 			this->newWaypoints_ = false;
 			this->goal_ = this->waypoints_.poses[this->waypointIdx_];
@@ -308,21 +308,20 @@ namespace AutoFlight{
 			// when reach current goal point, reset replan and trajectory ready
 			this->replan_ = false;
 			this->trajectoryReady_ = false;
-
+			// cout << "[AutoFlight]: Go to next waypoint. Press ENTER to continue rotation." << endl;
+			// std::cin.clear();
+			// fflush(stdin);
+			// std::cin.get();
+			cout << "[AutoFlight]: Rotate and replan..." << endl;
 			geometry_msgs::Quaternion quat = this->goal_.pose.orientation;
 			double yaw = AutoFlight::rpy_from_quaternion(quat);
-			cout << "[AutoFlight]: Go to next waypoint. Press ENTER to continue rotation." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
-			cout << "[AutoFlight]: Rotate and replan..." << endl;
 			this->waitTime(this->wpStablizeTime_);
 			this->moveToOrientation(yaw, this->desiredAngularVel_);
 			cout << "[AutoFlight]: Finish rotation." << endl;
-			cout << "[AutoFlight]: Press ENTER to relan forward." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();		
+			// cout << "[AutoFlight]: Press ENTER to move forward." << endl;
+			// std::cin.clear();
+			// fflush(stdin);
+			// std::cin.get();	
 
 			// change current goal
 			if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
@@ -331,7 +330,7 @@ namespace AutoFlight{
 			if (this->waypointIdx_ + 1 > int(this->waypoints_.poses.size())){
 				cout << "[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan" << endl;
 				this->replan_ = false;
-				this->explorationReplan_ = true;
+				// this->explorationReplan_ = true;
 			}
 			else{
 				cout << "[AutoFlight]: Start planning for next waypoint." << endl;
@@ -339,6 +338,7 @@ namespace AutoFlight{
 			}
 			++this->waypointIdx_;
 			this->trajectoryReady_ = false;
+	
 			return;		
 		}
 
@@ -347,7 +347,7 @@ namespace AutoFlight{
 				this->replan_ = false;
 				this->trajectoryReady_ = false;
 				cout << "[AutoFlight]: Current goal is invalid. Need new path. Press ENTER to Replan" << endl;
-				this->explorationReplan_ = true;
+				// this->explorationReplan_ = true;
 				return;
 			}
 		}
@@ -574,37 +574,36 @@ namespace AutoFlight{
 
 	void dynamicExploration::exploreReplan(){
 		// set start region to be free
-		Eigen::Vector3d range (2.0, 2.0, 1.0);
-		Eigen::Vector3d startPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-		Eigen::Vector3d c1 = startPos - range;
-		Eigen::Vector3d c2 = startPos + range;
-		this->map_->freeRegion(c1, c2);
-		cout << "[AutoFlight]: Robot nearby region is set to free. Range: " << range.transpose() << endl;
+		// Eigen::Vector3d range (2.0, 2.0, 1.0);
+		// Eigen::Vector3d startPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
+		// Eigen::Vector3d c1 = startPos - range;
+		// Eigen::Vector3d c2 = startPos + range;
+		// this->map_->freeRegion(c1, c2);
+		// cout << "[AutoFlight]: Robot nearby region is set to free. Range: " << range.transpose() << endl;
 
-		if (this->initialScan_){
-			cout << "[AutoFlight]: Start initial scan..." << endl;
-			this->moveToOrientation(-PI_const/2, this->desiredAngularVel_);
-			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
+		// if (this->initialScan_){
+		// 	cout << "[AutoFlight]: Start initial scan..." << endl;
+		// 	this->moveToOrientation(-PI_const/2, this->desiredAngularVel_);
+		// 	cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
+		// 	std::cin.clear();
+		// 	fflush(stdin);
+		// 	std::cin.get();
 						
-			this->moveToOrientation(-PI_const, this->desiredAngularVel_);
-			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
+		// 	this->moveToOrientation(-PI_const, this->desiredAngularVel_);
+		// 	cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
+		// 	std::cin.clear();
+		// 	fflush(stdin);
+		// 	std::cin.get();
 
-			this->moveToOrientation(PI_const/2, this->desiredAngularVel_);
-			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
+		// 	this->moveToOrientation(PI_const/2, this->desiredAngularVel_);
+		// 	cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
+		// 	std::cin.clear();
+		// 	fflush(stdin);
+		// 	std::cin.get();
 			
-			this->moveToOrientation(0, this->desiredAngularVel_);
-			cout << "[AutoFlight]: End initial scan." << endl; 
-		}
-		cout << "[AutoFlight]: PRESS ENTER to Start Planning." << endl;
+		// 	this->moveToOrientation(0, this->desiredAngularVel_);
+		// 	cout << "[AutoFlight]: End initial scan." << endl; 
+		// }
 		while (ros::ok()){
 			std::cin.clear();
 			fflush(stdin);

@@ -25,8 +25,8 @@ namespace AutoFlight{
     	this->setModeClient_ = this->nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");	
 
     	// Publisher
-		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 1000);
-		this->statePub_ = this->nh_.advertise<tracking_controller::Target>("/autonomous_flight/target_state", 1000);
+		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
+		this->statePub_ = this->nh_.advertise<tracking_controller::Target>("/autonomous_flight/target_state", 10);
 
 
 		// Wait for odometry and mavros to be ready
@@ -49,7 +49,7 @@ namespace AutoFlight{
 	}
 
 	void flightBase::publishTarget(){
-		ros::Rate r (100);
+		ros::Rate r (50);
 
 		// warmup
 		for(int i = 100; ros::ok() && i > 0; --i){
@@ -84,9 +84,9 @@ namespace AutoFlight{
 	        else{
 				this->statePub_.publish(this->stateTgt_);
 			}
-			ros::spinOnce();
+			// ros::spinOnce();
 			r.sleep();
-		}		
+		}	
 	}
 
 	void flightBase::stateCB(const mavros_msgs::State::ConstPtr& state){
