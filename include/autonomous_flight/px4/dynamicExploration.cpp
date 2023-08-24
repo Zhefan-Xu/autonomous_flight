@@ -295,7 +295,9 @@ namespace AutoFlight{
 			// std::cin.get();		
 			this->replan_ = true;
 			this->newWaypoints_ = false;
-			this->goal_ = this->waypoints_.poses[this->waypointIdx_];
+			if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
+				this->goal_ = this->waypoints_.poses[this->waypointIdx_];
+			}
 			++this->waypointIdx_;
 			cout << "[AutoFlight]: Replan for new waypoints." << endl; 
 
@@ -401,12 +403,13 @@ namespace AutoFlight{
 
 			
 			tracking_controller::Target target;
-			target.yaw = atan2(vel(1), vel(0));
+			// target.yaw = atan2(vel(1), vel(0));
 			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
 				vel *= 0;
 				acc *= 0;
 				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			}			
+			}
+			target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);			
 			target.position.x = pos(0);
 			target.position.y = pos(1);
 			target.position.z = pos(2);
@@ -605,9 +608,6 @@ namespace AutoFlight{
 		// 	cout << "[AutoFlight]: End initial scan." << endl; 
 		// }
 		while (ros::ok()){
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();			
 			this->expPlanner_->setMap(this->map_);
 			ros::Time startTime = ros::Time::now();
 			bool replanSuccess = this->expPlanner_->makePlan();
@@ -616,8 +616,10 @@ namespace AutoFlight{
 				this->newWaypoints_ = true;
 				this->waypointIdx_ = 1;
 			}
-
 			ros::Time endTime = ros::Time::now();
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();		
 			cout << "[AutoFlight]: DEP planning time: " << (endTime - startTime).toSec() << "s." << endl;
 
 		}
