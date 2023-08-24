@@ -151,90 +151,108 @@ namespace AutoFlight{
 		// cout << "in planner callback" << endl;
 
 		if (this->replan_){
+			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+			if (this->useFakeDetector_){
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
+			else{ 
+				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}			
 			nav_msgs::Path inputTraj;
 			std::vector<Eigen::Vector3d> startEndConditions;
 			this->getStartEndConditions(startEndConditions); 
-			double initTs = this->bsplineTraj_->getInitTs();
-			if (not this->trajectoryReady_){
-				// generate new trajectory
-				nav_msgs::Path simplePath;
-				geometry_msgs::PoseStamped pStart, pGoal;
-				pStart.pose = this->odom_.pose.pose;
-				pGoal = this->goal_;
-				simplePath.poses = {pStart, pGoal};
-				this->pwlTraj_->updatePath(simplePath, false);
-				this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());
-			}
-			else{
-				Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
-				geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
-				Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
-				// if ((bsplineLastPos - goalPos).norm() >= 0.1){
-				nav_msgs::Path inputPWLTraj;
-				nav_msgs::Path simplePath;
-				geometry_msgs::PoseStamped pStart, pGoal;
-				pStart = lastPs;
-				pGoal = this->goal_;
-				simplePath.poses = {pStart, pGoal};
-				this->pwlTraj_->updatePath(simplePath, false);
-				this->pwlTraj_->makePlan(inputPWLTraj, this->bsplineTraj_->getControlPointDist());
+			// double initTs = this->bsplineTraj_->getInitTs();
+
+			// generate new trajectory
+			nav_msgs::Path simplePath;
+			geometry_msgs::PoseStamped pStart, pGoal;
+			pStart.pose = this->odom_.pose.pose;
+			pGoal = this->goal_;
+			simplePath.poses = {pStart, pGoal};
+			this->pwlTraj_->updatePath(simplePath, false);
+			this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());
+			// if (not this->trajectoryReady_){
+			// 	// generate new trajectory
+			// 	nav_msgs::Path simplePath;
+			// 	geometry_msgs::PoseStamped pStart, pGoal;
+			// 	pStart.pose = this->odom_.pose.pose;
+			// 	pGoal = this->goal_;
+			// 	simplePath.poses = {pStart, pGoal};
+			// 	this->pwlTraj_->updatePath(simplePath, false);
+			// 	this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());
+			// }
+			// else{
+			// 	Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
+			// 	geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
+			// 	Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
+			// 	// if ((bsplineLastPos - goalPos).norm() >= 0.1){
+			// 	nav_msgs::Path inputPWLTraj;
+			// 	nav_msgs::Path simplePath;
+			// 	geometry_msgs::PoseStamped pStart, pGoal;
+			// 	pStart = lastPs;
+			// 	pGoal = this->goal_;
+			// 	simplePath.poses = {pStart, pGoal};
+			// 	this->pwlTraj_->updatePath(simplePath, false);
+			// 	this->pwlTraj_->makePlan(inputPWLTraj, this->bsplineTraj_->getControlPointDist());
 
 
-				nav_msgs::Path adjustedInputCombinedTraj;
-				bool satisfyDistanceCheck = false;
-				double dtTemp = initTs;
-				double finalTimeTemp;
-				ros::Time startTime = ros::Time::now();
-				ros::Time currTime;
-				while (ros::ok()){
-					currTime = ros::Time::now();
-					if ((currTime - startTime).toSec() >= 0.05){
-						cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
-						break;
-					}							
-					nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-					nav_msgs::Path inputCombinedTraj;
-					inputCombinedTraj.poses = inputRestTraj.poses;
-					for (size_t i=1; i<inputPWLTraj.poses.size(); ++i){
-						inputCombinedTraj.poses.push_back(inputPWLTraj.poses[i]);
-					}
+			// 	nav_msgs::Path adjustedInputCombinedTraj;
+			// 	bool satisfyDistanceCheck = false;
+			// 	double dtTemp = initTs;
+			// 	double finalTimeTemp;
+			// 	ros::Time startTime = ros::Time::now();
+			// 	ros::Time currTime;
+			// 	while (ros::ok()){
+			// 		currTime = ros::Time::now();
+			// 		if ((currTime - startTime).toSec() >= 0.05){
+			// 			cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+			// 			break;
+			// 		}							
+			// 		nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
+			// 		nav_msgs::Path inputCombinedTraj;
+			// 		inputCombinedTraj.poses = inputRestTraj.poses;
+			// 		for (size_t i=1; i<inputPWLTraj.poses.size(); ++i){
+			// 			inputCombinedTraj.poses.push_back(inputPWLTraj.poses[i]);
+			// 		}
 					
-					satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
-					if (satisfyDistanceCheck) break;
+			// 		satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
+			// 		if (satisfyDistanceCheck) break;
 					
-					dtTemp *= 0.8; // magic number 0.8
-				}
-				inputTraj = adjustedInputCombinedTraj;
-				// }
-				// else{
-				// 	nav_msgs::Path adjustedInputRestTraj;
-				// 	bool satisfyDistanceCheck = false;
-				// 	double dtTemp = initTs;
-				// 	double finalTimeTemp;
-				// 	ros::Time startTime = ros::Time::now();
-				// 	ros::Time currTime;
-				// 	while (ros::ok()){
-				// 		currTime = ros::Time::now();
-				// 		if ((currTime - startTime).toSec() >= 0.05){
-				// 			cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
-				// 			break;
-				// 		}
-				// 		nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-				// 		satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
-				// 		if (satisfyDistanceCheck) break;
+			// 		dtTemp *= 0.8; // magic number 0.8
+			// 	}
+			// 	inputTraj = adjustedInputCombinedTraj;
+			// 	// }
+			// 	// else{
+			// 	// 	nav_msgs::Path adjustedInputRestTraj;
+			// 	// 	bool satisfyDistanceCheck = false;
+			// 	// 	double dtTemp = initTs;
+			// 	// 	double finalTimeTemp;
+			// 	// 	ros::Time startTime = ros::Time::now();
+			// 	// 	ros::Time currTime;
+			// 	// 	while (ros::ok()){
+			// 	// 		currTime = ros::Time::now();
+			// 	// 		if ((currTime - startTime).toSec() >= 0.05){
+			// 	// 			cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+			// 	// 			break;
+			// 	// 		}
+			// 	// 		nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
+			// 	// 		satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
+			// 	// 		if (satisfyDistanceCheck) break;
 						
-				// 		dtTemp *= 0.8;
-				// 	}
-				// 	inputTraj = adjustedInputRestTraj;					
-				// }
+			// 	// 		dtTemp *= 0.8;
+			// 	// 	}
+			// 	// 	inputTraj = adjustedInputRestTraj;					
+			// 	// }
 
-			}
+			// }
 
 			
 
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
-
+			if (obstaclesPos.size() != 0){
+				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -449,7 +467,7 @@ namespace AutoFlight{
 		}
 
 		this->map_->updateFreeRegions(freeRegions);	
-		this->map_->freeHistRegions();
+		// this->map_->freeHistRegions();
 	}
 
 	void dynamicExploration::run(){
