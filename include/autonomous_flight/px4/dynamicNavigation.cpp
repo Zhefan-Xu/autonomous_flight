@@ -79,6 +79,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Desired angular velocity is set to: " << this->desiredAngularVel_ << "rad/s." << endl;
 		}	
 
+    	// replan time for dynamic obstacle
+		if (not this->nh_.getParam("autonomous_flight/replan_time_for_dynamic_obstacles", this->replanTimeForDynamicObstacle_)){
+			this->replanTimeForDynamicObstacle_ = 0.3;
+			cout << "[AutoFlight]: No dynamic obstacle replan time param found. Use default: 0.3s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Dynamic obstacle replan time is set to: " << this->replanTimeForDynamicObstacle_ << "s." << endl;
+		}	
+
     	// trajectory data save path   	
 		if (not this->nh_.getParam("autonomous_flight/trajectory_info_save_path", this->trajSavePath_)){
 			this->trajSavePath_ = "No";
@@ -412,11 +421,12 @@ namespace AutoFlight{
 			}
 
 			// replan for dynamic obstacles
-			if (this->hasDynamicCollision()){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
-				return;
-			}
+			// if (this->hasDynamicCollision()){
+			// // if (this->hasDynamicObstacle()){
+			// 	this->replan_ = true;
+			// 	cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+			// 	return;
+			// }
 
 			if (this->computeExecutionDistance() >= 3.0){
 				this->replan_ = true;
@@ -424,11 +434,11 @@ namespace AutoFlight{
 				return;
 			}
 
-			// if (this->replanForDynamicObstacle()){
-			// 	this->replan_ = true;
-			// 	cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
-			// 	return;
-			// }
+			if (this->replanForDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
+				return;
+			}
 		}
 	}
 

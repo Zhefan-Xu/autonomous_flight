@@ -45,6 +45,7 @@ namespace AutoFlight{
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
+		double replanTimeForDynamicObstacle_;
 		std::string trajSavePath_;
 
 		// navigation data
