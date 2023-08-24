@@ -43,6 +43,7 @@ namespace AutoFlight{
 		double desiredAngularVel_;
 		double wpStablizeTime_;
 		bool initialScan_;
+		double replanTimeForDynamicObstacle_;
 
 		// exploration data
 		bool explorationReplan_ = true;
@@ -58,6 +59,7 @@ namespace AutoFlight{
 		ros::Time trajStartTime_;
 		double trajTime_; // current trajectory time
 		trajPlanner::bspline trajectory_;
+		ros::Time lastDynamicObstacleTime_;
 	
 	public:
 		std::thread exploreReplanWorker_;
@@ -83,6 +85,7 @@ namespace AutoFlight{
 		bool hasDynamicCollision();
 		void exploreReplan();
 		double computeExecutionDistance();
+		bool replanForDynamicObstacle();
 		bool reachExplorationGoal();
 		bool isGoalValid();
 		nav_msgs::Path getCurrentTraj(double dt);

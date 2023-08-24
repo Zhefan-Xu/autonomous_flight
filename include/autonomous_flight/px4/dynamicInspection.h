@@ -7,6 +7,7 @@
 #define DYNAMIC_INSPECTION
 #include <autonomous_flight/px4/flightBase.h>
 #include <map_manager/dynamicMap.h>
+#include <onboard_vision/fakeDetector.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
@@ -26,6 +27,7 @@ namespace AutoFlight{
 		ros::Timer collisionCheckTimer_;
 		ros::Timer replanTimer_;
 		ros::Timer visTimer_;
+		ros::Timer freeMapTimer_;
 		ros::Publisher goalPub_;
 		ros::Publisher rrtPathPub_;
 		ros::Publisher polyTrajPub_;
@@ -35,6 +37,7 @@ namespace AutoFlight{
 
 		// Map
 		std::shared_ptr<mapManager::dynamicMap> map_;
+		std::shared_ptr<onboardVision::fakeDetector> detector_;
 
 		// Planner
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
@@ -49,6 +52,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped goal_;
 
 		// inspection parameters
+		bool useFakeDetector_;
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
@@ -79,6 +83,7 @@ namespace AutoFlight{
 		double confirmMaxAngle_;
 		bool inspectionConfirm_;
 		bool backwardNoTurn_;
+		double replanTimeForDynamicObstacle_;
 		// ***only used when we specify location***
 
 		// inspection data
@@ -98,6 +103,7 @@ namespace AutoFlight{
 		double trajTime_; // current trajectory time
 		trajPlanner::bspline trajectory_; // trajectory data for navigation
 		int countBsplineFailure_ = 0;
+		ros::Time lastDynamicObstacleTime_;
 
 	public:
 		dynamicInspection();
@@ -115,10 +121,12 @@ namespace AutoFlight{
 		void collisionCheckCB(const ros::TimerEvent&); // online collision checking
 		void replanCB(const ros::TimerEvent&); // replan callback
 		void visCB(const ros::TimerEvent&);
+		void freeMapCB(const ros::TimerEvent&);
 
 		geometry_msgs::PoseStamped getForwardGoal();
 		nav_msgs::Path getRestGlobalPath();
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndCondition);
+		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 		void changeState(const FLIGHT_STATE& flightState);
 
 
@@ -163,6 +171,7 @@ namespace AutoFlight{
 		bool hasCollision();
 		bool hasDynamicCollision();
 		double computeExecutionDistance();
+		bool replanForDynamicObstacle();
 		nav_msgs::Path getCurrentTraj(double dt);
 		
 		// utils

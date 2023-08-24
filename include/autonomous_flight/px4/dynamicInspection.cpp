@@ -14,6 +14,16 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::initParam(){
+    	// use simulation detector	
+		if (not this->nh_.getParam("autonomous_flight/use_fake_detector", this->useFakeDetector_)){
+			this->useFakeDetector_ = false;
+			cout << "[AutoFlight]: No use fake detector param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use fake detector is set to: " << this->useFakeDetector_ << "." << endl;
+		}
+
+
 		// desired velocity
 		if (not this->nh_.getParam("autonomous_flight/desired_velocity", this->desiredVel_)){
 			this->desiredVel_ = 0.5;
@@ -260,10 +270,24 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Backward turn is set to: " << this->backwardNoTurn_ << endl;
 		}	
+
+    	// replan time for dynamic obstacle
+		if (not this->nh_.getParam("autonomous_flight/replan_time_for_dynamic_obstacles", this->replanTimeForDynamicObstacle_)){
+			this->replanTimeForDynamicObstacle_ = 0.3;
+			cout << "[AutoFlight]: No dynamic obstacle replan time param found. Use default: 0.3s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Dynamic obstacle replan time is set to: " << this->replanTimeForDynamicObstacle_ << "s." << endl;
+		}	
+
 	}
 
 	void dynamicInspection::initModules(){
 		// initialize map
+		if (this->useFakeDetector_){
+			// initialize fake detector
+			this->detector_.reset(new onboardVision::fakeDetector (this->nh_));	
+		}
 		this->map_.reset(new mapManager::dynamicMap (this->nh_));
 
 		// initialize fake detector
@@ -329,6 +353,11 @@ namespace AutoFlight{
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.03), &dynamicInspection::visCB, this);
+		
+		if (this->useFakeDetector_){
+			// free map callback
+			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicInspection::freeMapCB, this);
+		}
 	}
 
 	void dynamicInspection::run(){
@@ -358,7 +387,12 @@ namespace AutoFlight{
 			// navigate to the goal position
 			if (this->replan_){
 				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				if (this->useFakeDetector_){
+					this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}
+				else{ 
+					this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}				
 				std::vector<Eigen::Vector3d> startEndConditions;
 				this->getStartEndConditions(startEndConditions); 
 
@@ -588,7 +622,12 @@ namespace AutoFlight{
 					double finalTime; // final time for bspline trajectory
 					double initTs = this->bsplineTraj_->getInitTs();
 					std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-					this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					if (this->useFakeDetector_){
+						this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}
+					else{ 
+						this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}					
 					std::vector<Eigen::Vector3d> startEndConditions;
 					this->getStartEndConditions(startEndConditions); 
 					// get the latest global waypoint path
@@ -625,7 +664,7 @@ namespace AutoFlight{
 					startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
 
 					updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
-					if (obstaclesPos.size() != 0){
+					if (obstaclesPos.size() != 0 and updateSuccess){
 						this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
 			
@@ -777,7 +816,12 @@ namespace AutoFlight{
 					double finalTime; // final time for bspline trajectory
 					double initTs = this->bsplineTraj_->getInitTs();
 					std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-					this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					if (this->useFakeDetector_){
+						this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}
+					else{ 
+						this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}					
 					std::vector<Eigen::Vector3d> startEndConditions;
 					this->getStartEndConditions(startEndConditions); 
 					// get the latest global waypoint path
@@ -815,7 +859,7 @@ namespace AutoFlight{
 
 
 					updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
-					if (obstaclesPos.size() != 0){
+					if (obstaclesPos.size() != 0 and updateSuccess){
 						this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
 			
@@ -1023,11 +1067,11 @@ namespace AutoFlight{
 			}
 
 			// replan for dynamic obstacles
-			if (this->hasDynamicCollision()){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
-				return;
-			}
+			// if (this->hasDynamicCollision()){
+			// 	this->replan_ = true;
+			// 	cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+			// 	return;
+			// }
 
 			if (this->computeExecutionDistance() >= 3.0){
 				this->replan_ = true;
@@ -1035,11 +1079,11 @@ namespace AutoFlight{
 				return;
 			}
 
-			// if (this->replanForDynamicObstacle()){
-			// 	this->replan_ = true;
-			// 	cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
-			// 	return;
-			// }
+			if (this->replanForDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
+				return;
+			}
 		}		
 	}
 
@@ -1064,6 +1108,19 @@ namespace AutoFlight{
 			this->getWallVisMsg(this->wallVisMsg_);
 			this->wallVisPub_.publish(this->wallVisMsg_);
 		}
+	}
+
+	void dynamicInspection::freeMapCB(const ros::TimerEvent&){
+		onboard_vision::ObstacleList msg;
+		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
+		this->detector_->getObstacles(msg);
+		for (onboard_vision::Obstacle ob: msg.obstacles){
+			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
+			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
+			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+		}
+
+		this->map_->updateFreeRegions(freeRegions);	
 	}
 
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
@@ -1127,6 +1184,19 @@ namespace AutoFlight{
 			currPath.poses.push_back(this->rrtPathMsg_.poses[i]);
 		}
 		return currPath;		
+	}
+
+	void dynamicInspection::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
+		onboard_vision::ObstacleList msg;
+		this->detector_->getObstaclesInSensorRange(PI_const, msg);
+		for (onboard_vision::Obstacle ob : msg.obstacles){
+			Eigen::Vector3d pos (ob.px, ob.py, ob.pz);
+			Eigen::Vector3d vel (ob.vx, ob.vy, ob.vz);
+			Eigen::Vector3d size (ob.xsize, ob.ysize, ob.zsize);
+			obstaclesPos.push_back(pos);
+			obstaclesVel.push_back(vel);
+			obstaclesSize.push_back(size);
+		}
 	}
 
 	void dynamicInspection::getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions){
@@ -2095,7 +2165,12 @@ namespace AutoFlight{
 	bool dynamicInspection::hasDynamicCollision(){
 		if (this->trajectoryReady_){
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			if (this->useFakeDetector_){
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
+			else{ 
+				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}			
 			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
 				Eigen::Vector3d p = this->trajectory_.at(t);
 				
@@ -2133,6 +2208,28 @@ namespace AutoFlight{
 			return totalDistance;
 		}
 		return -1.0;		
+	}
+
+	bool dynamicInspection::replanForDynamicObstacle(){
+		ros::Time currTime = ros::Time::now();
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		if (this->useFakeDetector_){
+			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+		else{ 
+			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+
+		bool replan = false;
+		bool hasDynamicObstacle = (obstaclesPos.size() != 0);
+		if (hasDynamicObstacle){
+			double timePassed = (currTime - this->lastDynamicObstacleTime_).toSec();
+			if (timePassed >= this->replanTimeForDynamicObstacle_){
+				replan = true;
+				this->lastDynamicObstacleTime_ = currTime;
+			}
+		}
+		return replan;
 	}
 
 	nav_msgs::Path dynamicInspection::getCurrentTraj(double dt){

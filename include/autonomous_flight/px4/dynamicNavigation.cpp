@@ -341,7 +341,7 @@ namespace AutoFlight{
 
 			
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
-			if (obstaclesPos.size() != 0){
+			if (obstaclesPos.size() != 0 and updateSuccess){
 				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 			}
 
@@ -508,7 +508,6 @@ namespace AutoFlight{
 		}
 
 		this->map_->updateFreeRegions(freeRegions);	
-		this->map_->freeHistRegions();
 	}
 
 	void dynamicNavigation::run(){
@@ -620,7 +619,7 @@ namespace AutoFlight{
 		bool hasDynamicObstacle = (obstaclesPos.size() != 0);
 		if (hasDynamicObstacle){
 			double timePassed = (currTime - this->lastDynamicObstacleTime_).toSec();
-			if (timePassed >= 0.3){
+			if (timePassed >= this->replanTimeForDynamicObstacle_){
 				replan = true;
 				this->lastDynamicObstacleTime_ = currTime;
 			}

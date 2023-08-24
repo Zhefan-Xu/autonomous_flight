@@ -5,3 +5,4 @@ desired_acceleration: 3.0 # m/s^2
 desired_angular_velocity: 0.5 # rad/s
 waypoint_stablize_time: 0.0
 initial_scan: false
+replan_time_for_dynamic_obstacles: 0.3

@@ -1,8 +1,3 @@
-takeoff_height: 1.0 # m
-desired_velocity: 1.5 # m/s
-desired_acceleration: 3.0 # m/s^2
-desired_angular_velocity: 0.5 # rad/s
-
 # inspection target (Be careful. Only use it if you know the inspection goal)
 inspection_goal_given: true
 inspection_width_given: true

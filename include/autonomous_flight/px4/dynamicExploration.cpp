@@ -67,6 +67,15 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Initial scan is set to: " << this->initialScan_ << endl;
 		}	
+
+    	// replan time for dynamic obstacle
+		if (not this->nh_.getParam("autonomous_flight/replan_time_for_dynamic_obstacles", this->replanTimeForDynamicObstacle_)){
+			this->replanTimeForDynamicObstacle_ = 0.3;
+			cout << "[AutoFlight]: No dynamic obstacle replan time param found. Use default: 0.3s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Dynamic obstacle replan time is set to: " << this->replanTimeForDynamicObstacle_ << "s." << endl;
+		}	
 	}
 
 	void dynamicExploration::initModules(){
@@ -250,7 +259,7 @@ namespace AutoFlight{
 
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
-			if (obstaclesPos.size() != 0){
+			if (obstaclesPos.size() != 0 and updateSuccess){
 				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 			}
 			if (updateSuccess){
@@ -393,11 +402,11 @@ namespace AutoFlight{
 
 
 			// replan for dynamic obstacles
-			if (this->hasDynamicCollision()){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
-				return;
-			}
+			// if (this->hasDynamicCollision()){
+			// 	this->replan_ = true;
+			// 	cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+			// 	return;
+			// }
 
 
 			if (this->computeExecutionDistance() >= 3.0){
@@ -406,6 +415,12 @@ namespace AutoFlight{
 				return;
 			}
 
+			// replan for dynamic obstacles
+			if (this->replanForDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
+				return;
+			}
 		}	
 	}
 
@@ -670,6 +685,28 @@ namespace AutoFlight{
 			return totalDistance;
 		}
 		return -1.0;
+	}
+
+	bool dynamicExploration::replanForDynamicObstacle(){
+		ros::Time currTime = ros::Time::now();
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		if (this->useFakeDetector_){
+			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+		else{ 
+			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+
+		bool replan = false;
+		bool hasDynamicObstacle = (obstaclesPos.size() != 0);
+		if (hasDynamicObstacle){
+			double timePassed = (currTime - this->lastDynamicObstacleTime_).toSec();
+			if (timePassed >= this->replanTimeForDynamicObstacle_){
+				replan = true;
+				this->lastDynamicObstacleTime_ = currTime;
+			}
+		}
+		return replan;
 	}
 
 	bool dynamicExploration::reachExplorationGoal(){
