@@ -434,25 +434,31 @@ namespace AutoFlight{
 			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
 			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
 
+			double leftTime = (this->trajectory_.getDuration() - this->trajTime_) /linearReparamFactor; 
 			
-			tracking_controller::Target target;
-			// target.yaw = atan2(vel(1), vel(0));
-			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
-				vel *= 0;
-				acc *= 0;
-				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+
+			if (leftTime <= 2.0){ // zero vel and zero acc if close to
+				geometry_msgs::PoseStamped psTarget;
+				psTarget.pose.position.x = pos(0);
+				psTarget.pose.position.y = pos(1);
+				psTarget.pose.position.z = pos(2);
+				psTarget.pose.orientation = this->odom_.pose.pose.orientation; 
+				this->updateTarget(psTarget);
 			}
-			target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);			
-			target.position.x = pos(0);
-			target.position.y = pos(1);
-			target.position.z = pos(2);
-			target.velocity.x = vel(0);
-			target.velocity.y = vel(1);
-			target.velocity.z = vel(2);
-			target.acceleration.x = acc(0);
-			target.acceleration.y = acc(1);
-			target.acceleration.z = acc(2);
-			this->updateTargetWithState(target);			
+			else{
+				tracking_controller::Target target;
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);			
+				target.position.x = pos(0);
+				target.position.y = pos(1);
+				target.position.z = pos(2);
+				target.velocity.x = vel(0);
+				target.velocity.y = vel(1);
+				target.velocity.z = vel(2);
+				target.acceleration.x = acc(0);
+				target.acceleration.y = acc(1);
+				target.acceleration.z = acc(2);
+				this->updateTargetWithState(target);						
+			}
 		}
 	}
 

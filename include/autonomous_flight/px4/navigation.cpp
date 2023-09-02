@@ -468,31 +468,37 @@ namespace AutoFlight{
 
 			Eigen::Vector3d pos, vel, acc;
 			this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
-			
+			double endTime = this->timeOptimizer_->getDuration();
 
-			tracking_controller::Target target;
-			if (this->noYawTurning_ or not this->useYawControl_){
-				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+			double leftTime = endTime - realTime; 
+			// cout << "left time: " << leftTime << endl;
+			if (leftTime <= 2.0){ // zero vel and zero acc if close to
+				geometry_msgs::PoseStamped psTarget;
+				psTarget.pose.position.x = pos(0);
+				psTarget.pose.position.y = pos(1);
+				psTarget.pose.position.z = pos(2);
+				psTarget.pose.orientation = this->odom_.pose.pose.orientation; 
+				this->updateTarget(psTarget);
 			}
 			else{
-				target.yaw = atan2(vel(1), vel(0));
-				// cout << "current vel: " << vel.transpose() << endl;
+				tracking_controller::Target target;
+				if (this->noYawTurning_ or not this->useYawControl_){
+					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+				}
+				else{
+					target.yaw = atan2(vel(1), vel(0));
+				}				
+				target.position.x = pos(0);
+				target.position.y = pos(1);
+				target.position.z = pos(2);
+				target.velocity.x = vel(0);
+				target.velocity.y = vel(1);
+				target.velocity.z = vel(2);
+				target.acceleration.x = acc(0);
+				target.acceleration.y = acc(1);
+				target.acceleration.z = acc(2);
+				this->updateTargetWithState(target);						
 			}
-			if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
-				vel *= 0;
-				acc *= 0;
-				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-			}			
-			target.position.x = pos(0);
-			target.position.y = pos(1);
-			target.position.z = pos(2);
-			target.velocity.x = vel(0);
-			target.velocity.y = vel(1);
-			target.velocity.z = vel(2);
-			target.acceleration.x = acc(0);
-			target.acceleration.y = acc(1);
-			target.acceleration.z = acc(2);
-			this->updateTargetWithState(target);			
 		}
 	}
 
