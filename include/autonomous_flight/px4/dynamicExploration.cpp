@@ -76,6 +76,19 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Dynamic obstacle replan time is set to: " << this->replanTimeForDynamicObstacle_ << "s." << endl;
 		}	
+
+    	// replan time for dynamic obstacle
+    	std::vector<double> freeRangeTemp;
+		if (not this->nh_.getParam("autonomous_flight/free_range", freeRangeTemp)){
+			this->freeRange_ = Eigen::Vector3d (2, 2, 1);
+			cout << "[AutoFlight]: No free range param found. Use default: [2, 2, 1]m." << endl;
+		}
+		else{
+			this->freeRange_(0) = freeRangeTemp[0];
+			this->freeRange_(1) = freeRangeTemp[1];
+			this->freeRange_(2) = freeRangeTemp[2];
+			cout << "[AutoFlight]: Free range is set to: " << this->freeRange_.transpose() << "m." << endl;
+		}	
 	}
 
 	void dynamicExploration::initModules(){
@@ -515,12 +528,12 @@ namespace AutoFlight{
 
 	void dynamicExploration::initExplore(){
 		// set start region to be free
-		Eigen::Vector3d range (2.0, 2.0, 1.0);
+		// Eigen::Vector3d range (2.0, 2.0, 1.0);
 		Eigen::Vector3d startPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-		Eigen::Vector3d c1 = startPos - range;
-		Eigen::Vector3d c2 = startPos + range;
+		Eigen::Vector3d c1 = startPos - this->freeRange_;
+		Eigen::Vector3d c2 = startPos + this->freeRange_;
 		this->map_->freeRegion(c1, c2);
-		cout << "[AutoFlight]: Robot nearby region is set to free. Range: " << range.transpose() << endl;
+		cout << "[AutoFlight]: Robot nearby region is set to free. Range: " << this->freeRange_.transpose() << endl;
 
 		if (this->initialScan_){
 			cout << "[AutoFlight]: Start initial scan..." << endl;

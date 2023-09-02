@@ -44,6 +44,7 @@ namespace AutoFlight{
 		double wpStablizeTime_;
 		bool initialScan_;
 		double replanTimeForDynamicObstacle_;
+		Eigen::Vector3d freeRange_;
 
 		// exploration data
 		bool explorationReplan_ = true;

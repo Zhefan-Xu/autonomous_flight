@@ -6,3 +6,4 @@ desired_angular_velocity: 0.5 # rad/s
 waypoint_stablize_time: 0.0
 initial_scan: true
 replan_time_for_dynamic_obstacles: 0.3
+free_range: [1, 1, 1]
