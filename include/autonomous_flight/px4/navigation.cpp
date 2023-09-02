@@ -525,6 +525,13 @@ namespace AutoFlight{
 		// take off the drone
 		this->takeoff();
 
+		int temp1 = system("mkdir ~/rosbag_navigation_info &");
+		int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
+		int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
+		if (temp1==-1 or temp2==-1 or temp3==-1){
+			cout << "[AutoFlight]: Recording fails." << endl;
+		}
+
 		// register timer callback
 		this->registerCallback();
 	}
