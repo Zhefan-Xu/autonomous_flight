@@ -516,6 +516,13 @@ namespace AutoFlight{
 		fflush(stdin);
 		std::cin.get();
 
+		int temp1 = system("mkdir ~/rosbag_exploration_info &");
+		int temp2 = system("mv ~/rosbag_exploration_info/exploration_info.bag ~/rosbag_exploration_info/previous.bag &");
+		int temp3 = system("rosbag record -O ~/rosbag_exploration_info/exploration_info.bag /dynamic_map/inflated_voxel_map /dynamic_detector/dynamic_bboxes /mavros/local_position/pose /dynamicExploration/bspline_trajectory /mavros/setpoint_position/local /tracking_controller/target_pose /dep/best_paths /dep/roadmap /dep/candidate_paths /dep/best_paths /dep/frontier_regions /dynamic_map/2D_occupancy_map __name:=inspection_bag_info &");
+		if (temp1==-1 or temp2==-1 or temp3==-1){
+			cout << "[AutoFlight]: Recording fails." << endl;
+		}
+
 		this->initExplore();
 
 		cout << "[AutoFlight]: PRESS ENTER to Start Planning." << endl;
