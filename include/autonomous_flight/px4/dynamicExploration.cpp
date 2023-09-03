@@ -77,7 +77,7 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Dynamic obstacle replan time is set to: " << this->replanTimeForDynamicObstacle_ << "s." << endl;
 		}	
 
-    	// replan time for dynamic obstacle
+    	// free range 
     	std::vector<double> freeRangeTemp;
 		if (not this->nh_.getParam("autonomous_flight/free_range", freeRangeTemp)){
 			this->freeRange_ = Eigen::Vector3d (2, 2, 1);
@@ -88,6 +88,15 @@ namespace AutoFlight{
 			this->freeRange_(1) = freeRangeTemp[1];
 			this->freeRange_(2) = freeRangeTemp[2];
 			cout << "[AutoFlight]: Free range is set to: " << this->freeRange_.transpose() << "m." << endl;
+		}	
+
+    	// reach goal distance
+		if (not this->nh_.getParam("autonomous_flight/reach_goal_distance", this->reachGoalDistance_)){
+			this->reachGoalDistance_ = 0.1;
+			cout << "[AutoFlight]: No reach goal distance param found. Use default: 0.1m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Reach goal distance is set to: " << this->reachGoalDistance_ << "m." << endl;
 		}	
 	}
 
@@ -345,7 +354,7 @@ namespace AutoFlight{
 		}
 
 		// if (this->isReach(this->goal_, 0.1, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
-		if (this->waypoints_.poses.size() != 0 and this->isReach(this->goal_, 0.1, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
+		if (this->waypoints_.poses.size() != 0 and this->isReach(this->goal_, this->reachGoalDistance_, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
 			// cout << "1" << endl;
 			// when reach current goal point, reset replan and trajectory ready
 			this->replan_ = false;

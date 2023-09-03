@@ -45,6 +45,7 @@ namespace AutoFlight{
 		bool initialScan_;
 		double replanTimeForDynamicObstacle_;
 		Eigen::Vector3d freeRange_;
+		double reachGoalDistance_;
 
 		// exploration data
 		bool explorationReplan_ = true;
