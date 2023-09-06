@@ -48,6 +48,8 @@ namespace AutoFlight{
 		double reachGoalDistance_;
 
 		// exploration data
+		bool useYaw_ = false;
+		AutoFlight::trajData td_;
 		bool explorationReplan_ = true;
 		bool replan_ = false;
 		bool newWaypoints_ = false;
@@ -96,6 +98,7 @@ namespace AutoFlight{
 		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos, double yaw);
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 		void waitTime(double time);
+		bool moveToOrientation(double yaw, double desiredAngularVel);
 	};
 }
 #endif

@@ -175,6 +175,8 @@ namespace AutoFlight{
 		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
 		bool isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw=true);
+		bool isReach(const geometry_msgs::PoseStamped& poseTgt, double dist, bool useYaw=true);
+		bool moveToOrientation(double yaw, double desiredAngularVel);
 	};
 }
 #endif

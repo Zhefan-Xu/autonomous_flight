@@ -179,9 +179,10 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::plannerCB(const ros::TimerEvent&){
-		// cout << "in planner callback" << endl;
+		cout << "in planner callback" << endl;
 
 		if (this->replan_){
+			cout << "start 0" << endl;
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 			if (this->useFakeDetector_){
 				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -202,82 +203,8 @@ namespace AutoFlight{
 			simplePath.poses = {pStart, pGoal};
 			this->pwlTraj_->updatePath(simplePath, false);
 			this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());
-			// if (not this->trajectoryReady_){
-			// 	// generate new trajectory
-			// 	nav_msgs::Path simplePath;
-			// 	geometry_msgs::PoseStamped pStart, pGoal;
-			// 	pStart.pose = this->odom_.pose.pose;
-			// 	pGoal = this->goal_;
-			// 	simplePath.poses = {pStart, pGoal};
-			// 	this->pwlTraj_->updatePath(simplePath, false);
-			// 	this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());
-			// }
-			// else{
-			// 	Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
-			// 	geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
-			// 	Eigen::Vector3d goalPos (this->goal_.pose.position.x, this->goal_.pose.position.y, this->goal_.pose.position.z);
-			// 	// if ((bsplineLastPos - goalPos).norm() >= 0.1){
-			// 	nav_msgs::Path inputPWLTraj;
-			// 	nav_msgs::Path simplePath;
-			// 	geometry_msgs::PoseStamped pStart, pGoal;
-			// 	pStart = lastPs;
-			// 	pGoal = this->goal_;
-			// 	simplePath.poses = {pStart, pGoal};
-			// 	this->pwlTraj_->updatePath(simplePath, false);
-			// 	this->pwlTraj_->makePlan(inputPWLTraj, this->bsplineTraj_->getControlPointDist());
-
-
-			// 	nav_msgs::Path adjustedInputCombinedTraj;
-			// 	bool satisfyDistanceCheck = false;
-			// 	double dtTemp = initTs;
-			// 	double finalTimeTemp;
-			// 	ros::Time startTime = ros::Time::now();
-			// 	ros::Time currTime;
-			// 	while (ros::ok()){
-			// 		currTime = ros::Time::now();
-			// 		if ((currTime - startTime).toSec() >= 0.05){
-			// 			cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
-			// 			break;
-			// 		}							
-			// 		nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-			// 		nav_msgs::Path inputCombinedTraj;
-			// 		inputCombinedTraj.poses = inputRestTraj.poses;
-			// 		for (size_t i=1; i<inputPWLTraj.poses.size(); ++i){
-			// 			inputCombinedTraj.poses.push_back(inputPWLTraj.poses[i]);
-			// 		}
-					
-			// 		satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
-			// 		if (satisfyDistanceCheck) break;
-					
-			// 		dtTemp *= 0.8; // magic number 0.8
-			// 	}
-			// 	inputTraj = adjustedInputCombinedTraj;
-			// 	// }
-			// 	// else{
-			// 	// 	nav_msgs::Path adjustedInputRestTraj;
-			// 	// 	bool satisfyDistanceCheck = false;
-			// 	// 	double dtTemp = initTs;
-			// 	// 	double finalTimeTemp;
-			// 	// 	ros::Time startTime = ros::Time::now();
-			// 	// 	ros::Time currTime;
-			// 	// 	while (ros::ok()){
-			// 	// 		currTime = ros::Time::now();
-			// 	// 		if ((currTime - startTime).toSec() >= 0.05){
-			// 	// 			cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
-			// 	// 			break;
-			// 	// 		}
-			// 	// 		nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
-			// 	// 		satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
-			// 	// 		if (satisfyDistanceCheck) break;
-						
-			// 	// 		dtTemp *= 0.8;
-			// 	// 	}
-			// 	// 	inputTraj = adjustedInputRestTraj;					
-			// 	// }
-
-			// }
-
 			
+			cout << "plan1" << endl;
 
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
@@ -292,6 +219,7 @@ namespace AutoFlight{
 					this->trajStartTime_ = ros::Time::now();
 					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
+					this->td_.updateTrajectory(bsplineTrajMsgTemp, this->bsplineTraj_->getDuration());
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
@@ -301,7 +229,7 @@ namespace AutoFlight{
 					// if the current trajectory/or new goal point is assigned is not valid, then just stop
 					if (this->hasCollision() or this->hasDynamicCollision()){
 						this->trajectoryReady_ = false;
-						this->stop();
+						this->td_.stop(this->odom_.pose.pose);
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 					}
 					else{
@@ -337,11 +265,13 @@ namespace AutoFlight{
 			// std::cin.clear();
 			// fflush(stdin);
 			// std::cin.get();
+			cout << "0" << endl;
 			this->moveToOrientation(yaw, this->desiredAngularVel_);
 			// cout << "[AutoFlight]: Press ENTER to move forward." << endl;
 			// std::cin.clear();
 			// fflush(stdin);
 			// std::cin.get();		
+			cout << "1" << endl;
 			this->replan_ = true;
 			this->newWaypoints_ = false;
 			if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
@@ -447,42 +377,15 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::trajExeCB(const ros::TimerEvent&){
-		if (this->trajectoryReady_){
-			ros::Time currTime = ros::Time::now();
-			double trajTime = (currTime - this->trajStartTime_).toSec();
-			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(trajTime);
-			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
-			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-
-			double leftTime = (this->trajectory_.getDuration() - this->trajTime_) /linearReparamFactor; 
-			
-
-			if (leftTime <= 2.0){ // zero vel and zero acc if close to
-				geometry_msgs::PoseStamped psTarget;
-				psTarget.pose.position.x = pos(0);
-				psTarget.pose.position.y = pos(1);
-				psTarget.pose.position.z = pos(2);
-				psTarget.pose.orientation = this->odom_.pose.pose.orientation; 
-				this->updateTarget(psTarget);
-			}
-			else{
-				tracking_controller::Target target;
-				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);			
-				target.position.x = pos(0);
-				target.position.y = pos(1);
-				target.position.z = pos(2);
-				target.velocity.x = vel(0);
-				target.velocity.y = vel(1);
-				target.velocity.z = vel(2);
-				target.acceleration.x = acc(0);
-				target.acceleration.y = acc(1);
-				target.acceleration.z = acc(2);
-				this->updateTargetWithState(target);						
-			}
+		if (not this->td_.init){
+			return;
 		}
-	}
+		if (not this->useYaw_){
+			this->updateTarget(this->td_.getPoseWithoutYaw(this->odom_.pose.pose));
+		}
+		else{
+			this->updateTarget(this->td_.getPose(this->odom_.pose.pose));	
+		}	}
 
 	void dynamicExploration::visCB(const ros::TimerEvent&){
 		if (this->polyTrajMsg_.poses.size() != 0){
@@ -576,29 +479,14 @@ namespace AutoFlight{
 		}		
 	}
 
-	void dynamicExploration::getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions){
-		/*	
-			1. start velocity
-			2. start acceleration (set to zero)
-			3. end velocity
-			4. end acceleration (set to zero) 
-		*/
-
-		Eigen::Vector3d currVel = this->currVel_;
-		Eigen::Vector3d currAcc = this->currAcc_;
-		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
-		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
-
-		// if (not this->trajectoryReady_){
-		// 	double yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-		// 	Eigen::Vector3d direction (cos(yaw), sin(yaw), 0.0);
-		// 	currVel = this->desiredVel_ * direction;
-		// 	currAcc = this->desiredAcc_ * direction;
-		// }
-		startEndConditions.push_back(currVel);
-		startEndConditions.push_back(endVel);
-		startEndConditions.push_back(currAcc);
-		startEndConditions.push_back(endAcc);
+	void dynamicExploration::getStartEndConditions(std::vector<Eigen::Vector3d>& startEndCondition){
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+		startCondition *= this->desiredVel_;
+		startEndCondition.push_back(startCondition); // start vel
+		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //start acc condition
+		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end vel condition
+		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end acc condition
 	}
 
 	bool dynamicExploration::hasCollision(){
@@ -914,5 +802,57 @@ namespace AutoFlight{
 			ros::spinOnce();
 			r.sleep();
 		}
+	}
+
+	bool dynamicExploration::moveToOrientation(double yaw, double desiredAngularVel){
+		double yawTgt = yaw;
+		double yawCurr = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		geometry_msgs::PoseStamped ps;
+		ps.pose = this->odom_.pose.pose;
+		ps.pose.orientation = AutoFlight::quaternion_from_rpy(0, 0, yaw);
+
+		double yawDiff = yawTgt - yawCurr; // difference between yaw
+		double direction = 0;
+		double yawDiffAbs = std::abs(yawDiff);
+		if ((yawDiffAbs <= PI_const) and (yawDiff>0)){
+			direction = 1.0; // counter clockwise
+		} 
+		else if ((yawDiffAbs <= PI_const) and (yawDiff<0)){
+			direction = -1.0; // clockwise
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff>0)){
+			direction = -1.0; // rotate in clockwise direction
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+		else if ((yawDiffAbs > PI_const) and (yawDiff<0)){
+			direction = 1.0; // counter clockwise
+			yawDiffAbs = 2 * PI_const - yawDiffAbs;
+		}
+
+
+		double t = 0.0;
+		double startTime = 0.0; double endTime = yawDiffAbs/desiredAngularVel;
+
+		nav_msgs::Path rotationPath;
+		std::vector<geometry_msgs::PoseStamped> rotationPathVec;
+		while (t <= endTime){
+			double currYawTgt = yawCurr + (double) direction * (t-startTime)/(endTime-startTime) * yawDiffAbs;
+			geometry_msgs::Quaternion quatT = trajPlanner::quaternion_from_rpy(0, 0, currYawTgt);
+			geometry_msgs::PoseStamped psT = ps;
+			psT.pose.orientation = quatT;
+			rotationPathVec.push_back(psT);
+			t += 0.1;
+		}
+		rotationPath.poses = rotationPathVec;
+		this->useYaw_ = true;
+		this->td_.updateTrajectory(rotationPath, endTime);
+
+		ros::Rate r (50);
+		while (ros::ok() and not this->isReach(ps)){
+			ros::spinOnce();
+			r.sleep();
+		}
+		this->useYaw_ = false;
+		return true;
 	}
 }
