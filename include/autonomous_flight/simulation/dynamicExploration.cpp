@@ -216,7 +216,19 @@ namespace AutoFlight{
 					this->trajStartTime_ = ros::Time::now();
 					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
-					this->td_.updateTrajectory(bsplineTrajMsgTemp, this->bsplineTraj_->getDuration());
+					double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+
+					nav_msgs::Path finalTraj;
+					for (double t=0; t<this->trajectory_.getDuration()/linearReparamFactor; t+=0.1){
+						Eigen::Vector3d p = this->trajectory_.at(t);
+						geometry_msgs::PoseStamped psTraj;
+						psTraj.pose.position.x = p(0);
+						psTraj.pose.position.y = p(1);
+						psTraj.pose.position.z = p(2);
+						finalTraj.poses.push_back(psTraj);
+					}
+
+					this->td_.updateTrajectory(finalTraj, this->bsplineTraj_->getDuration()/linearReparamFactor);
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
@@ -225,13 +237,11 @@ namespace AutoFlight{
 					// if the current trajectory is still valid, then just ignore this iteration
 					// if the current trajectory/or new goal point is assigned is not valid, then just stop
 					if (this->hasCollision() or this->hasDynamicCollision()){
-						cout << "check1" << endl;
 						this->trajectoryReady_ = false;
 						this->td_.stop(this->odom_.pose.pose);
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 					}
 					else{
-						cout << "check2" << endl;
 						if (this->trajectoryReady_){
 							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
 						}
