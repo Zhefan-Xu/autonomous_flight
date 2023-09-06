@@ -179,10 +179,8 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::plannerCB(const ros::TimerEvent&){
-		cout << "in planner callback" << endl;
 
 		if (this->replan_){
-			cout << "start 0" << endl;
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 			if (this->useFakeDetector_){
 				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -204,7 +202,6 @@ namespace AutoFlight{
 			this->pwlTraj_->updatePath(simplePath, false);
 			this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());
 			
-			cout << "plan1" << endl;
 
 			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
@@ -228,18 +225,20 @@ namespace AutoFlight{
 					// if the current trajectory is still valid, then just ignore this iteration
 					// if the current trajectory/or new goal point is assigned is not valid, then just stop
 					if (this->hasCollision() or this->hasDynamicCollision()){
+						cout << "check1" << endl;
 						this->trajectoryReady_ = false;
 						this->td_.stop(this->odom_.pose.pose);
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 					}
 					else{
+						cout << "check2" << endl;
 						if (this->trajectoryReady_){
 							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
 						}
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
 							cout << "[AutoFlight]: Wait for new path. Press ENTER to Replan" << endl;
-							// this->explorationReplan_ = true;
+							this->explorationReplan_ = true;
 						}
 						this->replan_ = false;
 					}
@@ -265,13 +264,11 @@ namespace AutoFlight{
 			// std::cin.clear();
 			// fflush(stdin);
 			// std::cin.get();
-			cout << "0" << endl;
 			this->moveToOrientation(yaw, this->desiredAngularVel_);
 			// cout << "[AutoFlight]: Press ENTER to move forward." << endl;
 			// std::cin.clear();
 			// fflush(stdin);
 			// std::cin.get();		
-			cout << "1" << endl;
 			this->replan_ = true;
 			this->newWaypoints_ = false;
 			if (this->waypointIdx_ < int(this->waypoints_.poses.size())){
@@ -311,7 +308,7 @@ namespace AutoFlight{
 			if (this->waypointIdx_ + 1 > int(this->waypoints_.poses.size())){
 				cout << "[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan" << endl;
 				this->replan_ = false;
-				// this->explorationReplan_ = true;
+				this->explorationReplan_ = true;
 			}
 			else{
 				cout << "[AutoFlight]: Start planning for next waypoint." << endl;
@@ -328,7 +325,7 @@ namespace AutoFlight{
 				this->replan_ = false;
 				this->trajectoryReady_ = false;
 				cout << "[AutoFlight]: Current goal is invalid. Need new path. Press ENTER to Replan" << endl;
-				// this->explorationReplan_ = true;
+				this->explorationReplan_ = true;
 				return;
 			}
 		}
@@ -417,16 +414,16 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::run(){
-		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop." << endl;
-		std::cin.clear();
-		fflush(stdin);
-		std::cin.get();
+		// cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop." << endl;
+		// std::cin.clear();
+		// fflush(stdin);
+		// std::cin.get();
 		this->takeoff();
 
-		cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
-		std::cin.clear();
-		fflush(stdin);
-		std::cin.get();
+		// cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		// std::cin.clear();
+		// fflush(stdin);
+		// std::cin.get();
 
 		int temp1 = system("mkdir ~/rosbag_exploration_info &");
 		int temp2 = system("mv ~/rosbag_exploration_info/exploration_info.bag ~/rosbag_exploration_info/previous.bag &");
@@ -437,10 +434,10 @@ namespace AutoFlight{
 
 		this->initExplore();
 
-		cout << "[AutoFlight]: PRESS ENTER to Start Planning." << endl;
-		std::cin.clear();
-		fflush(stdin);
-		std::cin.get();
+		// cout << "[AutoFlight]: PRESS ENTER to Start Planning." << endl;
+		// std::cin.clear();
+		// fflush(stdin);
+		// std::cin.get();
 
 		this->registerCallback();
 	}
@@ -564,20 +561,22 @@ namespace AutoFlight{
 		// 	cout << "[AutoFlight]: End initial scan." << endl; 
 		// }
 		while (ros::ok()){
-			this->expPlanner_->setMap(this->map_);
-			ros::Time startTime = ros::Time::now();
-			bool replanSuccess = this->expPlanner_->makePlan();
-			if (replanSuccess){
-				this->waypoints_ = this->expPlanner_->getBestPath();
-				this->newWaypoints_ = true;
-				this->waypointIdx_ = 1;
+			if (this->explorationReplan_){
+				this->expPlanner_->setMap(this->map_);
+				ros::Time startTime = ros::Time::now();
+				bool replanSuccess = this->expPlanner_->makePlan();
+				if (replanSuccess){
+					this->waypoints_ = this->expPlanner_->getBestPath();
+					this->newWaypoints_ = true;
+					this->waypointIdx_ = 1;
+					this->explorationReplan_ = false;
+				}
+				ros::Time endTime = ros::Time::now();
+				// std::cin.clear();
+				// fflush(stdin);
+				// std::cin.get();		
+				cout << "[AutoFlight]: DEP planning time: " << (endTime - startTime).toSec() << "s." << endl;
 			}
-			ros::Time endTime = ros::Time::now();
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();		
-			cout << "[AutoFlight]: DEP planning time: " << (endTime - startTime).toSec() << "s." << endl;
-
 		}
 	}
 
