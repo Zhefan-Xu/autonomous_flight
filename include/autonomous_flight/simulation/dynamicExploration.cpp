@@ -391,8 +391,10 @@ namespace AutoFlight{
 			this->updateTarget(this->td_.getPoseWithoutYaw(this->odom_.pose.pose));
 		}
 		else{
+			cout << "update" << endl;
 			this->updateTarget(this->td_.getPose(this->odom_.pose.pose));	
-		}	}
+		}	
+	}
 
 	void dynamicExploration::visCB(const ros::TimerEvent&){
 		if (this->polyTrajMsg_.poses.size() != 0){
@@ -441,7 +443,7 @@ namespace AutoFlight{
 		if (temp1==-1 or temp2==-1 or temp3==-1){
 			cout << "[AutoFlight]: Recording fails." << endl;
 		}
-
+		this->registerCallback();
 		this->initExplore();
 
 		// cout << "[AutoFlight]: PRESS ENTER to Start Planning." << endl;
@@ -449,7 +451,7 @@ namespace AutoFlight{
 		// fflush(stdin);
 		// std::cin.get();
 
-		this->registerCallback();
+		
 	}
 
 	void dynamicExploration::initExplore(){
@@ -458,6 +460,7 @@ namespace AutoFlight{
 		Eigen::Vector3d startPos (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		Eigen::Vector3d c1 = startPos - this->freeRange_;
 		Eigen::Vector3d c2 = startPos + this->freeRange_;
+
 		this->map_->freeRegion(c1, c2);
 		cout << "[AutoFlight]: Robot nearby region is set to free. Range: " << this->freeRange_.transpose() << endl;
 
@@ -465,21 +468,21 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Start initial scan..." << endl;
 			this->moveToOrientation(-PI_const/2, this->desiredAngularVel_);
 			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
+			// std::cin.clear();
+			// fflush(stdin);
+			// std::cin.get();
 						
 			this->moveToOrientation(-PI_const, this->desiredAngularVel_);
 			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
+			// std::cin.clear();
+			// fflush(stdin);
+			// std::cin.get();
 
 			this->moveToOrientation(PI_const/2, this->desiredAngularVel_);
 			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
-			std::cin.clear();
-			fflush(stdin);
-			std::cin.get();
+			// std::cin.clear();
+			// fflush(stdin);
+			// std::cin.get();
 			
 			this->moveToOrientation(0, this->desiredAngularVel_);
 			cout << "[AutoFlight]: End initial scan." << endl; 
@@ -858,6 +861,9 @@ namespace AutoFlight{
 
 		ros::Rate r (50);
 		while (ros::ok() and not this->isReach(ps)){
+			cout << "here" << endl;
+			cout << "target pose: " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << " " << trajPlanner::rpy_from_quaternion(ps.pose.orientation);
+			cout << "current pose: " << this->odom_.pose.pose.position.x << " " << this->odom_.pose.pose.position.y << " " << this->odom_.pose.pose.position.z << " " << trajPlanner::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 			ros::spinOnce();
 			r.sleep();
 		}
