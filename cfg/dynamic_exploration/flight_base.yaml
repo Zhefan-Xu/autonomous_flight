@@ -1,0 +1,10 @@
+takeoff_height: 1.0 # m
+use_fake_detector: false
+desired_velocity: 0.5 # m/s
+desired_acceleration: 0.5 # m/s^2
+desired_angular_velocity: 0.5 # rad/s
+waypoint_stablize_time: 0.0
+initial_scan: false
+replan_time_for_dynamic_obstacles: 0.3
+free_range: [2, 2, 2]
+reach_goal_distance: 0.3

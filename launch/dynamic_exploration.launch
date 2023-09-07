@@ -1,4 +1,5 @@
 <launch>
+	<rosparam file="$(find autonomous_flight)/cfg/dynamic_exploration/flight_base.yaml" ns="autonomous_flight"/>
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_exploration/exploration_param.yaml" ns="DEP"/>
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_exploration/planner_param.yaml" />
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_exploration/dynamic_detector_param.yaml" ns="/dynamic_detector" />
