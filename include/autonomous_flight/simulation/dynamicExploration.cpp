@@ -856,9 +856,9 @@ namespace AutoFlight{
 			t += 0.1;
 		}
 		rotationPath.poses = rotationPathVec;
-		this->useYaw_ = true;
+		
 		this->td_.updateTrajectory(rotationPath, endTime);
-
+		this->useYaw_ = true;
 		ros::Rate r (50);
 		while (ros::ok() and not this->isReach(ps)){
 			cout << "here" << endl;
