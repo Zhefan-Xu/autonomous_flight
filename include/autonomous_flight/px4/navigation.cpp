@@ -440,7 +440,7 @@ namespace AutoFlight{
 			return;
 		}
 
-
+		return;
 		if (this->trajectoryReady_){
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
 				this->replan_ = true;
