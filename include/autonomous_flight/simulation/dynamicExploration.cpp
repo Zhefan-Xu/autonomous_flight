@@ -151,7 +151,7 @@ namespace AutoFlight{
 
 		if (this->useFakeDetector_){
 			// free map callback
-			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicExploration::freeMapCB, this);
+			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicExploration::freeMapCB, this);
 		}
 	}
 
@@ -391,7 +391,7 @@ namespace AutoFlight{
 			this->updateTarget(this->td_.getPoseWithoutYaw(this->odom_.pose.pose));
 		}
 		else{
-			cout << "update" << endl;
+			// cout << "update" << endl;
 			this->updateTarget(this->td_.getPose(this->odom_.pose.pose));	
 		}	
 	}
@@ -439,7 +439,7 @@ namespace AutoFlight{
 
 		int temp1 = system("mkdir ~/rosbag_exploration_info &");
 		int temp2 = system("mv ~/rosbag_exploration_info/exploration_info.bag ~/rosbag_exploration_info/previous.bag &");
-		int temp3 = system("rosbag record -O ~/rosbag_exploration_info/exploration_info.bag /dynamic_map/inflated_voxel_map /dynamic_detector/dynamic_bboxes /mavros/local_position/pose /dynamicExploration/bspline_trajectory /mavros/setpoint_position/local /tracking_controller/target_pose /dep/best_paths /dep/roadmap /dep/candidate_paths /dep/best_paths /dep/frontier_regions /dynamic_map/2D_occupancy_map __name:=exploration_bag_info &");
+		int temp3 = system("rosbag record -O ~/rosbag_exploration_info/exploration_info.bag /dynamicExploration/bspline_trajectory /dynamic_map/inflated_voxel_map /dynamic_detector/dynamic_bboxes /dynamicExploration/bspline_trajectory /CERLAB/quadcopter/pose /dep/best_paths /dep/roadmap /dep/candidate_paths /dep/best_paths /dep/frontier_regions /dynamic_map/2D_occupancy_map __name:=exploration_bag_info &");
 		if (temp1==-1 or temp2==-1 or temp3==-1){
 			cout << "[AutoFlight]: Recording fails." << endl;
 		}
@@ -859,7 +859,7 @@ namespace AutoFlight{
 		
 		this->td_.updateTrajectory(rotationPath, endTime);
 		this->useYaw_ = true;
-		ros::Rate r (50);
+		ros::Rate r (30);
 		while (ros::ok() and not this->isReach(ps)){
 			cout << "here" << endl;
 			cout << "target pose: " << ps.pose.position.x << " " << ps.pose.position.y << " " << ps.pose.position.z << " " << trajPlanner::rpy_from_quaternion(ps.pose.orientation);
