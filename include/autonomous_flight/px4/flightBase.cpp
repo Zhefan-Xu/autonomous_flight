@@ -182,7 +182,7 @@ namespace AutoFlight{
 	void flightBase::run(){
 		// flight test with circle
 		double r = 2.0; // radius
-		double v = 2.0; // 2.0 m
+		double v = 3.0; // 2.0 m/s
 
 		double z = this->odom_.pose.pose.position.z;
 		geometry_msgs::PoseStamped startPs;

@@ -320,13 +320,13 @@ namespace AutoFlight{
 					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
 
 					// print the control points of current trajectory
-					cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
-					cout << "------------------------------------------------------------" << endl;
-					Eigen::MatrixXd controlPoints = this->trajectory_.getControlPoints();
-					for (int i=0; i<controlPoints.cols(); ++i){
-						cout << controlPoints.col(i).transpose() << endl;
-					}
-					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+					// cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
+					// cout << "------------------------------------------------------------" << endl;
+					// Eigen::MatrixXd controlPoints = this->trajectory_.getControlPoints();
+					// for (int i=0; i<controlPoints.cols(); ++i){
+					// 	cout << controlPoints.col(i).transpose() << endl;
+					// }
+					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 
 
 					// print the trajectory points of the current trajectory
@@ -358,38 +358,38 @@ namespace AutoFlight{
 					// 	this->firstTimeSave_ = false;
 					// }
 
-					std::vector<Eigen::Vector3d> sampleTraj;
-					std::vector<double> sampleTime;
-					double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-					for (double t=0.0; t * linearReparamFactor <= this->trajectory_.getDuration(); t+=0.1){
-						sampleTime.push_back(t);
-						Eigen::Vector3d p = this->trajectory_.at(t*linearReparamFactor);
-						sampleTraj.push_back(p);
-					}
+					// std::vector<Eigen::Vector3d> sampleTraj;
+					// std::vector<double> sampleTime;
+					// double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+					// for (double t=0.0; t * linearReparamFactor <= this->trajectory_.getDuration(); t+=0.1){
+					// 	sampleTime.push_back(t);
+					// 	Eigen::Vector3d p = this->trajectory_.at(t*linearReparamFactor);
+					// 	sampleTraj.push_back(p);
+					// }
 
-					this->trajDivider_->setTrajectory(sampleTraj, sampleTime);
+					// this->trajDivider_->setTrajectory(sampleTraj, sampleTime);
 
-					std::vector<std::pair<double, double>> tInterval;
-					std::vector<double> obstacleDist;
-					this->trajDivider_->run(tInterval, obstacleDist);
+					// std::vector<std::pair<double, double>> tInterval;
+					// std::vector<double> obstacleDist;
+					// this->trajDivider_->run(tInterval, obstacleDist);
 					
-					cout << "Total time is: " << this->trajectory_.getDuration()/linearReparamFactor << endl;
-					for (size_t i=0; i<tInterval.size(); ++i){
-						std::pair<double, double> interval = tInterval[i];
-						double dist = obstacleDist[i];
-						cout << "[AutoFlight]: Time interval: " << interval.first << " " << interval.second << endl;
-						// cout << "Dist: " << dist << endl;
-					} 
+					// cout << "Total time is: " << this->trajectory_.getDuration()/linearReparamFactor << endl;
+					// for (size_t i=0; i<tInterval.size(); ++i){
+					// 	std::pair<double, double> interval = tInterval[i];
+					// 	double dist = obstacleDist[i];
+					// 	cout << "[AutoFlight]: Time interval: " << interval.first << " " << interval.second << endl;
+					// 	// cout << "Dist: " << dist << endl;
+					// } 
 
-					std::vector<bool> mask;
-					std::vector<Eigen::Vector3d> nearestObstacles;
-					this->trajDivider_->getNearestObstacles(nearestObstacles, mask);
-					cout << "[AutoFlight]: print nearest obstacles: " << endl;
-					cout << "------------------------------------------------------------" << endl;
-					for (size_t i=0; i<nearestObstacles.size(); ++i){
-						cout << mask[i] << " " << nearestObstacles[i].transpose() << endl;
-					}
-					cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+					// std::vector<bool> mask;
+					// std::vector<Eigen::Vector3d> nearestObstacles;
+					// this->trajDivider_->getNearestObstacles(nearestObstacles, mask);
+					// cout << "[AutoFlight]: print nearest obstacles: " << endl;
+					// cout << "------------------------------------------------------------" << endl;
+					// for (size_t i=0; i<nearestObstacles.size(); ++i){
+					// 	cout << mask[i] << " " << nearestObstacles[i].transpose() << endl;
+					// }
+					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
@@ -406,8 +406,8 @@ namespace AutoFlight{
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
 						}
-						this->replan_ = false;
 					}
+					this->replan_ = false;
 				}
 			}
 		}
@@ -440,7 +440,7 @@ namespace AutoFlight{
 			return;
 		}
 
-		return;
+		// return;
 		if (this->trajectoryReady_){
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
 				this->replan_ = true;
@@ -472,7 +472,7 @@ namespace AutoFlight{
 
 			double leftTime = endTime - realTime; 
 			// cout << "left time: " << leftTime << endl;
-			if (leftTime <= 2.0){ // zero vel and zero acc if close to
+			if (leftTime <= 0.0){ // zero vel and zero acc if close to
 				geometry_msgs::PoseStamped psTarget;
 				psTarget.pose.position.x = pos(0);
 				psTarget.pose.position.y = pos(1);
