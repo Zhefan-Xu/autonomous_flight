@@ -98,6 +98,10 @@ namespace AutoFlight{
 
     }
 
+    inline double getPoseDistance(const geometry_msgs::Pose& p1, const geometry_msgs::Pose& p2){
+        return sqrt(pow((p1.position.x - p2.position.x),2) + pow((p1.position.y - p2.position.y),2) + pow((p1.position.z - p2.position.z),2));    
+    }
+
     inline double getPoseDistance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2){
         return sqrt(pow((p1.pose.position.x - p2.pose.position.x),2) + pow((p1.pose.position.y - p2.pose.position.y),2) + pow((p1.pose.position.z - p2.pose.position.z),2));    
     }

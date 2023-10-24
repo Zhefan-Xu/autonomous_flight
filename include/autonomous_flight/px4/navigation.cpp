@@ -183,7 +183,8 @@ namespace AutoFlight{
 						inputTraj = adjustedInputPolyTraj;
 						finalTime = finalTimeTemp;
 						startEndConditions[1] = this->polyTraj_->getVel(finalTime);
-						startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
+						// startEndConditions[3] = Eigen::Vector3d (0.0, 0.0, 0.0);	
+						// startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
 
 					}
 					else{
@@ -223,7 +224,8 @@ namespace AutoFlight{
 					inputTraj = adjustedInputPolyTraj;
 					finalTime = finalTimeTemp;
 					startEndConditions[1] = this->polyTraj_->getVel(finalTime);
-					startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
+					// startEndConditions[3] = Eigen::Vector3d (0.0, 0.0, 0.0);
+					// startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
 				}
 				else{
 					Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
@@ -273,7 +275,8 @@ namespace AutoFlight{
 						inputTraj = adjustedInputCombinedTraj;
 						finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
 						startEndConditions[1] = this->polyTraj_->getVel(finalTime);
-						startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
+						// startEndConditions[3] = Eigen::Vector3d (0.0, 0.0, 0.0);
+						// startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
 					}
 					else{
 						nav_msgs::Path adjustedInputRestTraj;
@@ -398,6 +401,7 @@ namespace AutoFlight{
 						this->trajectoryReady_ = false;
 						this->stop();
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+						this->replan_ = false;
 					}
 					else{
 						if (this->trajectoryReady_){
@@ -407,7 +411,6 @@ namespace AutoFlight{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
 						}
 					}
-					this->replan_ = false;
 				}
 			}
 		}
@@ -448,7 +451,7 @@ namespace AutoFlight{
 				return;
 			}
 
-			if (this->computeExecutionDistance() >= 3.0){
+			if (this->computeExecutionDistance() >= 3.0 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;
