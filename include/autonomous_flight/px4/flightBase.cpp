@@ -49,7 +49,7 @@ namespace AutoFlight{
 	}
 
 	void flightBase::publishTarget(){
-		ros::Rate r (50);
+		ros::Rate r (200);
 
 		// warmup
 		for(int i = 100; ros::ok() && i > 0; --i){
@@ -78,7 +78,7 @@ namespace AutoFlight{
 	        }
 
 	        if (this->poseControl_){
-	        	this->poseTgt_.header.stamp = ros::Time::now();
+	        	// this->poseTgt_.header.stamp = ros::Time::now();
 	        	this->posePub_.publish(this->poseTgt_);
 	        }
 	        else{
@@ -270,7 +270,7 @@ namespace AutoFlight{
 		psT.pose = ps.pose;
 		ros::Time startTime = ros::Time::now();
 		ros::Time currTime = ros::Time::now();
-		ros::Rate r (30);
+		ros::Rate r (200);
 		while (ros::ok() and not this->isReach(ps)){
 			currTime = ros::Time::now();
 			double t = (currTime - startTime).toSec();
