@@ -451,7 +451,7 @@ namespace AutoFlight{
 				return;
 			}
 
-			if (this->computeExecutionDistance() >= 3.0 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
+			if (this->computeExecutionDistance() >= 1.5 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;

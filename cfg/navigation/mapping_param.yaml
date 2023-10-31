@@ -6,12 +6,12 @@ pose_topic: /mavros/local_position/pose
 odom_topic: /mavros/local_position/odom
 
 # robot size
-robot_size: [0.8, 0.8, 0.3]
+robot_size: [0.5, 0.5, 0.3]
 
 # Camera Parameters
 depth_intrinsics: [554.254691191187, 554.254691191187, 320.5, 240.5] # fx,  fy, cx, cy
 depth_scale_factor: 10 # 1000 for Intel Realsense Camera
-depth_min_value: 0.3
+depth_min_value: 0.5
 depth_max_value: 5.0
 depth_filter_margin: 2 # filter
 depth_skip_pixel: 2 # filter
@@ -45,7 +45,5 @@ max_height_visualization: 2.5 # m
 visualize_global_map: true
 verbose: false
 
-# prebuilt_map_directory: "/home/zhefan/catkin_ws/src/CERLAB-Autonomy/autonomous_flight/cfg/saved_map/square_static_map2.pcd"
-# prebuilt_map_directory: "/home/zhefan/static_map.pcd"
-
 prebuilt_map_directory: "No"
+# prebuilt_map_directory: "/home/cerlab/map/static_map.pcd"
