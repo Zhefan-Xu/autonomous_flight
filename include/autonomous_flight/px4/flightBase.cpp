@@ -266,6 +266,7 @@ namespace AutoFlight{
 		}
 
 		double endTime = yawDiffAbs/desiredAngularVel;
+		tracking_controller::Target target;
 		geometry_msgs::PoseStamped psT;
 		psT.pose = ps.pose;
 		ros::Time startTime = ros::Time::now();
@@ -284,7 +285,12 @@ namespace AutoFlight{
 				psT.pose.orientation = quatT;
 				
 			}
-			this->updateTarget(psT);
+			// this->updateTarget(psT);
+			target.position.x = psT.pose.position.x;
+			target.position.y = psT.pose.position.y;
+			target.position.z = psT.pose.position.z;
+			target.yaw = AutoFlight::rpy_from_quaternion(psT.pose.orientation);
+			this->updateTargetWithState(target);
 			// cout << "here" << endl;
 			ros::spinOnce();
 			r.sleep();

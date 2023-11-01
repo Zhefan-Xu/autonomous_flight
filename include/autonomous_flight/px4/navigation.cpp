@@ -316,7 +316,10 @@ namespace AutoFlight{
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 
 					// optimize time
-					// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+					ros::Time timeOptStartTime = ros::Time::now();
+					this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+					ros::Time timeOptEndTime = ros::Time::now();
+					cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
 
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
@@ -463,29 +466,34 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
-			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
-			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
-			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-			double endTime = this->trajectory_.getDuration()/linearReparamFactor;
+			// this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
+			// double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+			// Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
+			// Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+			// Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+			// double endTime = this->trajectory_.getDuration()/linearReparamFactor;
 
-			// Eigen::Vector3d pos, vel, acc;
-			// this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
-			// double endTime = this->timeOptimizer_->getDuration();
+			Eigen::Vector3d pos, vel, acc;
+			this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
+			double endTime = this->timeOptimizer_->getDuration();
 
 			double leftTime = endTime - realTime; 
 			// cout << "left time: " << leftTime << endl;
+			tracking_controller::Target target;
 			if (leftTime <= 0.0){ // zero vel and zero acc if close to
-				geometry_msgs::PoseStamped psTarget;
-				psTarget.pose.position.x = pos(0);
-				psTarget.pose.position.y = pos(1);
-				psTarget.pose.position.z = pos(2);
-				psTarget.pose.orientation = this->odom_.pose.pose.orientation; 
-				this->updateTarget(psTarget);
+				target.position.x = pos(0);
+				target.position.y = pos(1);
+				target.position.z = pos(2);
+				target.velocity.x = 0.0;
+				target.velocity.y = 0.0;
+				target.velocity.z = 0.0;
+				target.acceleration.x = 0.0;
+				target.acceleration.y = 0.0;
+				target.acceleration.z = 0.0;
+				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+				this->updateTargetWithState(target);						
 			}
 			else{
-				tracking_controller::Target target;
 				if (this->noYawTurning_ or not this->useYawControl_){
 					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 				}
