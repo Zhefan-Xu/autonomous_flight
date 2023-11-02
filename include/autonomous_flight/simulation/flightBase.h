@@ -14,11 +14,73 @@
 #include <geometry_msgs/TwistStamped.h>
 #include <gazebo_msgs/SetModelState.h>
 #include <autonomous_flight/simulation/utils.h>
+#include <tracking_controller/Target.h>
+#include <Eigen/Dense>
 #include <thread>
 #include <mutex>
 
 using std::cout; using std::endl;
 namespace AutoFlight{
+
+
+	class flightBase{
+	protected:
+		// ROS
+		ros::NodeHandle nh_;
+		ros::Subscriber stateSub_;
+		ros::Subscriber odomSub_;
+		ros::Subscriber clickSub_;
+		ros::Publisher posePub_;
+		ros::Publisher statePub_;
+		ros::Timer stateUpdateTimer_;
+
+		nav_msgs::Odometry odom_;
+		geometry_msgs::PoseStamped poseTgt_; // target pose
+		tracking_controller::Target stateTgt_;
+		geometry_msgs::PoseStamped goal_;
+		Eigen::Vector3d currPos_;
+		double currYaw_;
+		Eigen::Vector3d currVel_, currAcc_, prevVel_;
+		ros::Time prevStateTime_;
+		bool stateUpdateFirstTime_ = true;
+
+		// parameter
+		double takeoffHgt_ ;
+
+		// status
+		bool poseControl_ = true;
+		bool odomReceived_ = false;
+		bool hasTakeoff_ = false;
+		bool firstGoal_ = false;
+		bool goalReceived_ = false;
+
+		
+
+
+	public:
+		std::thread targetPubWorker_;
+
+		flightBase(const ros::NodeHandle& nh);
+
+		void publishTarget();
+		
+		// callback functions
+		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
+		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
+		void stateUpdateCB(const ros::TimerEvent&);
+
+		void takeoff();
+		void run();
+		void stop();
+		void moveToOrientation(double yaw, double desiredAngularVel);
+
+		void updateTarget(const geometry_msgs::PoseStamped& ps);
+		void updateTargetWithState(const tracking_controller::Target& target);
+		bool isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw=true);
+		bool isReach(const geometry_msgs::PoseStamped& poseTgt, double dist, bool useYaw=true);
+		
+	};
+
 	struct trajData{
 		nav_msgs::Path trajectory;
 		nav_msgs::Path currTrajectory;
@@ -142,41 +204,6 @@ namespace AutoFlight{
 				return false;
 			}
 		}
-	};
-
-	class flightBase{
-	protected:
-		// ROS
-		ros::NodeHandle nh_;
-		ros::Subscriber odomSub_;
-		ros::Subscriber clickSub_;
-		ros::Publisher takeoffPub_;
-		ros::Publisher posePub_;
-
-		nav_msgs::Odometry odom_;
-		geometry_msgs::PoseStamped poseTgt_; // target pose
-		geometry_msgs::PoseStamped goal_;
-
-		// status
-		bool odomReceived_ = false;
-		bool hasTakeoff_ = false;
-		bool firstGoal_ = false;
-		bool goalReceived_ = false;
-
-		double takeoffHgt_ = 1.0;
-
-
-	public:
-		flightBase(const ros::NodeHandle& nh);
-		~flightBase();
-		void takeoff();
-		void updateTarget(const geometry_msgs::PoseStamped& ps);
-		void run();
-		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
-		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
-		bool isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw=true);
-		bool isReach(const geometry_msgs::PoseStamped& poseTgt, double dist, bool useYaw=true);
-		bool moveToOrientation(double yaw, double desiredAngularVel);
 	};
 }
 #endif
