@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   trajectory_planner
   map_manager
   onboard_vision
+  time_optimizer
 )
 
 ## System dependencies are found with CMake's conventions

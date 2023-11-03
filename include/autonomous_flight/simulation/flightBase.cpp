@@ -45,7 +45,7 @@ namespace AutoFlight{
 
 
 	void flightBase::publishTarget(){
-		ros::Rate r (50);
+		ros::Rate r (100);
 		while (ros::ok()){
 	        if (this->poseControl_){
 	        	this->posePub_.publish(this->poseTgt_);
@@ -106,6 +106,7 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped ps;
 		ps.pose = this->odom_.pose.pose;
 		ps.pose.position.z = this->takeoffHgt_;
+		ps.pose.orientation.w = 1.0;
 		this->updateTarget(ps);
 		ros::Rate r (10);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1 and not this->hasTakeoff_){
@@ -120,17 +121,18 @@ namespace AutoFlight{
 	void flightBase::run(){
 		// flight test with circle
 		double r = 2.0; // radius
-		double v = 1.0; // 2.0 m/s
+		double v = 1.5; // 2.0 m/s
 
 		double z = this->odom_.pose.pose.position.z;
 		geometry_msgs::PoseStamped startPs;
 		startPs.pose.position.x = r;
 		startPs.pose.position.y = 0.0;
 		startPs.pose.position.z = z;
+		startPs.pose.orientation.w = 1.0;
 		this->updateTarget(startPs);
 		
 		cout << "[AutoFlight]: Go to target point..." << endl;
-		ros::Rate rate (30);
+		ros::Rate rate (100);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.x - startPs.pose.position.x) >= 0.1){
 			ros::spinOnce();
 			rate.sleep();
@@ -234,7 +236,7 @@ namespace AutoFlight{
 			r.sleep();
 		}
 	}
-	
+
 	void flightBase::updateTarget(const geometry_msgs::PoseStamped& ps){ // global frame
 		this->poseTgt_ = ps;
 		this->poseTgt_.header.frame_id = "map";
