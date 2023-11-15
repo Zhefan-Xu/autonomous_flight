@@ -91,7 +91,7 @@ namespace AutoFlight{
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
 		this->polyTraj_->setMap(this->map_);
 		this->polyTraj_->updateDesiredVel(this->desiredVel_);
-		this->polyTraj_->updateDesiredAcc(this->desiredVel_);
+		this->polyTraj_->updateDesiredAcc(this->desiredAcc_);
 
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
@@ -316,10 +316,10 @@ namespace AutoFlight{
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 
 					// optimize time
-					ros::Time timeOptStartTime = ros::Time::now();
-					this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
-					ros::Time timeOptEndTime = ros::Time::now();
-					cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+					// ros::Time timeOptStartTime = ros::Time::now();
+					// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+					// ros::Time timeOptEndTime = ros::Time::now();
+					// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
 
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
@@ -466,16 +466,19 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
-			// this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
-			// double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-			// Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			// Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
-			// Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-			// double endTime = this->trajectory_.getDuration()/linearReparamFactor;
+			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
+			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
+			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+			// Eigen::Vector3d pos = this->trajectory_.at(realTime);
+			// Eigen::Vector3d vel = this->trajectory_.getDerivative().at(realTime);
+			// Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(realTime);
+			double endTime = this->trajectory_.getDuration()/linearReparamFactor;
 
-			Eigen::Vector3d pos, vel, acc;
-			this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
-			double endTime = this->timeOptimizer_->getDuration();
+			// Eigen::Vector3d pos, vel, acc;
+			// this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
+			// double endTime = this->timeOptimizer_->getDuration();
 
 			double leftTime = endTime - realTime; 
 			// cout << "left time: " << leftTime << endl;
