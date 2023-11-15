@@ -109,6 +109,12 @@ namespace AutoFlight{
 		// initialize the time optimizer
 		this->timeOptimizer_.reset(new timeOptimizer::bsplineTimeOptimizer (this->nh_));
 		this->timeOptimizer_->setMap(this->map_);
+
+
+		// test
+		this->visualization_.reset(new ego_planner::PlanningVisualization (this->nh_));
+		this->vanillaEgoPlanner_.reset(new ego_planner::EGOPlannerManager ());
+		this->vanillaEgoPlanner_->initPlanModules(this->nh_, this->visualization_);
 	}
 
 	void navigation::registerPub(){
@@ -463,6 +469,7 @@ namespace AutoFlight{
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
+		return;
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
