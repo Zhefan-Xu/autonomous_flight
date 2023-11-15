@@ -9,5 +9,8 @@
 	<rosparam file="$(find autonomous_flight)/cfg/navigation/flight_base.yaml" ns="autonomous_flight"/>
 	<rosparam file="$(find autonomous_flight)/cfg/navigation/planner_param.yaml" />
 	<rosparam file="$(find autonomous_flight)/cfg/navigation/mapping_param.yaml" ns="/occupancy_map" />
+	<rosparam file="$(find autonomous_flight)/cfg/navigation/ego_planner_param.yaml" />
+	<remap from="/grid_map/depth" to="/camera/depth/image_raw" />
+	<remap from="/grid_map/odom" to="/CERLAB/quadcopter/odom" />
 	<node pkg="autonomous_flight" type="navigation_node" name="navigation_node" output="screen" />
 </launch>

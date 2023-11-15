@@ -1,0 +1,54 @@
+
+manager/max_vel: 2.0
+manager/max_acc: 3.0
+manager/max_jerk: 4.0 
+manager/feasibility_tolerance: 0.05
+manager/control_points_distance: 0.4
+manager/planning_horizon: 7.5
+
+optimization/lambda_smooth: 1.0
+optimization/lambda_collision: 0.5
+optimization/lambda_feasibility: 0.1
+optimization/lambda_fitness: 1.0
+optimization/dist0: 0.5
+optimization/max_vel: 2.0
+optimization/max_acc: 3.0
+optimization/order: 3
+
+grid_map/resolution: 0.1
+grid_map/map_size_x: 40
+grid_map/map_size_y: 40
+grid_map/map_size_z: 2
+grid_map/local_update_range_x: 5.5
+grid_map/local_update_range_y: 5.5
+grid_map/local_update_range_z: 4.5
+grid_map/obstacles_inflation: 0.4 # half of size
+grid_map/fx: 554.254691191187
+grid_map/fy: 554.254691191187
+grid_map/cx: 320.5
+grid_map/cy: 240.5
+
+
+grid_map/use_depth_filter: true
+grid_map/depth_filter_tolerance: 0.15
+grid_map/depth_filter_maxdist: 5.0
+grid_map/depth_filter_mindist: 0.2
+grid_map/depth_filter_margin: 1
+grid_map/k_depth_scaling_factor: 1000.0
+grid_map/skip_pixel: 2
+
+grid_map/min_ray_length: 0.1
+grid_map/max_ray_length: 4.5
+
+grid_map/visualization_truncate_height: 2.5
+grid_map/virtual_ceil_height: 2.4
+
+grid_map/show_occ_time: false
+grid_map/pose_type: 2
+
+grid_map/frame_id: "map"
+
+grid_map/ground_height: 0.0
+grid_map/map_path: "no"
+# grid_map/map_path: "/home/zhefan/catkin_ws/src/CERLAB-Autonomy/trajectory_planner/map/ego_env.pcd"
+# grid_map/map_path: "/home/zhefan/catkin_ws/src/CERLAB-Autonomy/trajectory_planner/map/square_static_map2.pcd"

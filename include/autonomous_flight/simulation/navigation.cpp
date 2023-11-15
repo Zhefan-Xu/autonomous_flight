@@ -230,6 +230,34 @@ namespace AutoFlight{
 					inputTraj = adjustedInputPolyTraj;
 					finalTime = finalTimeTemp;
 					startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+
+
+					// ==================FOR TEST===========================
+					Eigen::Vector3d startPt (start.pose.position.x, start.pose.position.y, start.pose.position.z);
+					Eigen::Vector3d goalPt (goal.pose.position.x, goal.pose.position.z, goal.pose.position.z);
+					Eigen::Vector3d startVel = startEndConditions[0];
+					Eigen::Vector3d startAcc = startEndConditions[2];
+					Eigen::Vector3d goalVel = startEndConditions[1];
+
+					// things I want to obtain from this function
+					std::vector<Eigen::Vector3d> egoBsplineStartEndConditions;
+					Eigen::MatrixXd vanillaEgoCpts, egoControlPointsBefore;
+					double vanillaEgoTs;
+					std::vector<Eigen::Vector3d> inputPointSet;
+
+					bool planSuccessVanialla = this->vanillaEgoPlanner_->reboundReplan(startPt, startVel, startAcc, goalPt, goalVel, true, false, vanillaEgoCpts, vanillaEgoTs, inputPointSet, egoControlPointsBefore, egoBsplineStartEndConditions);
+
+					nav_msgs::Path vanillaInputTraj;
+					vanillaInputTraj.poses.clear();
+					for (int i=0; i<int(inputPointSet.size()); ++i){
+						geometry_msgs::PoseStamped ps;
+						ps.pose.position.x = inputPointSet[i](0);
+						ps.pose.position.y = inputPointSet[i](1);
+						ps.pose.position.z = inputPointSet[i](2);
+						vanillaInputTraj.poses.push_back(ps);
+					}
+					inputTraj = vanillaInputTraj;
+					this->bsplineTraj_->updateControlPointTs(vanillaEgoTs);
 					// startEndConditions[3] = Eigen::Vector3d (0.0, 0.0, 0.0);
 					// startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
 				}
