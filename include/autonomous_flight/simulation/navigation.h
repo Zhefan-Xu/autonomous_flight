@@ -31,6 +31,8 @@ namespace AutoFlight{
 		// test part
 		std::shared_ptr<ego_planner::PlanningVisualization> visualization_;
 		std::shared_ptr<ego_planner::EGOPlannerManager> vanillaEgoPlanner_;
+		ros::Publisher egoPlannerTrajPub_;
+		ros::Publisher egoPlannerCptsPub_;
 
 
 		ros::Timer plannerTimer_;
@@ -91,6 +93,11 @@ namespace AutoFlight{
 		double computeExecutionDistance();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
+
+
+		// test
+		void publishTrajectory(const ros::Publisher& trajPub, const ros::Publisher& cptsPub,  const Eigen::MatrixXd& cpts, double ts, std::string ns,
+							   double r, double g, double b);
 	};
 }
 

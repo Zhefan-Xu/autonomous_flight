@@ -123,6 +123,10 @@ namespace AutoFlight{
 		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/pwl_trajectory", 10);
 		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/bspline_trajectory", 10);
 		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/input_trajectory", 10);
+
+		// test
+		this->egoPlannerTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/ego_planner_traj", 10);
+		this->egoPlannerCptsPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("navigation/ego_planner_cpts", 10);
 	}
 
 	void navigation::registerCallback(){
@@ -246,6 +250,11 @@ namespace AutoFlight{
 					std::vector<Eigen::Vector3d> inputPointSet;
 
 					bool planSuccessVanialla = this->vanillaEgoPlanner_->reboundReplan(startPt, startVel, startAcc, goalPt, goalVel, true, false, vanillaEgoCpts, vanillaEgoTs, inputPointSet, egoControlPointsBefore, egoBsplineStartEndConditions);
+
+					if (planSuccessVanialla){
+						this->publishTrajectory(this->egoPlannerTrajPub_, this->egoPlannerCptsPub_, vanillaEgoCpts, vanillaEgoTs, "ego", 0, 1, 0);
+					}
+
 
 					nav_msgs::Path vanillaInputTraj;
 					vanillaInputTraj.poses.clear();
@@ -698,5 +707,52 @@ namespace AutoFlight{
 			currPath.poses.push_back(this->rrtPathMsg_.poses[i]);
 		}
 		return currPath;		
+	}
+
+	void navigation::publishTrajectory(const ros::Publisher& trajPub, const ros::Publisher& cptsPub, const Eigen::MatrixXd& cpts, double ts, std::string ns,
+									   double r, double g, double b){
+		if (cpts.cols() == 0) return;
+		visualization_msgs::MarkerArray msg;
+		std::vector<visualization_msgs::Marker> pointVec;
+		visualization_msgs::Marker point;
+		int pointCount = 0;
+		for (int i=0; i<cpts.cols(); ++i){
+			point.header.frame_id = "map";
+			point.header.stamp = ros::Time::now();
+			point.ns = ns;
+			point.id = pointCount;
+			point.type = visualization_msgs::Marker::SPHERE;
+			point.action = visualization_msgs::Marker::ADD;
+			point.pose.position.x = cpts(0, i);
+			point.pose.position.y = cpts(1, i);
+			point.pose.position.z = cpts(2, i);
+			point.lifetime = ros::Duration(0.05);
+			point.scale.x = 0.2;
+			point.scale.y = 0.2;
+			point.scale.z = 0.2;
+			point.color.a = 1.0;
+			point.color.r = r;
+			point.color.g = g;
+			point.color.b = b;
+			pointVec.push_back(point);
+			++pointCount;			
+		}
+		msg.markers = pointVec;	
+		cptsPub.publish(msg);
+
+		// trajctory
+		nav_msgs::Path traj;
+		Eigen::Vector3d p;
+		geometry_msgs::PoseStamped ps;
+		trajPlanner::bspline bsplineTraj = trajPlanner::bspline (3, cpts, ts);
+		for (double t=0; t<=bsplineTraj.getDuration(); t+=0.1){
+			p = bsplineTraj.at(t);
+			ps.pose.position.x = p(0);
+			ps.pose.position.y = p(1);
+			ps.pose.position.z = p(2);
+			traj.poses.push_back(ps);
+		}
+		traj.header.frame_id = "map";
+		trajPub.publish(traj);		
 	}
 }
