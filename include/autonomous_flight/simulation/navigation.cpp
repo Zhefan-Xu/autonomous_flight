@@ -238,7 +238,7 @@ namespace AutoFlight{
 
 					// ==================FOR TEST===========================
 					Eigen::Vector3d startPt (start.pose.position.x, start.pose.position.y, start.pose.position.z);
-					Eigen::Vector3d goalPt (goal.pose.position.x, goal.pose.position.z, goal.pose.position.z);
+					Eigen::Vector3d goalPt (goal.pose.position.x, goal.pose.position.y, goal.pose.position.z);
 					Eigen::Vector3d startVel = startEndConditions[0];
 					Eigen::Vector3d startAcc = startEndConditions[2];
 					Eigen::Vector3d goalVel = startEndConditions[1];
@@ -249,6 +249,8 @@ namespace AutoFlight{
 					double vanillaEgoTs;
 					std::vector<Eigen::Vector3d> inputPointSet;
 
+					cout << "start for ego: " << startPt.transpose() << endl;
+					cout << "goal for ego: " << goalPt.transpose() << endl;
 					bool planSuccessVanialla = this->vanillaEgoPlanner_->reboundReplan(startPt, startVel, startAcc, goalPt, goalVel, true, false, vanillaEgoCpts, vanillaEgoTs, inputPointSet, egoControlPointsBefore, egoBsplineStartEndConditions);
 
 					if (planSuccessVanialla){
@@ -506,7 +508,7 @@ namespace AutoFlight{
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
-		return;
+		// return;
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
