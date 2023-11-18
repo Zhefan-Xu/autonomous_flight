@@ -323,7 +323,7 @@ namespace AutoFlight{
 
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
-					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
+					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 
 					// print the control points of current trajectory
 					// cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
