@@ -117,6 +117,7 @@ namespace AutoFlight{
 		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/pwl_trajectory", 10);
 		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/bspline_trajectory", 10);
 		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/input_trajectory", 10);
+		this->inputTrajPointsPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("navigation/input_trajetory_points", 10);
 	}
 
 	void navigation::registerCallback(){
@@ -224,6 +225,8 @@ namespace AutoFlight{
 					inputTraj = adjustedInputPolyTraj;
 					finalTime = finalTimeTemp;
 					startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+					// this->bsplineTraj_->updateControlPointsTs(dtTemp);
+					// cout << "time step to sample is: " << dtTemp << endl;
 					// startEndConditions[3] = Eigen::Vector3d (0.0, 0.0, 0.0);
 					// startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
 				}
@@ -531,9 +534,8 @@ namespace AutoFlight{
 		if (this->bsplineTrajMsg_.poses.size() != 0){
 			this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
 		}
-		if (this->inputTrajMsg_.poses.size() != 0){
-			this->inputTrajPub_.publish(this->inputTrajMsg_);
-		}
+
+		this->publishInputTraj();
 	}
 
 	void navigation::run(){
@@ -663,5 +665,42 @@ namespace AutoFlight{
 			currPath.poses.push_back(this->rrtPathMsg_.poses[i]);
 		}
 		return currPath;		
+	}
+
+
+	void navigation::publishInputTraj(){
+		// this function publishes the input path as trajectory and also sample points
+		if (this->inputTrajMsg_.poses.size() != 0){
+			// publish the input trajectory as a smooth path
+			this->inputTrajPub_.publish(this->inputTrajMsg_);
+
+			visualization_msgs::MarkerArray msg;
+			std::vector<visualization_msgs::Marker> pointVec;
+			visualization_msgs::Marker point;
+			int pointCount = 0;
+			for (int i=0; i<int(this->inputTrajMsg_.poses.size()); ++i){
+				point.header.frame_id = "map";
+				point.header.stamp = ros::Time::now();
+				point.ns = "input_traj_points";
+				point.id = pointCount;
+				point.type = visualization_msgs::Marker::SPHERE;
+				point.action = visualization_msgs::Marker::ADD;
+				point.pose.position.x = this->inputTrajMsg_.poses[i].pose.position.x;
+				point.pose.position.y = this->inputTrajMsg_.poses[i].pose.position.x;
+				point.pose.position.z = this->inputTrajMsg_.poses[i].pose.position.x;
+				point.lifetime = ros::Duration(0.05);
+				point.scale.x = 0.2;
+				point.scale.y = 0.2;
+				point.scale.z = 0.2;
+				point.color.a = 1.0;
+				point.color.r = 0;
+				point.color.g = 1;
+				point.color.b = 0;
+				pointVec.push_back(point);
+				++pointCount;			
+			}
+			msg.markers = pointVec;	
+			this->inputTrajPointsPub_.publish(msg);
+		}
 	}
 }

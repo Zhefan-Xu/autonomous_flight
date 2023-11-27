@@ -37,6 +37,7 @@ namespace AutoFlight{
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
 		ros::Publisher inputTrajPub_;
+		ros::Publisher inputTrajPointsPub_;
 
 		// parameters
 		bool useGlobalPlanner_;
@@ -85,6 +86,9 @@ namespace AutoFlight{
 		double computeExecutionDistance();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
+
+
+		void publishInputTraj();
 	};
 }
 
