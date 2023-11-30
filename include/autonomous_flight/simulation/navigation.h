@@ -8,7 +8,6 @@
 #define AUTOFLIGHT_NAVIGATION_H
 
 #include <autonomous_flight/simulation/flightBase.h>
-#include <autonomous_flight/simulation/localPlanner.h>
 #include <map_manager/occupancyMap.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
@@ -28,8 +27,6 @@ namespace AutoFlight{
 		std::shared_ptr<timeOptimizer::trajDivider> trajDivider_;
 		std::shared_ptr<timeOptimizer::bsplineTimeOptimizer> timeOptimizer_;
 
-		// local planner
-		std::shared_ptr<AutoFlight::localPlanner> localPlanner_;
 
 
 		ros::Timer plannerTimer_;
@@ -71,8 +68,6 @@ namespace AutoFlight{
 		
 
 
-
-
 	public:
 		navigation(const ros::NodeHandle& nh);
 		void initParam();
@@ -91,8 +86,6 @@ namespace AutoFlight{
 		double computeExecutionDistance();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
-
-
 		void publishInputTraj();
 	};
 }

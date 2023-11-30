@@ -109,11 +109,6 @@ namespace AutoFlight{
 		// initialize the time optimizer
 		this->timeOptimizer_.reset(new timeOptimizer::bsplineTimeOptimizer (this->nh_));
 		this->timeOptimizer_->setMap(this->map_);
-
-
-		// // initialize the local planner
-		this->localPlanner_.reset(new AutoFlight::localPlanner (this->nh_, this->desiredVel_, this->desiredAcc_));
-		this->localPlanner_->loadOccMap(this->map_);
 	}
 
 	void navigation::registerPub(){
