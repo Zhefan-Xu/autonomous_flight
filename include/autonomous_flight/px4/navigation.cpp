@@ -1,7 +1,7 @@
 /*
 	FILE: navigation.cpp
 	------------------------
-	navigation implementation file in real world
+	navigation implementation file in real flight
 */
 #include <autonomous_flight/px4/navigation.h>
 
@@ -91,7 +91,7 @@ namespace AutoFlight{
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
 		this->polyTraj_->setMap(this->map_);
 		this->polyTraj_->updateDesiredVel(this->desiredVel_);
-		this->polyTraj_->updateDesiredAcc(this->desiredVel_);
+		this->polyTraj_->updateDesiredAcc(this->desiredAcc_);
 
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
@@ -117,6 +117,7 @@ namespace AutoFlight{
 		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/pwl_trajectory", 10);
 		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/bspline_trajectory", 10);
 		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/input_trajectory", 10);
+		this->inputTrajPointsPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("navigation/input_trajetory_points", 10);
 	}
 
 	void navigation::registerCallback(){
@@ -224,6 +225,8 @@ namespace AutoFlight{
 					inputTraj = adjustedInputPolyTraj;
 					finalTime = finalTimeTemp;
 					startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+					// this->bsplineTraj_->updateControlPointsTs(dtTemp);
+					// cout << "time step to sample is: " << dtTemp << endl;
 					// startEndConditions[3] = Eigen::Vector3d (0.0, 0.0, 0.0);
 					// startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
 				}
@@ -316,14 +319,14 @@ namespace AutoFlight{
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 
 					// optimize time
-					ros::Time timeOptStartTime = ros::Time::now();
-					this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
-					ros::Time timeOptEndTime = ros::Time::now();
-					cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+					// ros::Time timeOptStartTime = ros::Time::now();
+					// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+					// ros::Time timeOptEndTime = ros::Time::now();
+					// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
 
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
-					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
+					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 
 					// print the control points of current trajectory
 					// cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
@@ -466,16 +469,19 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
-			// this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
-			// double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-			// Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			// Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
-			// Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-			// double endTime = this->trajectory_.getDuration()/linearReparamFactor;
+			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
+			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
+			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+			// Eigen::Vector3d pos = this->trajectory_.at(realTime);
+			// Eigen::Vector3d vel = this->trajectory_.getDerivative().at(realTime);
+			// Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(realTime);
+			double endTime = this->trajectory_.getDuration()/linearReparamFactor;
 
-			Eigen::Vector3d pos, vel, acc;
-			this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
-			double endTime = this->timeOptimizer_->getDuration();
+			// Eigen::Vector3d pos, vel, acc;
+			// this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
+			// double endTime = this->timeOptimizer_->getDuration();
 
 			double leftTime = endTime - realTime; 
 			// cout << "left time: " << leftTime << endl;
@@ -528,9 +534,8 @@ namespace AutoFlight{
 		if (this->bsplineTrajMsg_.poses.size() != 0){
 			this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
 		}
-		if (this->inputTrajMsg_.poses.size() != 0){
-			this->inputTrajPub_.publish(this->inputTrajMsg_);
-		}
+
+		this->publishInputTraj();
 	}
 
 	void navigation::run(){
@@ -660,5 +665,42 @@ namespace AutoFlight{
 			currPath.poses.push_back(this->rrtPathMsg_.poses[i]);
 		}
 		return currPath;		
+	}
+
+
+	void navigation::publishInputTraj(){
+		// this function publishes the input path as trajectory and also sample points
+		if (this->inputTrajMsg_.poses.size() != 0){
+			// publish the input trajectory as a smooth path
+			this->inputTrajPub_.publish(this->inputTrajMsg_);
+
+			visualization_msgs::MarkerArray msg;
+			std::vector<visualization_msgs::Marker> pointVec;
+			visualization_msgs::Marker point;
+			int pointCount = 0;
+			for (int i=0; i<int(this->inputTrajMsg_.poses.size()); ++i){
+				point.header.frame_id = "map";
+				point.header.stamp = ros::Time::now();
+				point.ns = "input_traj_points";
+				point.id = pointCount;
+				point.type = visualization_msgs::Marker::SPHERE;
+				point.action = visualization_msgs::Marker::ADD;
+				point.pose.position.x = this->inputTrajMsg_.poses[i].pose.position.x;
+				point.pose.position.y = this->inputTrajMsg_.poses[i].pose.position.x;
+				point.pose.position.z = this->inputTrajMsg_.poses[i].pose.position.x;
+				point.lifetime = ros::Duration(0.05);
+				point.scale.x = 0.2;
+				point.scale.y = 0.2;
+				point.scale.z = 0.2;
+				point.color.a = 1.0;
+				point.color.r = 0;
+				point.color.g = 1;
+				point.color.b = 0;
+				pointVec.push_back(point);
+				++pointCount;			
+			}
+			msg.markers = pointVec;	
+			this->inputTrajPointsPub_.publish(msg);
+		}
 	}
 }

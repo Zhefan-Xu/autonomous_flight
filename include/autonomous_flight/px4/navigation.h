@@ -1,7 +1,7 @@
 /*
 	FILE: navigation.h
 	------------------------
-	navigation header file in real world
+	navigation header file in px4
 */
 
 #ifndef AUTOFLIGHT_NAVIGATION_H
@@ -27,6 +27,8 @@ namespace AutoFlight{
 		std::shared_ptr<timeOptimizer::trajDivider> trajDivider_;
 		std::shared_ptr<timeOptimizer::bsplineTimeOptimizer> timeOptimizer_;
 
+
+
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
@@ -37,6 +39,7 @@ namespace AutoFlight{
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
 		ros::Publisher inputTrajPub_;
+		ros::Publisher inputTrajPointsPub_;
 
 		// parameters
 		bool useGlobalPlanner_;
@@ -65,8 +68,6 @@ namespace AutoFlight{
 		
 
 
-
-
 	public:
 		navigation(const ros::NodeHandle& nh);
 		void initParam();
@@ -85,6 +86,7 @@ namespace AutoFlight{
 		double computeExecutionDistance();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
+		void publishInputTraj();
 	};
 }
 
