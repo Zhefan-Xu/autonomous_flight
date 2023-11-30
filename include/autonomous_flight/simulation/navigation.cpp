@@ -434,6 +434,7 @@ namespace AutoFlight{
 			this->trajectoryReady_ = false;
 			if (not this->noYawTurning_ and not this->useYawControl_){
 				double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
+				this->facingYaw_ = yaw;
 				this->moveToOrientation(yaw, this->desiredAngularVel_);
 			}
 			this->firstTimeSave_ = true;
@@ -500,7 +501,10 @@ namespace AutoFlight{
 				this->updateTargetWithState(target);						
 			}
 			else{
-				if (this->noYawTurning_ or not this->useYawControl_){
+				if (not this->useYawControl_){
+					target.yaw = this->facingYaw_;
+				}
+				else if (this->noYawTurning_){
 					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 				}
 				else{

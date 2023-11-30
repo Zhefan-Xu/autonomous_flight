@@ -28,7 +28,6 @@ namespace AutoFlight{
 		std::shared_ptr<timeOptimizer::bsplineTimeOptimizer> timeOptimizer_;
 
 
-
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
@@ -63,6 +62,7 @@ namespace AutoFlight{
 		ros::Time trajStartTime_;
 		double trajTime_; // current trajectory time
 		double prevInputTrajTime_ = 0.0;
+		double facingYaw_;
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
 		bool firstTimeSave_ = false;
 		
