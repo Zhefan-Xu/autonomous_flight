@@ -414,7 +414,6 @@ namespace AutoFlight{
 			return;
 		}
 
-
 		if (this->trajectoryReady_){
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
 				this->replan_ = true;
@@ -423,14 +422,14 @@ namespace AutoFlight{
 			}
 
 			// replan for dynamic obstacles
-			// if (this->hasDynamicCollision()){
-			// // if (this->hasDynamicObstacle()){
-			// 	this->replan_ = true;
-			// 	cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
-			// 	return;
-			// }
+			if (this->hasDynamicCollision()){
+			// if (this->hasDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+				return;
+			}
 
-			if (this->computeExecutionDistance() >= 3.0){
+			if (this->computeExecutionDistance() >= 1.5 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;
@@ -503,10 +502,13 @@ namespace AutoFlight{
 		onboard_vision::ObstacleList msg;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
 		this->detector_->getObstacles(msg);
+		double fov = 1.57;
 		for (onboard_vision::Obstacle ob: msg.obstacles){
-			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
-			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize);
-			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+			if (this->detector_->isObstacleInSensorRange(ob, fov)){
+				Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
+				Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize);
+				freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+			}
 		}
 		this->map_->updateFreeRegions(freeRegions);
 		this->map_->freeRegions(freeRegions);
@@ -621,11 +623,16 @@ namespace AutoFlight{
 		bool hasDynamicObstacle = (obstaclesPos.size() != 0);
 		if (hasDynamicObstacle){
 			double timePassed = (currTime - this->lastDynamicObstacleTime_).toSec();
-			if (timePassed >= this->replanTimeForDynamicObstacle_){
+			if (this->lastDynamicObstacle_ == false or timePassed >= this->replanTimeForDynamicObstacle_){
 				replan = true;
 				this->lastDynamicObstacleTime_ = currTime;
 			}
+			this->lastDynamicObstacle_ = true;
 		}
+		else{
+			this->lastDynamicObstacle_ = false;
+		}
+
 		return replan;
 	}
 

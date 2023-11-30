@@ -63,6 +63,7 @@ namespace AutoFlight{
 		double prevInputTrajTime_ = 0.0;
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
 		bool firstTimeSave_ = false;
+		bool lastDynamicObstacle_ = false;
 		ros::Time lastDynamicObstacleTime_;
 		
 
