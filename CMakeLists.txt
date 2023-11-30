@@ -130,6 +130,7 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
+  include/${PROJECT_NAME}/simulation/localPlanner.cpp
   include/${PROJECT_NAME}/simulation/flightBase.cpp
   include/${PROJECT_NAME}/simulation/navigation.cpp
   include/${PROJECT_NAME}/simulation/dynamicNavigation.cpp
