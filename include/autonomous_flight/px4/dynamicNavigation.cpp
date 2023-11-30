@@ -10,6 +10,11 @@ namespace AutoFlight{
 		this->initParam();
 		this->initModules();
 		this->registerPub();
+		if (this->useFakeDetector_){
+			// free map callback
+			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+		}
+		
 	}
 
 	void dynamicNavigation::initParam(){
@@ -148,11 +153,6 @@ namespace AutoFlight{
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicNavigation::visCB, this);
-
-		if (this->useFakeDetector_){
-			// free map callback
-			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.033), &dynamicNavigation::freeMapCB, this);
-		}
 	}
 
 	void dynamicNavigation::plannerCB(const ros::TimerEvent&){
@@ -504,10 +504,11 @@ namespace AutoFlight{
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
 		this->detector_->getObstacles(msg);
 		for (onboard_vision::Obstacle ob: msg.obstacles){
-			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.8, ob.py-ob.ysize/2-0.8, ob.pz);
-			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.8, ob.py+ob.ysize/2+0.8, ob.pz+ob.zsize+0.2);
+			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
+			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize);
 			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 		}
+		this->map_->updateFreeRegions(freeRegions);
 		this->map_->freeRegions(freeRegions);
 	}
 
