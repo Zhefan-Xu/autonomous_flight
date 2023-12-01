@@ -341,13 +341,11 @@ namespace AutoFlight{
 			}
 			
 
-			
+			this->inputTrajMsg_ = inputTraj;
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
 			if (obstaclesPos.size() != 0 and updateSuccess){
 				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 			}
-
-			this->inputTrajMsg_ = inputTraj;
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -356,33 +354,42 @@ namespace AutoFlight{
 					this->trajStartTime_ = ros::Time::now();
 					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
+
+					// optimize time
+					// ros::Time timeOptStartTime = ros::Time::now();
+					// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+					// ros::Time timeOptEndTime = ros::Time::now();
+					// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
-					cout << "[AutoFlight]: Trajectory generated successfully." << endl;
-
-					if (this->trajSavePath_ != "No" and this->firstTimeSave_){
-						this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
-						this->firstTimeSave_ = false;
-					}
+					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
 					// if the current trajectory/or new goal point is assigned is not valid, then just stop
-					if (this->hasCollision() or this->hasDynamicCollision()){
+					if (this->hasCollision()){
 						this->trajectoryReady_ = false;
 						this->stop();
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+						this->replan_ = false;
 					}
 					else{
 						if (this->trajectoryReady_){
 							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
 						}
 						else{
-							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+							cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
+							this->replan_ = false;
 						}
-						this->replan_ = false;
 					}
 				}
+			}
+			else{
+				this->trajectoryReady_ = false;
+				this->stop();
+				this->replan_ = false;
+				cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
 			}
 		}
 	}
