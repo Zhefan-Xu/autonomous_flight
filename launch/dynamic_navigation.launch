@@ -3,7 +3,7 @@
 	<node pkg="tracking_controller" type="tracking_controller_node" name="tracking_controller_node" output="screen" />
 	<!-- <node pkg="tracking_controller" type="tracking_controller_node" name="tracking_controller_node" /> -->
 
-
+	<rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/fake_detector_param.yaml" />
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/flight_base.yaml" ns="autonomous_flight"/>
 	<rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/planner_param.yaml" />
 	<!-- <rosparam file="$(find autonomous_flight)/cfg/dynamic_navigation/mapping_param.yaml" ns="/occupancy_map" /> -->

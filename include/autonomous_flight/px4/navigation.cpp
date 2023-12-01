@@ -312,6 +312,7 @@ namespace AutoFlight{
 			if (updateSuccess){
 				nav_msgs::Path bsplineTrajMsgTemp;
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
+				cout << "this iteration plan success: " << planSuccess << endl;
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 					this->trajStartTime_ = ros::Time::now();
@@ -327,78 +328,6 @@ namespace AutoFlight{
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
-
-					// print the control points of current trajectory
-					// cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
-					// cout << "------------------------------------------------------------" << endl;
-					// Eigen::MatrixXd controlPoints = this->trajectory_.getControlPoints();
-					// for (int i=0; i<controlPoints.cols(); ++i){
-					// 	cout << controlPoints.col(i).transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-
-
-					// print the trajectory points of the current trajectory
-					// cout << "[AutoFlight]: Print current trajectory point with 0.1 time interval." << endl;					
-					// cout << "--------------------------------------------------------------------" << endl;
-					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-					// 	Eigen::Vector3d p = this->trajectory_.at(t);
-					// 	cout << t << " " << p.transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-
-					// cout << "[AutoFlight]: Print current trajectory velcoity with 0.1 time interval." << endl;					
-					// cout << "--------------------------------------------------------------------" << endl;
-					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-					// 	Eigen::Vector3d v = this->trajectory_.getDerivative().at(t) * this->bsplineTraj_->getLinearFactor();
-					// 	cout << t << " " << v.transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-
-					// cout << "[AutoFlight]: Print current trajectory acceleration with 0.1 time interval." << endl;					
-					// cout << "--------------------------------------------------------------------" << endl;
-					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-					// 	Eigen::Vector3d a = this->trajectory_.getDerivative().at(t) * pow(this->bsplineTraj_->getLinearFactor(), 2);
-					// 	cout << t << " " << a.transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-					// if (this->trajSavePath_ != "No" and this->firstTimeSave_){
-					// 	this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
-					// 	this->firstTimeSave_ = false;
-					// }
-
-					// std::vector<Eigen::Vector3d> sampleTraj;
-					// std::vector<double> sampleTime;
-					// double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-					// for (double t=0.0; t * linearReparamFactor <= this->trajectory_.getDuration(); t+=0.1){
-					// 	sampleTime.push_back(t);
-					// 	Eigen::Vector3d p = this->trajectory_.at(t*linearReparamFactor);
-					// 	sampleTraj.push_back(p);
-					// }
-
-					// this->trajDivider_->setTrajectory(sampleTraj, sampleTime);
-
-					// std::vector<std::pair<double, double>> tInterval;
-					// std::vector<double> obstacleDist;
-					// this->trajDivider_->run(tInterval, obstacleDist);
-					
-					// cout << "Total time is: " << this->trajectory_.getDuration()/linearReparamFactor << endl;
-					// for (size_t i=0; i<tInterval.size(); ++i){
-					// 	std::pair<double, double> interval = tInterval[i];
-					// 	double dist = obstacleDist[i];
-					// 	cout << "[AutoFlight]: Time interval: " << interval.first << " " << interval.second << endl;
-					// 	// cout << "Dist: " << dist << endl;
-					// } 
-
-					// std::vector<bool> mask;
-					// std::vector<Eigen::Vector3d> nearestObstacles;
-					// this->trajDivider_->getNearestObstacles(nearestObstacles, mask);
-					// cout << "[AutoFlight]: print nearest obstacles: " << endl;
-					// cout << "------------------------------------------------------------" << endl;
-					// for (size_t i=0; i<nearestObstacles.size(); ++i){
-					// 	cout << mask[i] << " " << nearestObstacles[i].transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
@@ -414,10 +343,17 @@ namespace AutoFlight{
 							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
 						}
 						else{
-							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+							cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
+							this->replan_ = false;
 						}
 					}
 				}
+			}
+			else{
+				this->trajectoryReady_ = false;
+				this->stop();
+				this->replan_ = false;
+				cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
 			}
 		}
 	}
@@ -546,12 +482,12 @@ namespace AutoFlight{
 		// take off the drone
 		this->takeoff();
 
-		int temp1 = system("mkdir ~/rosbag_navigation_info &");
-		int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
-		int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
-		if (temp1==-1 or temp2==-1 or temp3==-1){
-			cout << "[AutoFlight]: Recording fails." << endl;
-		}
+		// int temp1 = system("mkdir ~/rosbag_navigation_info &");
+		// int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
+		// int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
+		// if (temp1==-1 or temp2==-1 or temp3==-1){
+		// 	cout << "[AutoFlight]: Recording fails." << endl;
+		// }
 
 		// register timer callback
 		this->registerCallback();
