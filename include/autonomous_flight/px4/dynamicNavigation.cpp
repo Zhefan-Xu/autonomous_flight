@@ -377,6 +377,7 @@ namespace AutoFlight{
 					else{
 						if (this->trajectoryReady_){
 							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+							this->replan_ = false;
 						}
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
@@ -429,7 +430,7 @@ namespace AutoFlight{
 			}
 
 			// replan for dynamic obstacles
-			if (this->hasDynamicCollision()){
+			if (this->computeExecutionDistance() >= 0.3 and this->hasDynamicCollision()){
 			// if (this->hasDynamicObstacle()){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
@@ -442,7 +443,7 @@ namespace AutoFlight{
 				return;
 			}
 
-			if (this->replanForDynamicObstacle()){
+			if (this->computeExecutionDistance() >= 0.3 and this->replanForDynamicObstacle()){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
 				return;

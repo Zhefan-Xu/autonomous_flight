@@ -340,6 +340,7 @@ namespace AutoFlight{
 					else{
 						if (this->trajectoryReady_){
 							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+							this->replan_ = false;
 						}
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
