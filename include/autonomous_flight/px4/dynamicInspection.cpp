@@ -360,11 +360,6 @@ namespace AutoFlight{
 
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.03), &dynamicInspection::visCB, this);
-		
-		if (this->useFakeDetector_){
-			// free map callback
-			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicInspection::freeMapCB, this);
-		}
 	}
 
 	void dynamicInspection::run(){
@@ -565,7 +560,7 @@ namespace AutoFlight{
 								this->replan_ = false;
 							}
 							else{
-								cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
+								cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
 								this->replan_ = false;
 							}
 						}
@@ -655,7 +650,6 @@ namespace AutoFlight{
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getRestGlobalPath();
 
-					bool updateSuccess = false; // update success for bspline
 					this->polyTraj_->updatePath(latestGLobalPath, startEndConditions);
 					geometry_msgs::Twist vel;
 					double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
@@ -685,11 +679,10 @@ namespace AutoFlight{
 					startEndConditions[1] = this->polyTraj_->getVel(finalTime);
 					startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
 
-					updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
+					bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
 					if (obstaclesPos.size() != 0 and updateSuccess){
 						this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
-			
 					if (updateSuccess){
 						nav_msgs::Path bsplineTrajMsgTemp;
 						bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -698,29 +691,44 @@ namespace AutoFlight{
 							this->trajStartTime_ = ros::Time::now();
 							this->trajTime_ = 0.0; // reset trajectory time
 							this->trajectory_ = this->bsplineTraj_->getTrajectory();
+
+							// optimize time
+							// ros::Time timeOptStartTime = ros::Time::now();
+							// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+							// ros::Time timeOptEndTime = ros::Time::now();
+							// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+
 							this->trajectoryReady_ = true;
 							this->replan_ = false;
-							cout << "[AutoFlight]: Trajectory generated successfully." << endl;
+							cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 						}
 						else{
 							// if the current trajectory is still valid, then just ignore this iteration
 							// if the current trajectory/or new goal point is assigned is not valid, then just stop
-							if (this->hasCollision() or this->hasDynamicCollision()){
+							if (this->hasCollision()){
 								this->trajectoryReady_ = false;
 								this->stop();
 								cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+								this->replan_ = false;
 							}
 							else{
 								if (this->trajectoryReady_){
 									cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+									this->replan_ = false;
 								}
 								else{
 									cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+									this->replan_ = false;
 								}
-								this->replan_ = false;
 							}
 						}
 					}
+					else{
+						this->trajectoryReady_ = false;
+						this->stop();
+						this->replan_ = false;
+						cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
+				}
 				}			
 			}
 
@@ -849,7 +857,6 @@ namespace AutoFlight{
 					// get the latest global waypoint path
 					nav_msgs::Path latestGLobalPath = this->getRestGlobalPath();
 
-					bool updateSuccess = false; // update success for bspline
 					this->polyTraj_->updatePath(latestGLobalPath, startEndConditions);
 					geometry_msgs::Twist vel;
 					double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
@@ -880,11 +887,10 @@ namespace AutoFlight{
 					startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
 
 
-					updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
+					bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
 					if (obstaclesPos.size() != 0 and updateSuccess){
 						this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
-			
 					if (updateSuccess){
 						nav_msgs::Path bsplineTrajMsgTemp;
 						bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
@@ -893,28 +899,43 @@ namespace AutoFlight{
 							this->trajStartTime_ = ros::Time::now();
 							this->trajTime_ = 0.0; // reset trajectory time
 							this->trajectory_ = this->bsplineTraj_->getTrajectory();
+
+							// optimize time
+							// ros::Time timeOptStartTime = ros::Time::now();
+							// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+							// ros::Time timeOptEndTime = ros::Time::now();
+							// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+
 							this->trajectoryReady_ = true;
 							this->replan_ = false;
-							cout << "[AutoFlight]: Trajectory generated successfully." << endl;
+							cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 						}
 						else{
 							// if the current trajectory is still valid, then just ignore this iteration
 							// if the current trajectory/or new goal point is assigned is not valid, then just stop
-							if (this->hasCollision() or this->hasDynamicCollision()){
+							if (this->hasCollision()){
 								this->trajectoryReady_ = false;
 								this->stop();
 								cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+								this->replan_ = false;
 							}
 							else{
 								if (this->trajectoryReady_){
 									cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+									this->replan_ = false;
 								}
 								else{
 									cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+									this->replan_ = false;
 								}
-								this->replan_ = false;
 							}
 						}
+					}
+					else{
+						this->trajectoryReady_ = false;
+						this->stop();
+						this->replan_ = false;
+						cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
 					}
 				}
 
@@ -929,32 +950,42 @@ namespace AutoFlight{
 		if (this->flightState_ == FLIGHT_STATE::FORWARD or (this->flightState_ == FLIGHT_STATE::BACKWARD and this->prevState_ != FLIGHT_STATE::INSPECT) or (this->flightState_ == FLIGHT_STATE::EXPLORE and this->prevState_ == FLIGHT_STATE::EXPLORE)){
 			if (this->trajectoryReady_){
 				ros::Time currTime = ros::Time::now();
-				double trajTime = (currTime - this->trajStartTime_).toSec();
-				this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(trajTime);
+				double realTime = (currTime - this->trajStartTime_).toSec();
+				this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
 				double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
 				Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
 				Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
 				Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+				double endTime = this->trajectory_.getDuration()/linearReparamFactor;
 
-				
+				double leftTime = endTime - realTime; 
 				tracking_controller::Target target;
-				target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-
-				if (std::abs(this->trajTime_ - this->trajectory_.getDuration()) <= 0.3 or this->trajTime_ > this->trajectory_.getDuration()){ // zero vel and zero acc if close to
-					vel *= 0;
-					acc *= 0;
+				if (leftTime <= 0.0){ // zero vel and zero acc if close to
+					target.position.x = pos(0);
+					target.position.y = pos(1);
+					target.position.z = pos(2);
+					target.velocity.x = 0.0;
+					target.velocity.y = 0.0;
+					target.velocity.z = 0.0;
+					target.acceleration.x = 0.0;
+					target.acceleration.y = 0.0;
+					target.acceleration.z = 0.0;
 					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-				}			
-				target.position.x = pos(0);
-				target.position.y = pos(1);
-				target.position.z = pos(2);
-				target.velocity.x = vel(0);
-				target.velocity.y = vel(1);
-				target.velocity.z = vel(2);
-				target.acceleration.x = acc(0);
-				target.acceleration.y = acc(1);
-				target.acceleration.z = acc(2);
-				this->updateTargetWithState(target);			
+					this->updateTargetWithState(target);						
+				}
+				else{
+					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+					target.position.x = pos(0);
+					target.position.y = pos(1);
+					target.position.z = pos(2);
+					target.velocity.x = vel(0);
+					target.velocity.y = vel(1);
+					target.velocity.z = vel(2);
+					target.acceleration.x = acc(0);
+					target.acceleration.y = acc(1);
+					target.acceleration.z = acc(2);
+					this->updateTargetWithState(target);						
+				}
 			}
 		}
 		else{
