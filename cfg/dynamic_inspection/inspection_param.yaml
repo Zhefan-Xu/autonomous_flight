@@ -4,7 +4,7 @@ inspection_width_given: true
 inspection_goal: [
                   10, 0, 1.0, 0,
                   10, 2, 1.0, 0,
-                  12, -3, 2.0, -90
+                  9, -3, 2.0, -90
                  ]
 inspection_width: [4, 3, 2]
 
@@ -22,7 +22,7 @@ fringe_inspection: false
 inspect_left_first: false
 confirm_max_angle: 180
 inspection_confirm: true
-backward_no_turn: true
+backward_no_turn: false
 
 
 # explore

@@ -1,6 +1,6 @@
 use_fake_detector: true
 takeoff_height: 1.0 # m
-desired_velocity: 1.5 # m/s
-desired_acceleration: 3.0 # m/s^2
+desired_velocity: 1.0 # m/s
+desired_acceleration: 1.0 # m/s^2
 desired_angular_velocity: 0.5 # rad/s
 replan_time_for_dynamic_obstacles: 0.3

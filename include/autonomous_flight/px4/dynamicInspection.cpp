@@ -11,6 +11,10 @@ namespace AutoFlight{
 		this->initParam();
 		this->initModules();
 		this->registerPub();
+		if (this->useFakeDetector_){
+			// free map callback
+			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicInspection::freeMapCB, this);
+		}
 	}
 
 	void dynamicInspection::initParam(){
@@ -287,8 +291,11 @@ namespace AutoFlight{
 		if (this->useFakeDetector_){
 			// initialize fake detector
 			this->detector_.reset(new onboardVision::fakeDetector (this->nh_));	
+			this->map_.reset(new mapManager::dynamicMap (this->nh_, false));
 		}
-		this->map_.reset(new mapManager::dynamicMap (this->nh_));
+		else{
+			this->map_.reset(new mapManager::dynamicMap (this->nh_));
+		}
 
 		// initialize fake detector
 		// this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
@@ -520,9 +527,8 @@ namespace AutoFlight{
 				}
 
 
-				bool updateSuccess = false;
-				updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
-				if (obstaclesPos.size() != 0){
+				bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
+				if (obstaclesPos.size() != 0 and updateSuccess){
 					this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 				}
 				if (updateSuccess){
@@ -531,29 +537,45 @@ namespace AutoFlight{
 					if (planSuccess){
 						this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
 						this->trajStartTime_ = ros::Time::now();
-						this->trajTime_ = 0.0;
+						this->trajTime_ = 0.0; // reset trajectory time
 						this->trajectory_ = this->bsplineTraj_->getTrajectory();
+
+						// optimize time
+						// ros::Time timeOptStartTime = ros::Time::now();
+						// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+						// ros::Time timeOptEndTime = ros::Time::now();
+						// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+
 						this->trajectoryReady_ = true;
 						this->replan_ = false;
-						this->countBsplineFailure_ = 0; // reset failure count
+						cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 					}
 					else{
-						++this->countBsplineFailure_;
-						if (this->hasCollision() or this->hasDynamicCollision()){
+						// if the current trajectory is still valid, then just ignore this iteration
+						// if the current trajectory/or new goal point is assigned is not valid, then just stop
+						if (this->hasCollision()){
 							this->trajectoryReady_ = false;
 							this->stop();
 							cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+							this->replan_ = false;
 						}
 						else{
 							if (this->trajectoryReady_){
 								cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+								this->replan_ = false;
 							}
 							else{
-								cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+								cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
+								this->replan_ = false;
 							}
-							// this->replan_ = false;
 						}
 					}
+				}
+				else{
+					this->trajectoryReady_ = false;
+					this->stop();
+					this->replan_ = false;
+					cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
 				}
 			}
 			this->prevState_ = this->flightState_;
@@ -1067,19 +1089,20 @@ namespace AutoFlight{
 			}
 
 			// replan for dynamic obstacles
-			// if (this->hasDynamicCollision()){
-			// 	this->replan_ = true;
-			// 	cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
-			// 	return;
-			// }
+			if (this->computeExecutionDistance() >= 0.3 and this->hasDynamicCollision()){
+			// if (this->hasDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+				return;
+			}
 
-			if (this->computeExecutionDistance() >= 3.0){
+			if (this->computeExecutionDistance() >= 1.5 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan." << endl;
 				return;
 			}
 
-			if (this->replanForDynamicObstacle()){
+			if (this->computeExecutionDistance() >= 0.3 and this->replanForDynamicObstacle()){
 				this->replan_ = true;
 				cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
 				return;
