@@ -360,6 +360,7 @@ namespace AutoFlight{
 			reachYaw = true;
 		}
 
+		// cout << "x: " << std::abs(targetX - currX) << " y: " << std::abs(targetY - currY) << " z: " << std::abs(targetZ - currZ) << endl;
 		if (reachX and reachY and reachZ and reachYaw){
 			return true;
 		}

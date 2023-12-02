@@ -7,4 +7,4 @@ waypoint_stablize_time: 0.0
 initial_scan: false
 replan_time_for_dynamic_obstacles: 0.3
 free_range: [1, 1, 1]
-reach_goal_distance: 0.05
+reach_goal_distance: 0.1

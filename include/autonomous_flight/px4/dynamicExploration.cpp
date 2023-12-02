@@ -371,6 +371,9 @@ namespace AutoFlight{
 		}
 
 		// if (this->isReach(this->goal_, 0.1, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
+		// cout << "outside the if" << endl;
+		// cout << "waypoints size: " << this->waypoints_.poses.size() << endl;
+		// cout << "current waypoint idx: " << this->waypointIdx_ << endl;
 		if (this->waypoints_.poses.size() != 0 and this->isReach(this->goal_, this->reachGoalDistance_, false) and this->waypointIdx_ <= int(this->waypoints_.poses.size())){
 			// cout << "1" << endl;
 			// when reach current goal point, reset replan and trajectory ready
