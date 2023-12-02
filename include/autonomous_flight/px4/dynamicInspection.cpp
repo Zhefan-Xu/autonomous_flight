@@ -554,6 +554,12 @@ namespace AutoFlight{
 							cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 							this->replan_ = false;
 						}
+						else if (this->hasDynamicCollision()){
+							this->trajectoryReady_ = false;
+							this->stop();
+							cout << "[AutoFlight]: Stop!!! Trajectory generation fails. Replan for dynamic obstacles." << endl;
+							this->replan_ = true;
+						}
 						else{
 							if (this->trajectoryReady_){
 								cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
@@ -710,6 +716,12 @@ namespace AutoFlight{
 								this->stop();
 								cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 								this->replan_ = false;
+							}
+							else if (this->hasDynamicCollision()){
+								this->trajectoryReady_ = false;
+								this->stop();
+								cout << "[AutoFlight]: Stop!!! Trajectory generation fails. Replan for dynamic obstacles." << endl;
+								this->replan_ = true;
 							}
 							else{
 								if (this->trajectoryReady_){
@@ -918,6 +930,12 @@ namespace AutoFlight{
 								this->stop();
 								cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 								this->replan_ = false;
+							}
+							else if (this->hasDynamicCollision()){
+								this->trajectoryReady_ = false;
+								this->stop();
+								cout << "[AutoFlight]: Stop!!! Trajectory generation fails. Replan for dynamic obstacles." << endl;
+								this->replan_ = true;
 							}
 							else{
 								if (this->trajectoryReady_){
