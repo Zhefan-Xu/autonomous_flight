@@ -49,6 +49,7 @@ namespace AutoFlight{
 		double desiredAcc_;
 		double desiredAngularVel_;
 		std::string trajSavePath_;
+		bool useTimeOptimizer_;
 
 		// navigation data
 		bool replan_ = false;

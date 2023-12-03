@@ -76,6 +76,15 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Trajectory info save path is set to: " << this->trajSavePath_ << "." << endl;
+		}	
+
+		// whether or not to use time optimizer
+		if (not this->nh_.getParam("autonomous_flight/use_time_optimizer", this->useTimeOptimizer_)){
+			this->useTimeOptimizer_ = false;
+			cout << "[AutoFlight]: No use time optimizer found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use time optimizer is set to: " << this->useTimeOptimizer_ << "." << endl;
 		}			
 	}
 
@@ -319,11 +328,12 @@ namespace AutoFlight{
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 
 					// optimize time
-					// ros::Time timeOptStartTime = ros::Time::now();
-					// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
-					// ros::Time timeOptEndTime = ros::Time::now();
-					// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
-
+					if (this->useTimeOptimizer_){
+						ros::Time timeOptStartTime = ros::Time::now();
+						this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+						ros::Time timeOptEndTime = ros::Time::now();
+						cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+					}
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
@@ -406,19 +416,21 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
-			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
-			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
-			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-			// Eigen::Vector3d pos = this->trajectory_.at(realTime);
-			// Eigen::Vector3d vel = this->trajectory_.getDerivative().at(realTime);
-			// Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(realTime);
-			double endTime = this->trajectory_.getDuration()/linearReparamFactor;
+			Eigen::Vector3d pos, vel, acc;
+			double endTime;
+			if (this->useTimeOptimizer_){
+				this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
+				endTime = this->timeOptimizer_->getDuration();
+			}
+			else{
+				this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
+				double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+				pos = this->trajectory_.at(this->trajTime_);
+				vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+				acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+				endTime = this->trajectory_.getDuration()/linearReparamFactor;
+			}
 
-			// Eigen::Vector3d pos, vel, acc;
-			// this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
-			// double endTime = this->timeOptimizer_->getDuration();
 
 			double leftTime = endTime - realTime; 
 			// cout << "left time: " << leftTime << endl;
@@ -482,12 +494,12 @@ namespace AutoFlight{
 		// take off the drone
 		this->takeoff();
 
-		// int temp1 = system("mkdir ~/rosbag_navigation_info &");
-		// int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
-		// int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
-		// if (temp1==-1 or temp2==-1 or temp3==-1){
-		// 	cout << "[AutoFlight]: Recording fails." << endl;
-		// }
+		int temp1 = system("mkdir ~/rosbag_navigation_info &");
+		int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
+		int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
+		if (temp1==-1 or temp2==-1 or temp3==-1){
+			cout << "[AutoFlight]: Recording fails." << endl;
+		}
 
 		// register timer callback
 		this->registerCallback();

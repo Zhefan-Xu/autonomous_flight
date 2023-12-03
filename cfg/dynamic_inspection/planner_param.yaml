@@ -11,7 +11,7 @@ rrt/pass_goal_check: true
 poly_traj/polynomial_degree: 7
 poly_traj/differential_degree: 4
 poly_traj/continuity_degree: 3
-poly_traj/desired_velocity: 1.0 # velocity
+poly_traj/desired_velocity: 1.0 # this is not used. Will be overwritten.
 poly_traj/initial_radius: 0.5
 poly_traj/timeout: 0.1
 poly_traj/corridor_res: 5.0
@@ -25,8 +25,8 @@ poly_traj/use_pwl_failsafe: true
 bspline_traj/timestep: 0.1
 bspline_traj/distance_threshold: 0.5
 bspline_traj/distance_threshold_dynamic: 0.5
-bspline_traj/max_vel: 1.0 #velocity
-bspline_traj/max_acc: 1.0
+bspline_traj/max_vel: 1.0 # this is not used. Will be overwritten.
+bspline_traj/max_acc: 1.0 # this is not used. Will be overwritten.
 bspline_traj/weight_distance: 1.0
 bspline_traj/weight_smoothness: 1.0
 bspline_traj/weight_feasibility: 1.0
