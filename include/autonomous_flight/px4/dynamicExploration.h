@@ -11,14 +11,14 @@
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
 #include <map_manager/dynamicMap.h>
-#include <onboard_vision/fakeDetector.h>
+#include <onboard_detector/fakeDetector.h>
 
 
 namespace AutoFlight{
 	class dynamicExploration : flightBase{
 	private:
 		std::shared_ptr<mapManager::dynamicMap> map_;
-		std::shared_ptr<onboardVision::fakeDetector> detector_;
+		std::shared_ptr<onboardDetector::fakeDetector> detector_;
 		std::shared_ptr<globalPlanner::DEP> expPlanner_;
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;

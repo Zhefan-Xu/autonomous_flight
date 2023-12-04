@@ -7,7 +7,7 @@
 #define DYNAMIC_INSPECTION
 #include <autonomous_flight/px4/flightBase.h>
 #include <map_manager/dynamicMap.h>
-#include <onboard_vision/fakeDetector.h>
+#include <onboard_detector/fakeDetector.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
@@ -37,7 +37,7 @@ namespace AutoFlight{
 
 		// Map
 		std::shared_ptr<mapManager::dynamicMap> map_;
-		std::shared_ptr<onboardVision::fakeDetector> detector_;
+		std::shared_ptr<onboardDetector::fakeDetector> detector_;
 
 		// Planner
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;

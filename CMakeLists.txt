@@ -13,10 +13,10 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   octomap_ros
+  onboard_detector
   global_planner
   trajectory_planner
   map_manager
-  onboard_vision
   tracking_controller
   time_optimizer
 )

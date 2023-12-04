@@ -290,7 +290,7 @@ namespace AutoFlight{
 		// initialize map
 		if (this->useFakeDetector_){
 			// initialize fake detector
-			this->detector_.reset(new onboardVision::fakeDetector (this->nh_));	
+			this->detector_.reset(new onboardDetector::fakeDetector (this->nh_));	
 			this->map_.reset(new mapManager::dynamicMap (this->nh_, false));
 		}
 		else{
@@ -1183,16 +1183,19 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::freeMapCB(const ros::TimerEvent&){
-		onboard_vision::ObstacleList msg;
+		std::vector<onboardDetector::box3D> obstacles;
 		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
-		this->detector_->getObstacles(msg);
-		for (onboard_vision::Obstacle ob: msg.obstacles){
-			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
-			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
-			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+		this->detector_->getObstacles(obstacles);
+		double fov = 1.57;
+		for (onboardDetector::box3D ob: obstacles){
+			if (this->detector_->isObstacleInSensorRange(ob, fov)){
+				Eigen::Vector3d lowerBound (ob.x-ob.x_width/2-0.3, ob.y-ob.y_width/2-0.3, ob.z);
+				Eigen::Vector3d upperBound (ob.x+ob.x_width/2+0.3, ob.y+ob.y_width/2+0.3, ob.z+ob.z_width);
+				freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+			}
 		}
-
-		this->map_->updateFreeRegions(freeRegions);	
+		this->map_->updateFreeRegions(freeRegions);
+		this->map_->freeRegions(freeRegions);
 	}
 
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
@@ -1259,12 +1262,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
-		onboard_vision::ObstacleList msg;
-		this->detector_->getObstaclesInSensorRange(PI_const, msg);
-		for (onboard_vision::Obstacle ob : msg.obstacles){
-			Eigen::Vector3d pos (ob.px, ob.py, ob.pz);
-			Eigen::Vector3d vel (ob.vx, ob.vy, ob.vz);
-			Eigen::Vector3d size (ob.xsize, ob.ysize, ob.zsize);
+		std::vector<onboardDetector::box3D> obstacles;
+		this->detector_->getObstaclesInSensorRange(PI_const, obstacles);
+		for (onboardDetector::box3D ob : obstacles){
+			Eigen::Vector3d pos (ob.x, ob.y, ob.z);
+			Eigen::Vector3d vel (ob.Vx, ob.Vy, 0.0);
+			Eigen::Vector3d size (ob.x_width, ob.y_width, ob.z_width);
 			obstaclesPos.push_back(pos);
 			obstaclesVel.push_back(vel);
 			obstaclesSize.push_back(size);

@@ -55,7 +55,7 @@
   <build_depend>tracking_controller</build_depend>
   <build_depend>global_planner</build_depend>
   <build_depend>trajectory_planner</build_depend>
-  <build_depend>onboard_vision</build_depend>
+  <build_depend>onboard_detector</build_depend>
   <build_depend>tracking_controller</build_depend>
   <build_depend>time_optimizer</build_depend>
   <build_export_depend>roscpp</build_export_depend>
