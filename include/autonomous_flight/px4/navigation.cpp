@@ -337,6 +337,11 @@ namespace AutoFlight{
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
+
+					if (this->trajSavePath_ != "No" and this->firstTimeSave_){
+						this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
+						this->firstTimeSave_ = false;
+					}
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
