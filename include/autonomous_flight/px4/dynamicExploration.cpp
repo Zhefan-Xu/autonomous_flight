@@ -448,6 +448,14 @@ namespace AutoFlight{
 		// }
 
 		if (this->trajectoryReady_){
+			if (not this->expPlanner_->isPosValid(this->trajectory_.at(this->trajectory_.getDuration()))){
+				this->trajectoryReady_ = false;
+				this->replan_ = false;
+				this->stop();
+				cout << "[AutoFlight]: the goal of current local trajectory is not safe. Press ENTER to Replan." << endl;
+				return;
+			}
+
 			if (this->hasCollision()){ // if trajectory not ready, do not replan
 				this->replan_ = true;
 				cout << "[AutoFlight]: Replan for collision." << endl;
