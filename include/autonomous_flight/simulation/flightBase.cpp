@@ -27,11 +27,10 @@ namespace AutoFlight{
 
 		ros::Rate r (10);
 		while (ros::ok() and not this->odomReceived_){
-			ROS_INFO("Wait for odom msg...");
 			ros::spinOnce();
 			r.sleep();
 		}
-		cout << "[AutoFlight]: Odom topics are ready." << endl;
+		cout << "[AutoFlight]: Odom and mavros topics are ready." << endl;
 	
     	// Tareget publish thread
 		this->targetPubWorker_ = std::thread(&flightBase::publishTarget, this);
@@ -44,7 +43,7 @@ namespace AutoFlight{
 
 
 	void flightBase::publishTarget(){
-		ros::Rate r (100);
+		ros::Rate r (200);
 		while (ros::ok()){
 	        if (this->poseControl_){
 	        	this->posePub_.publish(this->poseTgt_);
@@ -107,7 +106,7 @@ namespace AutoFlight{
 		ps.pose.position.z = this->takeoffHgt_;
 		ps.pose.orientation.w = 1.0;
 		this->updateTarget(ps);
-		ros::Rate r (10);
+		ros::Rate r (30);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.z - this->takeoffHgt_) >= 0.1 and not this->hasTakeoff_){
 			ros::spinOnce();
 			r.sleep();
@@ -227,7 +226,7 @@ namespace AutoFlight{
 		psT.pose = ps.pose;
 		ros::Time startTime = ros::Time::now();
 		ros::Time currTime = ros::Time::now();
-		ros::Rate r (50);
+		ros::Rate r (200);
 		while (ros::ok() and not this->isReach(ps)){
 			currTime = ros::Time::now();
 			double t = (currTime - startTime).toSec();

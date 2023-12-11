@@ -2011,7 +2011,6 @@ namespace AutoFlight{
 		psEnd.pose.orientation = quat;
 		zigzagPathVec.push_back(psEnd);
 
-
 		double duration = this->makePWLTraj(zigzagPathVec, this->inspectionVel_, this->pwlTrajMsg_);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 

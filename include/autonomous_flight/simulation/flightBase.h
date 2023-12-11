@@ -127,6 +127,54 @@ namespace AutoFlight{
 			return idx;
 		}
 
+		tracking_controller::Target getState(){
+			tracking_controller::Target target;
+			geometry_msgs::PoseStamped ps = this->getPose();
+			target.position.x = ps.pose.position.x;
+			target.position.y = ps.pose.position.y;
+			target.position.z = ps.pose.position.z;
+			target.velocity.x = 0.0;
+			target.velocity.y = 0.0;
+			target.velocity.z = 0.0;
+			target.acceleration.x = 0.0;
+			target.acceleration.y = 0.0;
+			target.acceleration.z = 0.0;
+			target.yaw = AutoFlight::rpy_from_quaternion(ps.pose.orientation);
+			return target;
+		}
+
+		tracking_controller::Target getState(const geometry_msgs::Pose& psCurr){
+			tracking_controller::Target target;
+			geometry_msgs::PoseStamped ps = this->getPose(psCurr);
+			target.position.x = ps.pose.position.x;
+			target.position.y = ps.pose.position.y;
+			target.position.z = ps.pose.position.z;
+			target.velocity.x = 0.0;
+			target.velocity.y = 0.0;
+			target.velocity.z = 0.0;
+			target.acceleration.x = 0.0;
+			target.acceleration.y = 0.0;
+			target.acceleration.z = 0.0;
+			target.yaw = AutoFlight::rpy_from_quaternion(ps.pose.orientation);
+			return target;
+		}
+
+		tracking_controller::Target getStateWithoutYaw(const geometry_msgs::Pose& psCurr){
+			tracking_controller::Target target;
+			geometry_msgs::PoseStamped ps = this->getPoseWithoutYaw(psCurr);
+			target.position.x = ps.pose.position.x;
+			target.position.y = ps.pose.position.y;
+			target.position.z = ps.pose.position.z;
+			target.velocity.x = 0.0;
+			target.velocity.y = 0.0;
+			target.velocity.z = 0.0;
+			target.acceleration.x = 0.0;
+			target.acceleration.y = 0.0;
+			target.acceleration.z = 0.0;
+			target.yaw = AutoFlight::rpy_from_quaternion(ps.pose.orientation);
+			return target;
+		}
+
 		geometry_msgs::PoseStamped getPose(){
 			int idx = this->getCurrIdx();
 			idx = std::max(idx+forwardIdx, minIdx);
