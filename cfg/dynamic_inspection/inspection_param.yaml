@@ -1,21 +1,29 @@
 # inspection target (Be careful. Only use it if you know the inspection goal)
-inspection_goal_given: false
+inspection_goal_given: true
 inspection_width_given: true
-inspection_goal: [8, 1, 1, -90]
-inspection_width: 5.0
+inspection_goal: [
+                  10, 0, 1.0, 0,
+                  10, 2, 1.0, 0,
+                  9, -3, 2.0, -90
+                 ]
+inspection_width: [4, 3, 2]
 
 
 # inspection
-inspection_velocity: 1.0
+inspection_velocity: 1.0 #0.4
 min_wall_area: 15
 safe_distance_to_wall: 2.5
 side_safe_distance: 1.5
-inspection_height: 6.0
-ascend_step: 3.0 # every x meters will make a stop
-descend_step: 2.0 # zig zag descend step
+inspection_height: [4, 3, 5]
+ascend_step: 4.0 # every x meters will make a stop
+descend_step: 1.0 # zig zag descend step
 zigzag_inspection: true
-fringe_inspection: true
+fringe_inspection: false
 inspect_left_first: false
+confirm_max_angle: 180
+inspection_confirm: true
+backward_no_turn: false
+
 
 # explore
 sensor_range: 5.0

@@ -28,6 +28,7 @@ namespace AutoFlight{
 		std::shared_ptr<timeOptimizer::bsplineTimeOptimizer> timeOptimizer_;
 
 
+
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
@@ -48,6 +49,7 @@ namespace AutoFlight{
 		double desiredAcc_;
 		double desiredAngularVel_;
 		std::string trajSavePath_;
+		bool useTimeOptimizer_;
 
 		// navigation data
 		bool replan_ = false;

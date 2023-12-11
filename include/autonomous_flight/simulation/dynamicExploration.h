@@ -11,14 +11,14 @@
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
 #include <map_manager/dynamicMap.h>
-#include <onboard_vision/fakeDetector.h>
+#include <onboard_detector/fakeDetector.h>
 
 
 namespace AutoFlight{
 	class dynamicExploration : flightBase{
 	private:
 		std::shared_ptr<mapManager::dynamicMap> map_;
-		std::shared_ptr<onboardVision::fakeDetector> detector_;
+		std::shared_ptr<onboardDetector::fakeDetector> detector_;
 		std::shared_ptr<globalPlanner::DEP> expPlanner_;
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
@@ -48,8 +48,6 @@ namespace AutoFlight{
 		double reachGoalDistance_;
 
 		// exploration data
-		bool useYaw_ = false;
-		AutoFlight::trajData td_;
 		bool explorationReplan_ = true;
 		bool replan_ = false;
 		bool newWaypoints_ = false;
@@ -98,7 +96,6 @@ namespace AutoFlight{
 		nav_msgs::Path getRestGlobalPath(const Eigen::Vector3d& pos, double yaw);
 		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 		void waitTime(double time);
-		bool moveToOrientation(double yaw, double desiredAngularVel);
 	};
 }
 #endif

@@ -76,6 +76,15 @@ namespace AutoFlight{
 		}
 		else{
 			cout << "[AutoFlight]: Trajectory info save path is set to: " << this->trajSavePath_ << "." << endl;
+		}	
+
+		// whether or not to use time optimizer
+		if (not this->nh_.getParam("autonomous_flight/use_time_optimizer", this->useTimeOptimizer_)){
+			this->useTimeOptimizer_ = false;
+			cout << "[AutoFlight]: No use time optimizer found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use time optimizer is set to: " << this->useTimeOptimizer_ << "." << endl;
 		}			
 	}
 
@@ -319,86 +328,20 @@ namespace AutoFlight{
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 
 					// optimize time
-					// ros::Time timeOptStartTime = ros::Time::now();
-					// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
-					// ros::Time timeOptEndTime = ros::Time::now();
-					// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
-
+					if (this->useTimeOptimizer_){
+						ros::Time timeOptStartTime = ros::Time::now();
+						this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+						ros::Time timeOptEndTime = ros::Time::now();
+						cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+					}
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 
-					// print the control points of current trajectory
-					// cout << "[AutoFlight]: Print current control points of the trajectory." << endl;
-					// cout << "------------------------------------------------------------" << endl;
-					// Eigen::MatrixXd controlPoints = this->trajectory_.getControlPoints();
-					// for (int i=0; i<controlPoints.cols(); ++i){
-					// 	cout << controlPoints.col(i).transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-
-
-					// print the trajectory points of the current trajectory
-					// cout << "[AutoFlight]: Print current trajectory point with 0.1 time interval." << endl;					
-					// cout << "--------------------------------------------------------------------" << endl;
-					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-					// 	Eigen::Vector3d p = this->trajectory_.at(t);
-					// 	cout << t << " " << p.transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-
-					// cout << "[AutoFlight]: Print current trajectory velcoity with 0.1 time interval." << endl;					
-					// cout << "--------------------------------------------------------------------" << endl;
-					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-					// 	Eigen::Vector3d v = this->trajectory_.getDerivative().at(t) * this->bsplineTraj_->getLinearFactor();
-					// 	cout << t << " " << v.transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-
-					// cout << "[AutoFlight]: Print current trajectory acceleration with 0.1 time interval." << endl;					
-					// cout << "--------------------------------------------------------------------" << endl;
-					// for (double t=0; t<this->trajectory_.getDuration(); t+=0.1){
-					// 	Eigen::Vector3d a = this->trajectory_.getDerivative().at(t) * pow(this->bsplineTraj_->getLinearFactor(), 2);
-					// 	cout << t << " " << a.transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
-					// if (this->trajSavePath_ != "No" and this->firstTimeSave_){
-					// 	this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
-					// 	this->firstTimeSave_ = false;
-					// }
-
-					// std::vector<Eigen::Vector3d> sampleTraj;
-					// std::vector<double> sampleTime;
-					// double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-					// for (double t=0.0; t * linearReparamFactor <= this->trajectory_.getDuration(); t+=0.1){
-					// 	sampleTime.push_back(t);
-					// 	Eigen::Vector3d p = this->trajectory_.at(t*linearReparamFactor);
-					// 	sampleTraj.push_back(p);
-					// }
-
-					// this->trajDivider_->setTrajectory(sampleTraj, sampleTime);
-
-					// std::vector<std::pair<double, double>> tInterval;
-					// std::vector<double> obstacleDist;
-					// this->trajDivider_->run(tInterval, obstacleDist);
-					
-					// cout << "Total time is: " << this->trajectory_.getDuration()/linearReparamFactor << endl;
-					// for (size_t i=0; i<tInterval.size(); ++i){
-					// 	std::pair<double, double> interval = tInterval[i];
-					// 	double dist = obstacleDist[i];
-					// 	cout << "[AutoFlight]: Time interval: " << interval.first << " " << interval.second << endl;
-					// 	// cout << "Dist: " << dist << endl;
-					// } 
-
-					// std::vector<bool> mask;
-					// std::vector<Eigen::Vector3d> nearestObstacles;
-					// this->trajDivider_->getNearestObstacles(nearestObstacles, mask);
-					// cout << "[AutoFlight]: print nearest obstacles: " << endl;
-					// cout << "------------------------------------------------------------" << endl;
-					// for (size_t i=0; i<nearestObstacles.size(); ++i){
-					// 	cout << mask[i] << " " << nearestObstacles[i].transpose() << endl;
-					// }
-					// cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
+					if (this->trajSavePath_ != "No" and this->firstTimeSave_){
+						this->bsplineTraj_->writeCurrentTrajInfo(this->trajSavePath_, 0.05);
+						this->firstTimeSave_ = false;
+					}
 				}
 				else{
 					// if the current trajectory is still valid, then just ignore this iteration
@@ -412,12 +355,20 @@ namespace AutoFlight{
 					else{
 						if (this->trajectoryReady_){
 							cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+							this->replan_ = false;
 						}
 						else{
-							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+							cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
+							this->replan_ = false;
 						}
 					}
 				}
+			}
+			else{
+				this->trajectoryReady_ = false;
+				this->stop();
+				this->replan_ = false;
+				cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
 			}
 		}
 	}
@@ -470,19 +421,21 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
-			this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
-			double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-			Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
-			Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
-			Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-			// Eigen::Vector3d pos = this->trajectory_.at(realTime);
-			// Eigen::Vector3d vel = this->trajectory_.getDerivative().at(realTime);
-			// Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(realTime);
-			double endTime = this->trajectory_.getDuration()/linearReparamFactor;
+			Eigen::Vector3d pos, vel, acc;
+			double endTime;
+			if (this->useTimeOptimizer_){
+				this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
+				endTime = this->timeOptimizer_->getDuration();
+			}
+			else{
+				this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
+				double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+				pos = this->trajectory_.at(this->trajTime_);
+				vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+				acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+				endTime = this->trajectory_.getDuration()/linearReparamFactor;
+			}
 
-			// Eigen::Vector3d pos, vel, acc;
-			// this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
-			// double endTime = this->timeOptimizer_->getDuration();
 
 			double leftTime = endTime - realTime; 
 			// cout << "left time: " << leftTime << endl;

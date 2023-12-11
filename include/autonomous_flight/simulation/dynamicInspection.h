@@ -7,11 +7,11 @@
 #define DYNAMIC_INSPECTION
 #include <autonomous_flight/simulation/flightBase.h>
 #include <map_manager/dynamicMap.h>
+#include <onboard_detector/fakeDetector.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
-#include <onboard_vision/fakeDetector.h>
 
 
 namespace AutoFlight{
@@ -25,6 +25,7 @@ namespace AutoFlight{
 		ros::Timer trajExeTimer_;
 		ros::Timer checkWallTimer_;
 		ros::Timer collisionCheckTimer_;
+		ros::Timer replanTimer_;
 		ros::Timer visTimer_;
 		ros::Timer freeMapTimer_;
 		ros::Publisher goalPub_;
@@ -34,11 +35,9 @@ namespace AutoFlight{
 		ros::Publisher bsplineTrajPub_;
 		ros::Publisher wallVisPub_;
 
-		// fake detector
-		std::shared_ptr<onboardVision::fakeDetector> detector_;
-
 		// Map
 		std::shared_ptr<mapManager::dynamicMap> map_;
+		std::shared_ptr<onboardDetector::fakeDetector> detector_;
 
 		// Planner
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
@@ -53,12 +52,15 @@ namespace AutoFlight{
 		geometry_msgs::PoseStamped goal_;
 
 		// inspection parameters
+		bool useFakeDetector_;
 		double desiredVel_;
+		double desiredAcc_;
 		double desiredAngularVel_;
 		double inspectionVel_; 
 		double minWallArea_;
 		double safeDistance_;
 		double sideSafeDistance_;
+		std::vector<double> inspectionHeights_;
 		double inspectionHeight_;
 		double ascendStep_;
 		double descendStep_;
@@ -68,13 +70,20 @@ namespace AutoFlight{
 		int exploreSampleNum_;
 		// ***only used when we specify location***
 		bool inspectionGoalGiven_ = false;
-		Eigen::Vector3d inspectionGoal_; 
+		std::vector<Eigen::Vector3d> inspectionGoals_;
+		Eigen::Vector3d inspectionGoal_;
+		std::vector<double> inspectionOrientations_; 
 		double inspectionOrientation_;
 		bool inspectionWidthGiven_ = false;
+		std::vector<double> inspectionWidths_;
 		double inspectionWidth_;
 		bool zigzagInspection_;
 		bool fringeInspection_;
 		bool leftFirst_ = true;
+		double confirmMaxAngle_;
+		bool inspectionConfirm_;
+		bool backwardNoTurn_;
+		double replanTimeForDynamicObstacle_;
 		// ***only used when we specify location***
 
 		// inspection data
@@ -82,12 +91,19 @@ namespace AutoFlight{
 		AutoFlight::trajData td_;
 		bool useYaw_ = false;
 		std::vector<double> wallRange_;
+		bool wallDetected_ = false;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
 		visualization_msgs::MarkerArray wallVisMsg_;
+		bool trajectoryReady_ = false;
+		bool replan_ = true;
+		ros::Time trajStartTime_;
+		double trajTime_; // current trajectory time
+		trajPlanner::bspline trajectory_; // trajectory data for navigation
 		int countBsplineFailure_ = 0;
+		ros::Time lastDynamicObstacleTime_;
 
 	public:
 		dynamicInspection();
@@ -103,11 +119,14 @@ namespace AutoFlight{
 		void trajExeCB(const ros::TimerEvent&);
 		void checkWallCB(const ros::TimerEvent&); // check whether the front wall is reached
 		void collisionCheckCB(const ros::TimerEvent&); // online collision checking
+		void replanCB(const ros::TimerEvent&); // replan callback
 		void visCB(const ros::TimerEvent&);
+		void freeMapCB(const ros::TimerEvent&);
 
 		geometry_msgs::PoseStamped getForwardGoal();
-		nav_msgs::Path getLatestGlobalPath();
+		nav_msgs::Path getRestGlobalPath();
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndCondition);
+		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
 		void changeState(const FLIGHT_STATE& flightState);
 
 
@@ -118,6 +137,7 @@ namespace AutoFlight{
 		bool moveToPosition(const Eigen::Vector3d& position, double vel);
 		bool moveToOrientation(const geometry_msgs::Quaternion& orientation);
 		bool moveToOrientation(double yaw);
+		bool moveToOrientationStep(double yaw);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, nav_msgs::Path& resultPath);
 		double makePWLTraj(const std::vector<geometry_msgs::PoseStamped>& waypoints, double desiredVel, nav_msgs::Path& resultPath);
 		double getPathLength(const nav_msgs::Path& path);
@@ -147,13 +167,15 @@ namespace AutoFlight{
 		void inspectFringe();
 		void inspectFringeRange();
 
+		// navigation
+		bool hasCollision();
+		bool hasDynamicCollision();
+		double computeExecutionDistance();
+		bool replanForDynamicObstacle();
+		nav_msgs::Path getCurrentTraj(double dt);
 		
 		// utils
 		geometry_msgs::PoseStamped eigen2ps(const Eigen::Vector3d& p);
-
-		// fake detector
-		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
-		void freeMapCB(const ros::TimerEvent&);
 	};
 }
 

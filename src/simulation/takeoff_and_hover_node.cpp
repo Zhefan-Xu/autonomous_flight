@@ -1,7 +1,7 @@
 /*
 	FILE: takeoff_and_hover_node.cpp
-	-----------------------------
-	navigation ROS node
+	---------------------------
+	Simple flight test for autonomous flight
 */
 
 #include <ros/ros.h>

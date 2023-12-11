@@ -1,4 +1,0 @@
-color_distance: 5.0
-target_obstacle: ["person", "obstacle"]
-odom_topic: /CERLAB/quadcopter/odom
-display_all: false

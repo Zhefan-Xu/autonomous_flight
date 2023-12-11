@@ -6,3 +6,4 @@ desired_velocity: 2.0 # m/s
 desired_acceleration: 3.0 # m/s^2
 desired_angular_velocity: 0.5 # rad/s
 trajectory_info_save_path: "No"
+use_time_optimizer: false

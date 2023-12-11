@@ -1,22 +1,17 @@
 odom_topic: "/CERLAB/quadcopter/odom"
 # odom_topic: "/mavros/local_position/odom"
-# local_region_min: [-5, -5, -2]
-# local_region_max: [5, 5, 2]
-# global_region_min: [-20, -20, 0]
-# global_region_max: [20, 20, 3]
 local_region_min: [-5, -5, -2]
 local_region_max: [5, 5, 2]
-global_region_min: [-50, -20, 0.7]
-# global_region_min: [-5, -5, 0.7]
-global_region_max: [50, 20, 1.2]
-# global_region_max: [60, 5, 1.2]
+global_region_min: [-20, -20, 0.7]
+global_region_max: [20, 20, 1.2]
 local_sample_thresh: 200
 global_sample_thresh: 100
 frontier_sample_thresh: 100
-# dist_thresh: 0.8 # minimum distance for sampling between two nodes
 dist_thresh: 0.8 # minimum distance for sampling between two nodes
+safe_distance_xy: 0.3
+safe_distance_z: 0.0
+safe_distance_check_unknown: true # true will make node sampling conservative but safe 
 
-safe_distance: 0.3
 
 # Camera Parameters
 horizontal_FOV: 1.57

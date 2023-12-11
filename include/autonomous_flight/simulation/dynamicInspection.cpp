@@ -8,17 +8,55 @@
 
 namespace AutoFlight{
 	dynamicInspection::dynamicInspection(const ros::NodeHandle& nh) : flightBase(nh){
-		this->initModules();
 		this->initParam();
+		this->initModules();
 		this->registerPub();
+		if (this->useFakeDetector_){
+			// free map callback
+			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicInspection::freeMapCB, this);
+		}
 	}
 
 	void dynamicInspection::initParam(){
-		this->desiredVel_ = this->pwlTraj_->getDesiredVel();
-		this->desiredAngularVel_ = this->pwlTraj_->getDesiredAngularVel();
+    	// use simulation detector	
+		if (not this->nh_.getParam("autonomous_flight/use_fake_detector", this->useFakeDetector_)){
+			this->useFakeDetector_ = false;
+			cout << "[AutoFlight]: No use fake detector param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use fake detector is set to: " << this->useFakeDetector_ << "." << endl;
+		}
+
+
+		// desired velocity
+		if (not this->nh_.getParam("autonomous_flight/desired_velocity", this->desiredVel_)){
+			this->desiredVel_ = 0.5;
+			cout << "[AutoFlight]: No desired velocity param. Use default 0.5m/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Desired velocity is set to: " << this->desiredVel_ << "m/s." << endl;
+		}	
+
+		// desired acceleration
+		if (not this->nh_.getParam("autonomous_flight/desired_acceleration", this->desiredAcc_)){
+			this->desiredAcc_ = 2.0;
+			cout << "[AutoFlight]: No desired acceleration param. Use default 2.0m/s^2." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Desired acceleration is set to: " << this->desiredAcc_ << "m/s^2." << endl;
+		}	
+
+		//  desired angular velocity
+		if (not this->nh_.getParam("autonomous_flight/desired_angular_velocity", this->desiredAngularVel_)){
+			this->desiredAngularVel_ = 0.5;
+			cout << "[AutoFlight]: No angular velocity param. Use default 0.5rad/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Angular velocity is set to: " << this->desiredAngularVel_ << "rad/s." << endl;
+		}	
 
 		// inspection moving velocity
-		if (not this->nh_.getParam("inspection_velocity", this->inspectionVel_)){
+		if (not this->nh_.getParam("autonomous_flight/inspection_velocity", this->inspectionVel_)){
 			this->inspectionVel_ = 0.5;
 			cout << "[AutoFlight]: No inspection velocity param. Use default 0.5m/s." << endl;
 		}
@@ -27,7 +65,7 @@ namespace AutoFlight{
 		}	
 
 		// minimum wall area
-		if (not this->nh_.getParam("min_wall_area", this->minWallArea_)){
+		if (not this->nh_.getParam("autonomous_flight/min_wall_area", this->minWallArea_)){
 			this->minWallArea_ = 20;
 			cout << "[AutoFlight]: No minimum wall area param. Use default 20m^2." << endl;
 		}
@@ -36,7 +74,7 @@ namespace AutoFlight{
 		}	
 
 		// safe distance to all walls
-		if (not this->nh_.getParam("safe_distance_to_wall", this->safeDistance_)){
+		if (not this->nh_.getParam("autonomous_flight/safe_distance_to_wall", this->safeDistance_)){
 			this->safeDistance_ = 2.5;
 			cout << "[AutoFlight]: No safe distance to wall param. Use default 2.5m." << endl;
 		}
@@ -45,7 +83,7 @@ namespace AutoFlight{
 		}	
 
 		// side safe distance to all walls
-		if (not this->nh_.getParam("side_safe_distance", this->sideSafeDistance_)){
+		if (not this->nh_.getParam("autonomous_flight/side_safe_distance", this->sideSafeDistance_)){
 			this->sideSafeDistance_ = 1.5;
 			cout << "[AutoFlight]: No side safe distance param. Use default 1.5m." << endl;
 		}
@@ -54,16 +92,21 @@ namespace AutoFlight{
 		}		
 
 		// inspection height
-		if (not this->nh_.getParam("inspection_height", this->inspectionHeight_)){
+		std::vector<double> inspectionHeightsTemp;
+		if (not this->nh_.getParam("autonomous_flight/inspection_height", inspectionHeightsTemp)){
 			this->inspectionHeight_ = 2.5;
 			cout << "[AutoFlight]: No inspection height param. Use default 2.5m." << endl;
 		}
 		else{
-			cout << "[AutoFlight]: Inspection height is set to: " << this->inspectionHeight_ << "m." << endl;
+			this->inspectionHeight_ = inspectionHeightsTemp[0];
+			for (double h : inspectionHeightsTemp){
+				this->inspectionHeights_.push_back(h);
+				cout << "[AutoFlight]: Inspection height is set to: " << h << "m." << endl;
+			}
 		}		
 
 		// ascend step
-		if (not this->nh_.getParam("ascend_step", this->ascendStep_)){
+		if (not this->nh_.getParam("autonomous_flight/ascend_step", this->ascendStep_)){
 			this->ascendStep_ = 3.0;
 			cout << "[AutoFlight]: No ascend step param. Use default 3.0m." << endl;
 		}
@@ -72,7 +115,7 @@ namespace AutoFlight{
 		}	
 
 		// descend step
-		if (not this->nh_.getParam("descend_step", this->descendStep_)){
+		if (not this->nh_.getParam("autonomous_flight/descend_step", this->descendStep_)){
 			this->descendStep_ = 2.0;
 			cout << "[AutoFlight]: No descend step param. Use default 2.0m." << endl;
 		}
@@ -81,7 +124,7 @@ namespace AutoFlight{
 		}	
 
 		// sensor range
-		if (not this->nh_.getParam("sensor_range", this->sensorRange_)){
+		if (not this->nh_.getParam("autonomous_flight/sensor_range", this->sensorRange_)){
 			this->sensorRange_ = 2.0;
 			cout << "[AutoFlight]: No sensor range param. Use default 2.0m." << endl;
 		}
@@ -90,7 +133,7 @@ namespace AutoFlight{
 		}	
 
 		// horizontal sensor angle 
-		if (not this->nh_.getParam("sensor_angle_horizontal", this->sensorAngleH_)){
+		if (not this->nh_.getParam("autonomous_flight/sensor_angle_horizontal", this->sensorAngleH_)){
 			this->sensorAngleH_ = PI_const/2;
 			cout << "[AutoFlight]: No horizontal sensor angle param. Use default 90 degree." << endl;
 		}
@@ -100,7 +143,7 @@ namespace AutoFlight{
 		}	
 
 		// vertical sensor angle 
-		if (not this->nh_.getParam("sensor_angle_vertical", this->sensorAngleV_)){
+		if (not this->nh_.getParam("autonomous_flight/sensor_angle_vertical", this->sensorAngleV_)){
 			this->sensorAngleV_ = PI_const/3;
 			cout << "[AutoFlight]: No vertical sensor angle param. Use default 60 degree." << endl;
 		}
@@ -110,7 +153,7 @@ namespace AutoFlight{
 		}	
 
 		// sample number
-		if (not this->nh_.getParam("explore_sample_number", this->exploreSampleNum_)){
+		if (not this->nh_.getParam("autonomous_flight/explore_sample_number", this->exploreSampleNum_)){
 			this->exploreSampleNum_ = 10;
 			cout << "[AutoFlight]: No exploration sample number param. Use default: 10." << endl;
 		}
@@ -119,7 +162,7 @@ namespace AutoFlight{
 		}	
 
 		// inspection goal given or not
-		if (not this->nh_.getParam("inspection_goal_given", this->inspectionGoalGiven_)){
+		if (not this->nh_.getParam("autonomous_flight/inspection_goal_given", this->inspectionGoalGiven_)){
 			this->inspectionGoalGiven_ = false;
 			cout << "[AutoFlight]: Use default mode" << endl;
 		}
@@ -128,7 +171,7 @@ namespace AutoFlight{
 		}
 
 		// inspection width given or not
-		if (not this->nh_.getParam("inspection_width_given", this->inspectionWidthGiven_)){
+		if (not this->nh_.getParam("autonomous_flight/inspection_width_given", this->inspectionWidthGiven_)){
 			this->inspectionWidthGiven_ = false;
 			cout << "[AutoFlight]: Use default mode" << endl;
 		}
@@ -138,36 +181,47 @@ namespace AutoFlight{
 
 		if (this->inspectionGoalGiven_){
 			// inspection location (last component is orientation in degree)
-			std::vector<double> inspectionGoalTemp;
-			if (not this->nh_.getParam("inspection_goal", inspectionGoalTemp)){
+			std::vector<double> inspectionGoalsTemp;
+			if (not this->nh_.getParam("autonomous_flight/inspection_goal", inspectionGoalsTemp)){
 				this->inspectionGoalGiven_ = false;
 				cout << "[AutoFlight]: Use default inspection mode." << endl;
 			}
 			else{
-				this->inspectionGoal_(0) = inspectionGoalTemp[0];
-				this->inspectionGoal_(1) = inspectionGoalTemp[1];
-				this->inspectionGoal_(2) = inspectionGoalTemp[2];
-				this->inspectionOrientation_ = inspectionGoalTemp[3];
-				cout << "[AutoFlight]: Inspection goal is set to: [" << this->inspectionGoal_(0)  << ", " << this->inspectionGoal_(1) << ", " <<  this->inspectionGoal_(2) << "]." << endl; 
-				cout << "[AutoFlight]: Inspection angle is set to: " << this->inspectionOrientation_ << " degree." << endl;
+				this->inspectionGoal_(0) = inspectionGoalsTemp[0];
+				this->inspectionGoal_(1) = inspectionGoalsTemp[1];
+				this->inspectionGoal_(2) = inspectionGoalsTemp[2];
+				this->inspectionOrientation_ = inspectionGoalsTemp[3];
 				this->inspectionOrientation_ *= PI_const/180;
+				for (size_t i=0; i<inspectionGoalsTemp.size(); i+=4){
+					Eigen::Vector3d p (inspectionGoalsTemp[i+0], inspectionGoalsTemp[i+1], inspectionGoalsTemp[i+2]);
+					this->inspectionGoals_.push_back(p);
+					this->inspectionOrientations_.push_back(inspectionGoalsTemp[i+3] * PI_const/180);
+					cout << "[AutoFlight]: Inspection goal is set to: [" << inspectionGoalsTemp[i+0]  << ", " << inspectionGoalsTemp[i+1] << ", " <<  inspectionGoalsTemp[i+2] << "]." << endl; 
+					cout << "[AutoFlight]: Inspection angle is set to: " << inspectionGoalsTemp[i+3] << " degree." << endl;
+				}
+				
 			}
 		}
 
 		if (this->inspectionWidthGiven_){
 			// inspection width
-			if (not this->nh_.getParam("inspection_width", this->inspectionWidth_)){
+			std::vector<double> inspectionWidthsTemp;
+			if (not this->nh_.getParam("autonomous_flight/inspection_width", inspectionWidthsTemp)){
 				this->inspectionWidthGiven_ = false;
 				cout << "[AutoFlight]: No inspection width parameter." << endl;
 			}
 			else{
 				this->inspectionWidthGiven_ = true;
-				cout << "[AutoFlight]: Inspection width is set to: " << this->inspectionWidth_ << "m." << endl;
+				this->inspectionWidth_ = inspectionWidthsTemp[0];
+				for (double w : inspectionWidthsTemp){
+					this->inspectionWidths_.push_back(w);
+					cout << "[AutoFlight]: Inspection width is set to: " << w << "m." << endl;
+				}
 			}
 		}
 
 		// zigzag inspection path
-		if (not this->nh_.getParam("zigzag_inspection", this->zigzagInspection_)){
+		if (not this->nh_.getParam("autonomous_flight/zigzag_inspection", this->zigzagInspection_)){
 			this->zigzagInspection_ = true;
 			cout << "[AutoFlight]: Use default mode for zig zag." << endl;
 		}
@@ -176,7 +230,7 @@ namespace AutoFlight{
 		}
 
 		// fringe inspection path
-		if (not this->nh_.getParam("fringe_inspection", this->fringeInspection_)){
+		if (not this->nh_.getParam("autonomous_flight/fringe_inspection", this->fringeInspection_)){
 			this->fringeInspection_ = true;
 			cout << "[AutoFlight]: Use default mode for fringe." << endl;
 		}
@@ -185,21 +239,66 @@ namespace AutoFlight{
 		}
 
 		// inspection order
-		if (not this->nh_.getParam("inspect_left_first", this->leftFirst_)){
+		if (not this->nh_.getParam("autonomous_flight/inspect_left_first", this->leftFirst_)){
 			this->leftFirst_ = true;
 			cout << "[AutoFlight]: Inpsect left first." << endl;
 		}
 		else{
 			cout << "[AutoFlight]: Inspection order is set is set to: " << this->leftFirst_ << endl;
+		}	
+
+		// confirm max angle
+		if (not this->nh_.getParam("autonomous_flight/confirm_max_angle", this->confirmMaxAngle_)){
+			this->confirmMaxAngle_ = PI_const*3.0/4.0;
+			cout << "[AutoFlight]: Default confirm max angle is set to 135 degree." << endl;
 		}
+		else{
+			cout << "[AutoFlight]: Confirm max angle is set is set to: " << this->confirmMaxAngle_ << endl;
+			this->confirmMaxAngle_ *= PI_const/180.0;
+		}		
+
+		// inspection confirm
+		if (not this->nh_.getParam("autonomous_flight/inspection_confirm", this->inspectionConfirm_)){
+			this->inspectionConfirm_ = true;
+			cout << "[AutoFlight]: Inpsect needs to be confirmed." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Inspection confirm is set is set to: " << this->inspectionConfirm_ << endl;
+		}	
+
+		// backward no turn option
+		if (not this->nh_.getParam("autonomous_flight/backward_no_turn", this->backwardNoTurn_)){
+			this->backwardNoTurn_ = false;
+			cout << "[AutoFlight]: Backward will turn back." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Backward turn is set to: " << this->backwardNoTurn_ << endl;
+		}	
+
+    	// replan time for dynamic obstacle
+		if (not this->nh_.getParam("autonomous_flight/replan_time_for_dynamic_obstacles", this->replanTimeForDynamicObstacle_)){
+			this->replanTimeForDynamicObstacle_ = 0.3;
+			cout << "[AutoFlight]: No dynamic obstacle replan time param found. Use default: 0.3s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Dynamic obstacle replan time is set to: " << this->replanTimeForDynamicObstacle_ << "s." << endl;
+		}	
+
 	}
 
 	void dynamicInspection::initModules(){
 		// initialize map
-		this->map_.reset(new mapManager::dynamicMap (this->nh_));
+		if (this->useFakeDetector_){
+			// initialize fake detector
+			this->detector_.reset(new onboardDetector::fakeDetector (this->nh_));	
+			this->map_.reset(new mapManager::dynamicMap (this->nh_, false));
+		}
+		else{
+			this->map_.reset(new mapManager::dynamicMap (this->nh_));
+		}
 
 		// initialize fake detector
-		this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
+		// this->detector_.reset(new onboardVision::fakeDetector (this->nh_));
 
 		// initialize rrt planner
 		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
@@ -208,6 +307,8 @@ namespace AutoFlight{
 		// initialize polynomial trajectory planner
 		this->polyTraj_.reset(new trajPlanner::polyTrajOccMap (this->nh_));
 		this->polyTraj_->setMap(this->map_);
+		this->polyTraj_->updateDesiredVel(this->desiredVel_);
+		this->polyTraj_->updateDesiredAcc(this->desiredAcc_);
 
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
@@ -215,6 +316,8 @@ namespace AutoFlight{
 		// initialize bspline trajectory planner
 		this->bsplineTraj_.reset(new trajPlanner::bsplineTraj (this->nh_));
 		this->bsplineTraj_->setMap(this->map_);
+		this->bsplineTraj_->updateMaxVel(this->desiredVel_);
+		this->bsplineTraj_->updateMaxAcc(this->desiredAcc_);
 	}
 
 	void dynamicInspection::registerPub(){
@@ -242,7 +345,7 @@ namespace AutoFlight{
 		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicInspection::plannerCB, this);
 
 		// trajectory execution callback
-		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicInspection::trajExeCB, this);
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicInspection::trajExeCB, this);
 
 		// check wall callback
 		if (not this->inspectionGoalGiven_){
@@ -252,54 +355,175 @@ namespace AutoFlight{
 		// collision check callback
 		this->collisionCheckTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicInspection::collisionCheckCB, this);
 
+		// replan check callback
+		this->replanTimer_ = this->nh_.createTimer(ros::Duration(0.02), &dynamicInspection::replanCB, this);
+
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.03), &dynamicInspection::visCB, this);
-
-		// free map timer
-		this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicInspection::freeMapCB, this);
 	}
 
 	void dynamicInspection::run(){
+		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop." << endl;
+		std::cin.clear();
+		fflush(stdin);
+		std::cin.get();
 		this->takeoff();
+
+		int temp1 = system("mkdir ~/rosbag_inspection_info &");
+		int temp2 = system("mv ~/rosbag_inspection_info/inspection_info.bag ~/rosbag_inspection/previous.bag &");
+		int temp3 = system("rosbag record -O ~/rosbag_inspection_info/inspection_info.bag /inspection/rrt_path /inspection/poly_trajectory /inspection/pwl_trajectory /inspection/bspline_trajectory /dynamic_map/inflated_voxel_map_t /onboard_detector/dynamic_bboxes /mavros/local_position/pose __name:=inspection_bag_info &");
+		if (temp1==-1 or temp2==-1 or temp3==-1){
+			cout << "[AutoFlight]: Recording fails." << endl;
+		}
+
+
+		cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		std::cin.clear();
+		fflush(stdin);
+		std::cin.get();
 		this->registerCallback();
-		this->setStartPositionFree();
 	}
 
 	void dynamicInspection::plannerCB(const ros::TimerEvent&){
 		if (this->flightState_ == FLIGHT_STATE::FORWARD){
-			// explore mode
-			// this->prevState_ = this->flightState_;
-			// this->changeState(FLIGHT_STATE::EXPLORE);
-			// return;
-			// explore mode
-
 			// navigate to the goal position
+			if (this->replan_){
+				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+				if (this->useFakeDetector_){
+					this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}
+				else{ 
+					this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}				
+				std::vector<Eigen::Vector3d> startEndConditions;
+				this->getStartEndConditions(startEndConditions); 
 
-			// first try with pwl trajectory if not work try with the global path planner
-			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-			// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-			bool planForDynamicObstacle = false;
-			if (obstaclesPos.size() != 0){
-				planForDynamicObstacle = true;
-			}
-			bool replan = (this->td_.needReplan(1.0/2.0)) or this->isWallDetected() or (not this->trajValid_) or planForDynamicObstacle;
-			if (replan){
-				nav_msgs::Path simplePath;
-				geometry_msgs::PoseStamped pStart, pGoal;
-				pStart.pose = this->odom_.pose.pose;
-				pGoal = this->getForwardGoal();
-				std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
-				simplePath.poses = pathVec;
-				this->pwlTraj_->updatePath(simplePath);
-				this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+				nav_msgs::Path inputTraj;
+				// bspline trajectory generation
+				double finalTime; // final time for bspline trajectory
+				double initTs = this->bsplineTraj_->getInitTs();
+				geometry_msgs::PoseStamped pGoal = this->getForwardGoal();
+				// cout << "current goal is: " << pGoal.pose.position.x << " " << pGoal.pose.position.y << " " << pGoal.pose.position.z << endl;
+				if (obstaclesPos.size() == 0){
+					if (not this->trajectoryReady_){ // use polynomial trajectory as input
+						nav_msgs::Path waypoints, polyTrajTemp;
+						geometry_msgs::PoseStamped start, goal;
+						start.pose = this->odom_.pose.pose; goal = pGoal;
+						waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};					
 
-				std::vector<Eigen::Vector3d> startEndCondition;		
-				this->getStartEndConditions(startEndCondition);
-				bool updateSuccess = false;
-				updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
+						this->polyTraj_->updatePath(waypoints, startEndConditions);
+						this->polyTraj_->makePlan(false); // no corridor constraint
+						
+						nav_msgs::Path adjustedInputPolyTraj;
+						bool satisfyDistanceCheck = false;
+						double dtTemp = initTs;
+						double finalTimeTemp;
+						ros::Time startTime = ros::Time::now();
+						ros::Time currTime;
+						while (ros::ok()){
+							currTime = ros::Time::now();
+							if ((currTime - startTime).toSec() >= 0.05){
+								cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+								break;
+							}
+							nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+							satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
+							if (satisfyDistanceCheck) break;
+							
+							dtTemp *= 0.8;
+						}
 
-				if (obstaclesPos.size() != 0){
+						inputTraj = adjustedInputPolyTraj;
+						finalTime = finalTimeTemp;
+						startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+						startEndConditions[3] = this->polyTraj_->getAcc(finalTime);
+					}
+					else{
+						Eigen::Vector3d bsplineLastPos = this->trajectory_.at(this->trajectory_.getDuration());
+						geometry_msgs::PoseStamped lastPs; lastPs.pose.position.x = bsplineLastPos(0); lastPs.pose.position.y = bsplineLastPos(1); lastPs.pose.position.z = bsplineLastPos(2);
+						Eigen::Vector3d goalPos (pGoal.pose.position.x, pGoal.pose.position.y, pGoal.pose.position.z);
+						// check the distance between last point and the goal position
+						if ((bsplineLastPos - goalPos).norm() >= 0.2){ // use polynomial trajectory to make the rest of the trajectory
+							nav_msgs::Path waypoints, polyTrajTemp;
+							waypoints.poses = std::vector<geometry_msgs::PoseStamped>{lastPs, pGoal};
+							std::vector<Eigen::Vector3d> polyStartEndConditions;
+							Eigen::Vector3d polyStartVel = this->trajectory_.getDerivative().at(this->trajectory_.getDuration());
+							Eigen::Vector3d polyEndVel (0.0, 0.0, 0.0);
+							Eigen::Vector3d polyStartAcc = this->trajectory_.getDerivative().getDerivative().at(this->trajectory_.getDuration());
+							Eigen::Vector3d polyEndAcc (0.0, 0.0, 0.0);
+							polyStartEndConditions.push_back(polyStartVel);
+							polyStartEndConditions.push_back(polyEndVel);
+							polyStartEndConditions.push_back(polyStartAcc);
+							polyStartEndConditions.push_back(polyEndAcc);
+							this->polyTraj_->updatePath(waypoints, polyStartEndConditions);
+							this->polyTraj_->makePlan(false); // no corridor constraint
+							
+							nav_msgs::Path adjustedInputCombinedTraj;
+							bool satisfyDistanceCheck = false;
+							double dtTemp = initTs;
+							double finalTimeTemp;
+							ros::Time startTime = ros::Time::now();
+							ros::Time currTime;
+							while (ros::ok()){
+								currTime = ros::Time::now();
+								if ((currTime - startTime).toSec() >= 0.05){
+									cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+									break;
+								}							
+								nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
+								nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+								nav_msgs::Path inputCombinedTraj;
+								inputCombinedTraj.poses = inputRestTraj.poses;
+								for (size_t i=1; i<inputPolyTraj.poses.size(); ++i){
+									inputCombinedTraj.poses.push_back(inputPolyTraj.poses[i]);
+								}
+								
+								satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputCombinedTraj, adjustedInputCombinedTraj, dtTemp, finalTimeTemp);
+								if (satisfyDistanceCheck) break;
+								
+								dtTemp *= 0.8; // magic number 0.8
+							}
+							inputTraj = adjustedInputCombinedTraj;
+							finalTime = finalTimeTemp - this->trajectory_.getDuration(); // need to subtract prev time since it is combined trajectory
+							startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+							startEndConditions[3] = this->polyTraj_->getAcc(finalTime);			
+						}
+						else{
+							nav_msgs::Path adjustedInputRestTraj;
+							bool satisfyDistanceCheck = false;
+							double dtTemp = initTs;
+							double finalTimeTemp;
+							ros::Time startTime = ros::Time::now();
+							ros::Time currTime;
+							while (ros::ok()){
+								currTime = ros::Time::now();
+								if ((currTime - startTime).toSec() >= 0.05){
+									cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+									break;
+								}
+								nav_msgs::Path inputRestTraj = this->getCurrentTraj(dtTemp);
+								satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputRestTraj, adjustedInputRestTraj, dtTemp, finalTimeTemp);
+								if (satisfyDistanceCheck) break;
+								
+								dtTemp *= 0.8;
+							}
+							inputTraj = adjustedInputRestTraj;
+						}			
+					}
+				}
+				else{
+					nav_msgs::Path simplePath;
+					geometry_msgs::PoseStamped pStart;
+					pStart.pose = this->odom_.pose.pose;
+					std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
+					simplePath.poses = pathVec;				
+					this->pwlTraj_->updatePath(simplePath, 1.0, false);
+					this->pwlTraj_->makePlan(inputTraj, this->bsplineTraj_->getControlPointDist());		
+				}
+
+
+				bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
+				if (obstaclesPos.size() != 0 and updateSuccess){
 					this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 				}
 				if (updateSuccess){
@@ -307,23 +531,61 @@ namespace AutoFlight{
 					bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 					if (planSuccess){
 						this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
-						this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
-						this->countBsplineFailure_ = 0; // reset failure count
-						this->trajValid_ = true;
+						this->trajStartTime_ = ros::Time::now();
+						this->trajTime_ = 0.0; // reset trajectory time
+						this->trajectory_ = this->bsplineTraj_->getTrajectory();
+
+						// optimize time
+						// ros::Time timeOptStartTime = ros::Time::now();
+						// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+						// ros::Time timeOptEndTime = ros::Time::now();
+						// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+
+						this->trajectoryReady_ = true;
+						this->replan_ = false;
+						cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 					}
 					else{
-						this->td_.stop(this->odom_.pose.pose);
-						++this->countBsplineFailure_;
+						// if the current trajectory is still valid, then just ignore this iteration
+						// if the current trajectory/or new goal point is assigned is not valid, then just stop
+						if (this->hasCollision()){
+							this->trajectoryReady_ = false;
+							this->stop();
+							cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+							this->replan_ = false;
+						}
+						else if (this->hasDynamicCollision()){
+							this->trajectoryReady_ = false;
+							this->stop();
+							cout << "[AutoFlight]: Stop!!! Trajectory generation fails. Replan for dynamic obstacles." << endl;
+							this->replan_ = true;
+						}
+						else{
+							if (this->trajectoryReady_){
+								cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+								this->replan_ = false;
+							}
+							else{
+								cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+								this->replan_ = false;
+							}
+						}
 					}
+				}
+				else{
+					this->trajectoryReady_ = false;
+					this->stop();
+					this->replan_ = false;
+					cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
 				}
 			}
 			this->prevState_ = this->flightState_;
 
 
 			// if reach the wall, change the state to INSPECT
-			if (this->isReach(this->getForwardGoal(), false)){
+			if (this->isReach(this->getForwardGoal(), 0.5, false)){
 				if (this->isWallDetected() or this->inspectionGoalGiven_){
-					this->td_.stop(this->odom_.pose.pose);
+					this->stop();
 					this->changeState(FLIGHT_STATE::INSPECT);
 					cout << "[AutoFlight]: Switch from forward to inspection." << endl;
 					cout << "[AutoFlight]: Start Inspection..." << endl;
@@ -343,6 +605,7 @@ namespace AutoFlight{
 					if ((endTime - startTime).toSec() > 0.5){
 						break;
 					}
+					ros::spinOnce();
 					r.sleep();
 				}
 			}
@@ -356,7 +619,7 @@ namespace AutoFlight{
 
 		if (this->flightState_ == FLIGHT_STATE::EXPLORE){
 			if (this->prevState_ == FLIGHT_STATE::FORWARD){
-			// generate new local exploration goal
+				// generate new local exploration goal
 				Eigen::Vector3d pGoalExplore;
 				bool bestViewPointSuccess = this->getBestViewPoint(pGoalExplore);
 				if (bestViewPointSuccess){
@@ -368,120 +631,202 @@ namespace AutoFlight{
 				}
 				else{
 					cout << "[AutoFlight]: Looking around to increase map range..." << endl;
-					this->moveToOrientation(PI_const/2.0);
-					this->moveToOrientation(-PI_const/2.0);
-					this->moveToOrientation(0);
+					this->moveToOrientationStep(PI_const/2.0);
+					this->moveToOrientationStep(-PI_const/2.0);
+					this->moveToOrientationStep(0);
 				}
 				return;
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::EXPLORE){
-				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-				// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-
-				bool planForDynamicObstacle = false;
-				if (obstaclesPos.size() != 0){
-					planForDynamicObstacle = true;
-				}
-				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_) or planForDynamicObstacle;
-				if (replan){
+				if (this->replan_){
+					nav_msgs::Path inputTraj;
+					// bspline trajectory generation
+					double finalTime; // final time for bspline trajectory
+					double initTs = this->bsplineTraj_->getInitTs();
+					std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+					if (this->useFakeDetector_){
+						this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}
+					else{ 
+						this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}					
+					std::vector<Eigen::Vector3d> startEndConditions;
+					this->getStartEndConditions(startEndConditions); 
 					// get the latest global waypoint path
-					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
-					double globalPathLength = this->getPathLength(latestGLobalPath);
-					double minLength = 3.0;
+					nav_msgs::Path latestGLobalPath = this->getRestGlobalPath();
 
-					bool polySuccess = false;
-					bool updateSuccess = false; // update success for bspline
-					if (globalPathLength >= minLength){// if the lastest global path is long enough, we apply the polynomial trajectory
-						this->polyTraj_->updatePath(latestGLobalPath);
-						geometry_msgs::Twist vel;
-						double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-						Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-						startCondition *= this->desiredVel_;
-						vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
-						this->polyTraj_->updateInitVel(vel);
-						polySuccess = this->polyTraj_->makePlan(this->polyTrajMsg_);
+					this->polyTraj_->updatePath(latestGLobalPath, startEndConditions);
+					geometry_msgs::Twist vel;
+					double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+					Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+					this->polyTraj_->makePlan(this->polyTrajMsg_);
 
-						if (polySuccess){
-							std::vector<Eigen::Vector3d> startEndCondition;		
-							this->getStartEndConditions(startEndCondition);
-							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+					nav_msgs::Path adjustedInputPolyTraj;
+					bool satisfyDistanceCheck = false;
+					double dtTemp = initTs;
+					double finalTimeTemp;
+					ros::Time startTime = ros::Time::now();
+					ros::Time currTime;
+					while (ros::ok()){
+						currTime = ros::Time::now();
+						if ((currTime - startTime).toSec() >= 0.05){
+							cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+							break;
 						}
-						if (obstaclesPos.size() != 0){
-							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-						}
+						nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
+						if (satisfyDistanceCheck) break;
+						dtTemp *= 0.8;
 					}
 
-					if (globalPathLength < minLength or polySuccess == false){// if it is very short, we use piecewise linear trajectory 
-						nav_msgs::Path simplePath;
-						geometry_msgs::PoseStamped pStart, pGoal;
-						pStart.pose = this->odom_.pose.pose;
-						pGoal = latestGLobalPath.poses.back();
-			
-						std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
-						simplePath.poses = pathVec;
-						this->pwlTraj_->updatePath(simplePath);
-						this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+					inputTraj = adjustedInputPolyTraj;
+					finalTime = finalTimeTemp;
+					startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+					startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
 
-						std::vector<Eigen::Vector3d> startEndCondition;		
-						this->getStartEndConditions(startEndCondition);
-						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
-						if (obstaclesPos.size() != 0){
-							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-						}
+					bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
+					if (obstaclesPos.size() != 0 and updateSuccess){
+						this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
-
 					if (updateSuccess){
 						nav_msgs::Path bsplineTrajMsgTemp;
 						bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 						if (planSuccess){
 							this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
-							this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
-							this->trajValid_ = true;
+							this->trajStartTime_ = ros::Time::now();
+							this->trajTime_ = 0.0; // reset trajectory time
+							this->trajectory_ = this->bsplineTraj_->getTrajectory();
+
+							// optimize time
+							// ros::Time timeOptStartTime = ros::Time::now();
+							// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+							// ros::Time timeOptEndTime = ros::Time::now();
+							// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+
+							this->trajectoryReady_ = true;
+							this->replan_ = false;
+							cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 						}
 						else{
-							this->td_.stop(this->odom_.pose.pose);	
+							// if the current trajectory is still valid, then just ignore this iteration
+							// if the current trajectory/or new goal point is assigned is not valid, then just stop
+							if (this->hasCollision()){
+								this->trajectoryReady_ = false;
+								this->stop();
+								cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+								this->replan_ = false;
+							}
+							else if (this->hasDynamicCollision()){
+								this->trajectoryReady_ = false;
+								this->stop();
+								cout << "[AutoFlight]: Stop!!! Trajectory generation fails. Replan for dynamic obstacles." << endl;
+								this->replan_ = true;
+							}
+							else{
+								if (this->trajectoryReady_){
+									cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+									this->replan_ = false;
+								}
+								else{
+									cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+									this->replan_ = false;
+								}
+							}
 						}
 					}
+					else{
+						this->trajectoryReady_ = false;
+						this->stop();
+						this->replan_ = false;
+						cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
+				}
 				}			
 			}
 
 			// change to forward if finish current exploration
-			if (this->isReach(this->td_.trajectory.poses.back(), false) and this->prevState_ == FLIGHT_STATE::EXPLORE){
-				this->prevState_ = this->flightState_;
-				this->changeState(FLIGHT_STATE::FORWARD);
-				cout << "[AutoFlight]: Switch from explore to forward." << endl;
-				return;
+			if (this->trajectoryReady_){
+				Eigen::Vector3d goalEig = this->trajectory_.at(this->trajectory_.getDuration());
+				geometry_msgs::PoseStamped goalPs = eigen2ps(goalEig);
+				if (this->isReach(goalPs, 0.3, false)){
+					this->prevState_ = this->flightState_;
+					this->changeState(FLIGHT_STATE::FORWARD);
+					cout << "[AutoFlight]: Switch from explore to forward." << endl;
+					return;
+				}
 			}
 			this->prevState_ = this->flightState_;
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::INSPECT){
+			// record rosbag
+			int temp1 = system("mkdir ~/rosbag_inspection &");
+			int temp2 = system("mv ~/rosbag_inspection/inspection.bag ~/rosbag_inspection_info/previous.bag &");
+			int temp3 = system("rosbag record -O ~/rosbag_inspection/inspection.bag /camera/color/image_raw_t /camera/depth/image_rect_raw_t /mavros/local_position/pose __name:=inspection_bag &");
+			if (temp1==-1 or temp2==-1 or temp3==-1){
+				cout << "[AutoFlight]: Recording fails." << endl;
+			}
+
+						
 			// generate zig-zag path and exexute. 
 
 			if (not this->inspectionGoalGiven_){
 				if (not this->inspectionWidthGiven_){
 					// 1. check surroundings at each height
 					this->checkSurroundings();
-					// 2. start inspection
-					this->inspectZigZag();
-					// 3. inspect frindge
-					this->inspectFringe();
+					if (this->zigzagInspection_){
+						// 2. start inspection
+						this->inspectZigZag();
+					}
+
+					if (this->fringeInspection_){
+						// 3. inspect frindge
+						this->inspectFringe();
+					}
 				}
 				else{
 					this->moveToPosition(Eigen::Vector3d (this->odom_.pose.pose.position.x, 0, this->takeoffHgt_), this->inspectionVel_);
-					this->inspectZigZagRange();
-					this->inspectFringeRange();
+					if (this->zigzagInspection_){
+						// 2. start inspection
+						this->inspectZigZagRange();
+					}
+
+					if (this->fringeInspection_){
+						// 3. inspect frindge
+						this->inspectFringeRange();
+					}
 				}
 
 				
 			}
 			else{
-				this->moveToOrientation(this->inspectionOrientation_);
-				this->inspectZigZagRange();
-				this->inspectFringeRange();
+				for (size_t i=0; i<this->inspectionGoals_.size(); ++i){
+					cout << "[AutoFlight]: Inspectino ID: " << i << endl;
+					this->inspectionGoal_ = this->inspectionGoals_[i];
+					this->inspectionOrientation_ = this->inspectionOrientations_[i];
+					this->inspectionHeight_ = this->inspectionHeights_[i];
+					this->inspectionWidth_ = this->inspectionWidths_[i]; 
+					if (i != 0){
+						this->moveToPosition(this->inspectionGoal_);
+					}
+					this->moveToOrientationStep(this->inspectionOrientation_);
+					if (this->zigzagInspection_){
+						// 2. start inspection
+						this->inspectZigZagRange();
+					}
+
+					if (this->fringeInspection_){
+						// 3. inspect frindge
+						this->inspectFringeRange();
+					}
+				}
 			}
+
+			int temp4 = system("rosnode kill /inspection_bag &");
+			if (temp4 == -1){
+				cout << "[AutoFlight]: Bag recording does not stop." << endl;
+			}
+
 
 			// 3. directly change to back
 			this->prevState_ = this->flightState_;
@@ -492,104 +837,185 @@ namespace AutoFlight{
 		}
 
 		if (this->flightState_ == FLIGHT_STATE::BACKWARD){
+			// generate global waypoint path. set new goal to the origin position
+			geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (0, 0, this->takeoffHgt_));
 			if (this->prevState_ == FLIGHT_STATE::INSPECT){
 				// turn back
-				this->moveToOrientation(-PI_const);
-
-				// generate global waypoint path. set new goal to the origin position
-				geometry_msgs::PoseStamped psBack = this->eigen2ps(Eigen::Vector3d (1.5, 0, this->takeoffHgt_));
+				if (not this->backwardNoTurn_){
+					this->moveToOrientationStep(-PI_const);
+				}
+				cout << "[AutoFlight]: Start generating global plan..." << endl;
 				this->rrtPlanner_->updateStart(this->odom_.pose.pose);
 				this->rrtPlanner_->updateGoal(psBack.pose);
 				this->rrtPlanner_->makePlan(this->rrtPathMsg_);
+				cout << "[AutoFlight]: Global planning finished." << endl;
 			}
 
 			if (this->prevState_ == FLIGHT_STATE::BACKWARD){
-				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-				// this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-
-				bool planForDynamicObstacle = false;
-				if (obstaclesPos.size() != 0){
-					planForDynamicObstacle = true;
-				}
-				bool replan = (this->td_.needReplan(1.0/2.0)) or (not this->trajValid_) or planForDynamicObstacle;
-				if (replan){
+				if (this->replan_){
+					nav_msgs::Path inputTraj;
+					// bspline trajectory generation
+					double finalTime; // final time for bspline trajectory
+					double initTs = this->bsplineTraj_->getInitTs();
+					std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+					if (this->useFakeDetector_){
+						this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}
+					else{ 
+						this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					}					
+					std::vector<Eigen::Vector3d> startEndConditions;
+					this->getStartEndConditions(startEndConditions); 
 					// get the latest global waypoint path
-					nav_msgs::Path latestGLobalPath = this->getLatestGlobalPath();
-					double globalPathLength = this->getPathLength(latestGLobalPath);
-					double minLength = 3.0;
+					nav_msgs::Path latestGLobalPath = this->getRestGlobalPath();
 
-					bool polySuccess = false;
-					bool updateSuccess = false; // update success for bspline
-					if (globalPathLength >= minLength){// if the lastest global path is long enough, we apply the polynomial trajectory
-						this->polyTraj_->updatePath(latestGLobalPath);
-						geometry_msgs::Twist vel;
-						double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-						Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-						startCondition *= this->desiredVel_;
-						vel.linear.x = startCondition(0);  vel.linear.y = startCondition(1);  vel.linear.z = startCondition(2); 
-						this->polyTraj_->updateInitVel(vel);
-						polySuccess = this->polyTraj_->makePlan(this->polyTrajMsg_);
+					this->polyTraj_->updatePath(latestGLobalPath, startEndConditions);
+					geometry_msgs::Twist vel;
+					double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+					Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
+					this->polyTraj_->makePlan(this->polyTrajMsg_);
 
-						if (polySuccess){
-							std::vector<Eigen::Vector3d> startEndCondition;		
-							this->getStartEndConditions(startEndCondition);
-							updateSuccess = this->bsplineTraj_->updatePath(this->polyTrajMsg_, startEndCondition);
+					nav_msgs::Path adjustedInputPolyTraj;
+					bool satisfyDistanceCheck = false;
+					double dtTemp = initTs;
+					double finalTimeTemp;
+					ros::Time startTime = ros::Time::now();
+					ros::Time currTime;
+					while (ros::ok()){
+						currTime = ros::Time::now();
+						if ((currTime - startTime).toSec() >= 0.05){
+							cout << "[AutoFlight]: Exceed path check time. Use the best." << endl;
+							break;
 						}
-						if (obstaclesPos.size() != 0){
-							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-						}
+						nav_msgs::Path inputPolyTraj = this->polyTraj_->getTrajectory(dtTemp);
+						satisfyDistanceCheck = this->bsplineTraj_->inputPathCheck(inputPolyTraj, adjustedInputPolyTraj, dtTemp, finalTimeTemp);
+						if (satisfyDistanceCheck) break;
+						dtTemp *= 0.8;
 					}
 
-					if (globalPathLength < minLength or polySuccess == false){// if it is very short, we use piecewise linear trajectory 
-						nav_msgs::Path simplePath;
-						geometry_msgs::PoseStamped pStart, pGoal;
-						pStart.pose = this->odom_.pose.pose;
-						pGoal = latestGLobalPath.poses.back();
-			
-						std::vector<geometry_msgs::PoseStamped> pathVec {pStart, pGoal};
-						simplePath.poses = pathVec;
-						this->pwlTraj_->updatePath(simplePath);
-						this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+					inputTraj = adjustedInputPolyTraj;
+					finalTime = finalTimeTemp;
+					startEndConditions[1] = this->polyTraj_->getVel(finalTime);
+					startEndConditions[3] = this->polyTraj_->getAcc(finalTime);	
 
-						std::vector<Eigen::Vector3d> startEndCondition;		
-						this->getStartEndConditions(startEndCondition);
-						updateSuccess = this->bsplineTraj_->updatePath(this->pwlTrajMsg_, startEndCondition);
-						if (obstaclesPos.size() != 0){
-							this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-						}
+
+					bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
+					if (obstaclesPos.size() != 0 and updateSuccess){
+						this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
-
 					if (updateSuccess){
 						nav_msgs::Path bsplineTrajMsgTemp;
 						bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 						if (planSuccess){
 							this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
-							this->td_.updateTrajectory(this->bsplineTrajMsg_, this->bsplineTraj_->getDuration());
-							this->trajValid_ = true;
+							this->trajStartTime_ = ros::Time::now();
+							this->trajTime_ = 0.0; // reset trajectory time
+							this->trajectory_ = this->bsplineTraj_->getTrajectory();
+
+							// optimize time
+							// ros::Time timeOptStartTime = ros::Time::now();
+							// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
+							// ros::Time timeOptEndTime = ros::Time::now();
+							// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
+
+							this->trajectoryReady_ = true;
+							this->replan_ = false;
+							cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
 						}
 						else{
-							this->td_.stop(this->odom_.pose.pose);
+							// if the current trajectory is still valid, then just ignore this iteration
+							// if the current trajectory/or new goal point is assigned is not valid, then just stop
+							if (this->hasCollision()){
+								this->trajectoryReady_ = false;
+								this->stop();
+								cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
+								this->replan_ = false;
+							}
+							else if (this->hasDynamicCollision()){
+								this->trajectoryReady_ = false;
+								this->stop();
+								cout << "[AutoFlight]: Stop!!! Trajectory generation fails. Replan for dynamic obstacles." << endl;
+								this->replan_ = true;
+							}
+							else{
+								if (this->trajectoryReady_){
+									cout << "[AutoFlight]: Trajectory fail. Use trajectory from previous iteration." << endl;
+									this->replan_ = false;
+								}
+								else{
+									cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
+									this->replan_ = false;
+								}
+							}
 						}
+					}
+					else{
+						this->trajectoryReady_ = false;
+						this->stop();
+						this->replan_ = false;
+						cout << "[AutoFlight]: Goal is not valid. Stop." << endl;
 					}
 				}
 
 			}
 			this->prevState_ = this->flightState_;
+
 			return;
 		}
-
 	}
 
 	void dynamicInspection::trajExeCB(const ros::TimerEvent&){
-		if (not this->td_.init){
-			return;
-		}
-		if (not this->useYaw_){
-			this->updateTarget(this->td_.getPoseWithoutYaw(this->odom_.pose.pose));
+		if (this->flightState_ == FLIGHT_STATE::FORWARD or (this->flightState_ == FLIGHT_STATE::BACKWARD and this->prevState_ != FLIGHT_STATE::INSPECT) or (this->flightState_ == FLIGHT_STATE::EXPLORE and this->prevState_ == FLIGHT_STATE::EXPLORE)){
+			if (this->trajectoryReady_){
+				ros::Time currTime = ros::Time::now();
+				double realTime = (currTime - this->trajStartTime_).toSec();
+				this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
+				double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+				Eigen::Vector3d pos = this->trajectory_.at(this->trajTime_);
+				Eigen::Vector3d vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+				Eigen::Vector3d acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+				double endTime = this->trajectory_.getDuration()/linearReparamFactor;
+
+				double leftTime = endTime - realTime; 
+				tracking_controller::Target target;
+				if (leftTime <= 0.0){ // zero vel and zero acc if close to
+					target.position.x = pos(0);
+					target.position.y = pos(1);
+					target.position.z = pos(2);
+					target.velocity.x = 0.0;
+					target.velocity.y = 0.0;
+					target.velocity.z = 0.0;
+					target.acceleration.x = 0.0;
+					target.acceleration.y = 0.0;
+					target.acceleration.z = 0.0;
+					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+					this->updateTargetWithState(target);						
+				}
+				else{
+					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+					target.position.x = pos(0);
+					target.position.y = pos(1);
+					target.position.z = pos(2);
+					target.velocity.x = vel(0);
+					target.velocity.y = vel(1);
+					target.velocity.z = vel(2);
+					target.acceleration.x = acc(0);
+					target.acceleration.y = acc(1);
+					target.acceleration.z = acc(2);
+					this->updateTargetWithState(target);						
+				}
+			}
 		}
 		else{
-			this->updateTarget(this->td_.getPose(this->odom_.pose.pose));	
+			if (not this->td_.init){
+				return;
+			}
+			if (not this->useYaw_){
+				this->updateTarget(this->td_.getPoseWithoutYaw(this->odom_.pose.pose));
+			}
+			else{
+				this->updateTarget(this->td_.getPose(this->odom_.pose.pose));	
+			}
 		}
 	}
 
@@ -687,6 +1113,52 @@ namespace AutoFlight{
 		this->trajValid_ = true;
 	}
 
+	void dynamicInspection::replanCB(const ros::TimerEvent&){
+		/*
+			Replan if
+			1. collision detected
+			2. new goal point assigned
+			3. fixed distance
+		*/
+
+		if (this->trajectoryReady_ and this->flightState_ != FLIGHT_STATE::INSPECT){
+			if (not this->wallDetected_){
+				if (this->isWallDetected()){
+					this->replan_ = true;
+					this->wallDetected_ = true;
+					cout << "[AutoFlight]: Replan for wall detection." << endl;
+					return;
+				}
+			}
+
+			if (this->hasCollision()){ // if trajectory not ready, do not replan
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for collision." << endl;
+				return;
+			}
+
+			// replan for dynamic obstacles
+			if (this->computeExecutionDistance() >= 0.3 and this->hasDynamicCollision()){
+			// if (this->hasDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Replan for dynamic obstacles." << endl;
+				return;
+			}
+
+			if (this->computeExecutionDistance() >= 1.5 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Regular replan." << endl;
+				return;
+			}
+
+			if (this->computeExecutionDistance() >= 0.3 and this->replanForDynamicObstacle()){
+				this->replan_ = true;
+				cout << "[AutoFlight]: Regular replan for dynamic obstacles." << endl;
+				return;
+			}
+		}		
+	}
+
 	void dynamicInspection::visCB(const ros::TimerEvent&){
 		this->goalPub_.publish(this->goal_);
 		if (this->rrtPathMsg_.poses.size() != 0){
@@ -708,6 +1180,22 @@ namespace AutoFlight{
 			this->getWallVisMsg(this->wallVisMsg_);
 			this->wallVisPub_.publish(this->wallVisMsg_);
 		}
+	}
+
+	void dynamicInspection::freeMapCB(const ros::TimerEvent&){
+		std::vector<onboardDetector::box3D> obstacles;
+		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
+		this->detector_->getObstacles(obstacles);
+		double fov = 1.57;
+		for (onboardDetector::box3D ob: obstacles){
+			if (this->detector_->isObstacleInSensorRange(ob, fov)){
+				Eigen::Vector3d lowerBound (ob.x-ob.x_width/2-0.3, ob.y-ob.y_width/2-0.3, ob.z);
+				Eigen::Vector3d upperBound (ob.x+ob.x_width/2+0.3, ob.y+ob.y_width/2+0.3, ob.z+ob.z_width);
+				freeRegions.push_back(std::make_pair(lowerBound, upperBound));
+			}
+		}
+		this->map_->updateFreeRegions(freeRegions);
+		this->map_->freeRegions(freeRegions);
 	}
 
 	geometry_msgs::PoseStamped dynamicInspection::getForwardGoal(){
@@ -740,49 +1228,88 @@ namespace AutoFlight{
 		return goal;
 	}
 
-	nav_msgs::Path dynamicInspection::getLatestGlobalPath(){
-		nav_msgs::Path latestPath;
+	nav_msgs::Path dynamicInspection::getRestGlobalPath(){
+		nav_msgs::Path currPath;
 
 		int nextIdx = this->rrtPathMsg_.poses.size()-1;
-		int idx = 0;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
-		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-		Eigen::Vector3d directionCurr (cos(currYaw), sin(currYaw), 0);
-		double minDist = 100000;
-		for (geometry_msgs::PoseStamped p : this->rrtPathMsg_.poses){
-			Eigen::Vector3d pEig (p.pose.position.x, p.pose.position.y, p.pose.position.z);
-			Eigen::Vector3d pDiff = pEig - pCurr;
+		double minDist = std::numeric_limits<double>::infinity();
+		for (size_t i=0; i<this->rrtPathMsg_.poses.size()-1; ++i){
+			geometry_msgs::PoseStamped ps = this->rrtPathMsg_.poses[i];
+			Eigen::Vector3d pEig (ps.pose.position.x, ps.pose.position.y, ps.pose.position.z);
+			Eigen::Vector3d pDiff = pCurr - pEig;
 
+			geometry_msgs::PoseStamped psNext = this->rrtPathMsg_.poses[i+1];
+			Eigen::Vector3d pEigNext (psNext.pose.position.x, psNext.pose.position.y, psNext.pose.position.z);
+			Eigen::Vector3d diffToNext = pEigNext - pEig;
 			double dist = (pEig - pCurr).norm();
-			if (dist < minDist and dist > 1.0 and trajPlanner::angleBetweenVectors(directionCurr, pDiff) < PI_const/4){
-				nextIdx = idx;
-				minDist = dist;
+			if (trajPlanner::angleBetweenVectors(diffToNext, pDiff) > PI_const*3.0/4.0){
+				if (dist < minDist){
+					nextIdx = i;
+					minDist = dist;
+				}
 			}
-			++idx;
 		}
+
 
 		geometry_msgs::PoseStamped psCurr;
 		psCurr.pose = this->odom_.pose.pose;
-		latestPath.poses.push_back(psCurr);
+		currPath.poses.push_back(psCurr);
 		for (size_t i=nextIdx; i<this->rrtPathMsg_.poses.size(); ++i){
-			latestPath.poses.push_back(this->rrtPathMsg_.poses[i]);
+			currPath.poses.push_back(this->rrtPathMsg_.poses[i]);
 		}
-		return latestPath;
+		return currPath;		
 	}
 
-	void dynamicInspection::getStartEndConditions(std::vector<Eigen::Vector3d>& startEndCondition){
-		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-		Eigen::Vector3d startCondition (cos(currYaw), sin(currYaw), 0);
-		startCondition *= this->desiredVel_;
-		startEndCondition.push_back(startCondition); // start vel
-		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //start acc condition
-		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end vel condition
-		startEndCondition.push_back(Eigen::Vector3d (0, 0, 0)); //end acc condition
+	void dynamicInspection::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
+		std::vector<onboardDetector::box3D> obstacles;
+		this->detector_->getObstaclesInSensorRange(PI_const, obstacles);
+		for (onboardDetector::box3D ob : obstacles){
+			Eigen::Vector3d pos (ob.x, ob.y, ob.z);
+			Eigen::Vector3d vel (ob.Vx, ob.Vy, 0.0);
+			Eigen::Vector3d size (ob.x_width, ob.y_width, ob.z_width);
+			obstaclesPos.push_back(pos);
+			obstaclesVel.push_back(vel);
+			obstaclesSize.push_back(size);
+		}
+	}
+
+	void dynamicInspection::getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions){
+		/*	
+			1. start velocity
+			2. start acceleration (set to zero)
+			3. end velocity
+			4. end acceleration (set to zero) 
+		*/
+
+		Eigen::Vector3d currVel = this->currVel_;
+		Eigen::Vector3d currAcc = this->currAcc_;
+		Eigen::Vector3d endVel (0.0, 0.0, 0.0);
+		Eigen::Vector3d endAcc (0.0, 0.0, 0.0);
+
+		// if (not this->trajectoryReady_){
+		// 	double yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		// 	Eigen::Vector3d direction (cos(yaw), sin(yaw), 0.0);
+		// 	currVel = this->desiredVel_ * direction;
+		// 	currAcc = this->desiredAcc_ * direction;
+		// }
+		startEndConditions.push_back(currVel);
+		startEndConditions.push_back(endVel);
+		startEndConditions.push_back(currAcc);
+		startEndConditions.push_back(endAcc);
 	}
 
 
 	void dynamicInspection::changeState(const FLIGHT_STATE& flightState){
 		this->flightState_ = flightState;
+		if (flightState == FLIGHT_STATE::FORWARD or flightState == FLIGHT_STATE::BACKWARD or flightState == FLIGHT_STATE::EXPLORE){
+			this->trajectoryReady_ = false;
+			this->replan_ = true;
+		}
+		else{
+			this->td_.init = false;
+			this->replan_ = false;
+		}
 	}
 
 	bool dynamicInspection::moveToPosition(const geometry_msgs::Point& position){
@@ -797,7 +1324,7 @@ namespace AutoFlight{
 		nav_msgs::Path linePath;
 		linePath.poses = linePathVec;
 
-		this->pwlTraj_->updatePath(linePath);
+		this->pwlTraj_->updatePath(linePath, this->desiredVel_);
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
 		this->td_.updateTrajectory(this->pwlTrajMsg_, this->pwlTraj_->getDuration());
 
@@ -822,7 +1349,7 @@ namespace AutoFlight{
 		linePath.poses = linePathVec;
 
 		this->pwlTraj_->updatePath(linePath, vel);
-		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
+		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, this->pwlTraj_->getDuration());
 
 		ros::Rate r (50);
@@ -906,6 +1433,63 @@ namespace AutoFlight{
 	bool dynamicInspection::moveToOrientation(double yaw){
 		geometry_msgs::Quaternion quat = AutoFlight::quaternion_from_rpy(0, 0, yaw);
 		this->moveToOrientation(quat);
+		return true;
+	}
+
+	bool dynamicInspection::moveToOrientationStep(double yaw){
+		double currYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+		double angleDiff = AutoFlight::getAngleDiff(yaw, currYaw);
+		double delta = yaw - currYaw;
+		double direction = 1;
+		if ((delta >= 0) and (std::abs(delta) <= PI_const)){
+			direction = 1;
+		}
+		else if ((delta >=0) and (std::abs(delta) >= PI_const)){
+			direction = -1;
+		}
+		else if ((delta < 0) and (std::abs(delta) <= PI_const)){
+			direction = -1;
+		}
+		else if ((delta < 0) and (std::abs(delta) >= PI_const)){
+			direction = 1;
+		}
+
+		int count = 1; double divider = 1.0;
+		double maxRotationAngle = PI_const/3.0;
+		double newAngleDiff = angleDiff;
+		while (ros::ok() and newAngleDiff > maxRotationAngle){
+			count += 1;
+			divider += 1.0;
+			newAngleDiff = angleDiff / divider;
+		}
+
+        if (angleDiff >= this->confirmMaxAngle_){
+            cout << "[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+            std::cin.clear();
+            fflush(stdin);
+            std::cin.get();
+        }
+
+		for (int i=1; i<=count; ++i){
+			this->moveToOrientation(currYaw + direction * newAngleDiff * i);
+			// wait for some time
+			ros::Rate r (10);
+			ros::Time startTime = ros::Time::now();
+			ros::Time endTime;
+			while (ros::ok()){
+				endTime = ros::Time::now();
+				if ((endTime - startTime).toSec() > 1.0){
+					break;
+				}
+				r.sleep();
+			}	
+			if (angleDiff >= this->confirmMaxAngle_){
+				cout << "[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+				std::cin.clear();
+				fflush(stdin);
+				std::cin.get();			
+			}
+		}
 		return true;
 	}
 
@@ -1038,8 +1622,8 @@ namespace AutoFlight{
 	void dynamicInspection::setStartPositionFree(){
 		Eigen::Vector3d lowerPos, upperPos;
 		Eigen::Vector3d centerPos (0 , 0, this->takeoffHgt_);
-		lowerPos = centerPos - Eigen::Vector3d (2.5, 2.5, 1.5);
-		upperPos = centerPos + Eigen::Vector3d (2.5, 2.5, 1.5);
+		lowerPos = centerPos - Eigen::Vector3d (0.5, 0.5, 0.5);
+		upperPos = centerPos + Eigen::Vector3d (0.5, 0.5, 0.5);
 		this->map_->freeRegion(lowerPos, upperPos);
 	}
 
@@ -1186,7 +1770,7 @@ namespace AutoFlight{
 			
 		
 			if (not castLeftSuccess){
-				this->moveToOrientation(PI_const/2);
+				this->moveToOrientationStep(PI_const/2);
 				// translation
 				while (ros::ok() and not castLeftSuccess){
 					geometry_msgs::PoseStamped pStart, pGoal;
@@ -1202,7 +1786,7 @@ namespace AutoFlight{
 					r.sleep();
 				}
 
-				this->moveToOrientation(0);
+				this->moveToOrientationStep(0);
 			}
 			
 
@@ -1225,7 +1809,7 @@ namespace AutoFlight{
 					r.sleep();
 				}
 
-				this->moveToOrientation(0);
+				this->moveToOrientationStep(0);
 			}
 
 			// c. back to the center of the wall
@@ -1243,6 +1827,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectZigZag(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
 		std::vector<geometry_msgs::PoseStamped> zigzagPathVec;
 
@@ -1336,6 +1926,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectZigZagRange(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
 		// 1. move to the desired height
 		geometry_msgs::PoseStamped psHeight;
@@ -1428,6 +2024,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectFringe(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Fringe Inspection..." << endl;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);
@@ -1477,12 +2079,12 @@ namespace AutoFlight{
 
 		std::vector<geometry_msgs::PoseStamped> pathVec1;
 		if (this->leftFirst_){
-			this->moveToOrientation(PI_const/4.0);
+			this->moveToOrientationStep(PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psStart, psLeft, psLeftHeight, psHeight};
 			pathVec1 = pathVecTemp;
 		}
 		else{
-			this->moveToOrientation(-PI_const/4.0);
+			this->moveToOrientationStep(-PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psStart, psRight, psRightHeight, psHeight};
 			pathVec1 = pathVecTemp;
 		}
@@ -1498,12 +2100,12 @@ namespace AutoFlight{
 
 		std::vector<geometry_msgs::PoseStamped> pathVec2;
 		if (this->leftFirst_){
-			this->moveToOrientation(-PI_const/4.0);
+			this->moveToOrientationStep(-PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight, psRightHeight, psRight, psStart};
 			pathVec2 = pathVecTemp;
 		}
 		else{
-			this->moveToOrientation(PI_const/4.0);
+			this->moveToOrientationStep(PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight, psLeftHeight, psLeft, psStart};
 			pathVec2 = pathVecTemp;
 		}
@@ -1517,6 +2119,12 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::inspectFringeRange(){
+		if (this->inspectionConfirm_){
+			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land." << endl;
+			std::cin.clear();
+			fflush(stdin);
+			std::cin.get();
+		}
 		cout << "[AutoFlight]: Start Fringe Inspection..." << endl;
 		Eigen::Vector3d pCurr (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->inspectionHeight_);		
@@ -1559,7 +2167,7 @@ namespace AutoFlight{
 
 		std::vector<geometry_msgs::PoseStamped> pathVec1;
 		if (this->leftFirst_){
-			this->moveToOrientation(inspectionOrientation+PI_const/4.0);
+			this->moveToOrientationStep(inspectionOrientation+PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psCurr1, psLeft, psLeftHeight, psHeight1};;
 			pathVec1 = pathVecTemp;
 			double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
@@ -1572,7 +2180,7 @@ namespace AutoFlight{
 			}
 		}
 		else{
-			this->moveToOrientation(inspectionOrientation-PI_const/4.0);
+			this->moveToOrientationStep(inspectionOrientation-PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psCurr2, psRight, psRightHeight, psHeight2};
 			pathVec1 = pathVecTemp;
 			double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
@@ -1588,7 +2196,7 @@ namespace AutoFlight{
 
 		std::vector<geometry_msgs::PoseStamped> pathVec2;
 		if (this->leftFirst_){
-			this->moveToOrientation(inspectionOrientation-PI_const/4.0);
+			this->moveToOrientationStep(inspectionOrientation-PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight2, psRightHeight, psRight, psCurr2};
 			pathVec2 = pathVecTemp;
 
@@ -1601,7 +2209,7 @@ namespace AutoFlight{
 			}
 		}
 		else{
-			this->moveToOrientation(inspectionOrientation+PI_const/4.0);
+			this->moveToOrientationStep(inspectionOrientation+PI_const/4.0);
 			std::vector<geometry_msgs::PoseStamped> pathVecTemp {psHeight1, psLeftHeight, psLeft, psCurr1};
 			pathVec2 = pathVecTemp;
 
@@ -1616,36 +2224,116 @@ namespace AutoFlight{
 
 	}
 
+	bool dynamicInspection::hasCollision(){
+		if (this->trajectoryReady_){
+			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
+				Eigen::Vector3d p = this->trajectory_.at(t);
+				bool hasCollision = this->map_->isInflatedOccupied(p);
+				if (hasCollision){
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	bool dynamicInspection::hasDynamicCollision(){
+		if (this->trajectoryReady_){
+			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+			if (this->useFakeDetector_){
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}
+			else{ 
+				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			}			
+			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
+				Eigen::Vector3d p = this->trajectory_.at(t);
+				
+				for (size_t i=0; i<obstaclesPos.size(); ++i){
+					Eigen::Vector3d ob = obstaclesPos[i];
+					Eigen::Vector3d size = obstaclesSize[i];
+					Eigen::Vector3d lowerBound = ob - size/2;
+					Eigen::Vector3d upperBound = ob + size/2;
+					if (p(0) >= lowerBound(0) and p(0) <= upperBound(0) and
+						p(1) >= lowerBound(1) and p(1) <= upperBound(1) and
+						p(2) >= lowerBound(2) and p(2) <= upperBound(2)){
+						return true;
+					}					
+				}
+			}
+		}
+		return false;
+	}
+
+	double dynamicInspection::computeExecutionDistance(){
+		if (this->trajectoryReady_ and not this->replan_){
+			Eigen::Vector3d prevP, currP;
+			bool firstTime = true;
+			double totalDistance = 0.0;
+			for (double t=0.0; t<=this->trajTime_; t+=0.1){
+				currP = this->trajectory_.at(t);
+				if (firstTime){
+					firstTime = false;
+				}
+				else{
+					totalDistance += (currP - prevP).norm();
+				}
+				prevP = currP;
+			}
+			return totalDistance;
+		}
+		return -1.0;		
+	}
+
+	bool dynamicInspection::replanForDynamicObstacle(){
+		ros::Time currTime = ros::Time::now();
+		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+		if (this->useFakeDetector_){
+			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+		else{ 
+			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+		}
+
+		bool replan = false;
+		bool hasDynamicObstacle = (obstaclesPos.size() != 0);
+		if (hasDynamicObstacle){
+			double timePassed = (currTime - this->lastDynamicObstacleTime_).toSec();
+			if (timePassed >= this->replanTimeForDynamicObstacle_){
+				replan = true;
+				this->lastDynamicObstacleTime_ = currTime;
+			}
+		}
+		return replan;
+	}
+
+	nav_msgs::Path dynamicInspection::getCurrentTraj(double dt){
+		nav_msgs::Path currentTraj;
+		currentTraj.header.frame_id = "map";
+		currentTraj.header.stamp = ros::Time::now();
+	
+		if (this->trajectoryReady_){
+			// include the current pose
+			// geometry_msgs::PoseStamped psCurr;
+			// psCurr.pose = this->odom_.pose.pose;
+			// currentTraj.poses.push_back(psCurr);
+			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=dt){
+				Eigen::Vector3d pos = this->trajectory_.at(t);
+				geometry_msgs::PoseStamped ps;
+				ps.pose.position.x = pos(0);
+				ps.pose.position.y = pos(1);
+				ps.pose.position.z = pos(2);
+				currentTraj.poses.push_back(ps);
+			}		
+		}
+		return currentTraj;
+	}
+
 	geometry_msgs::PoseStamped dynamicInspection::eigen2ps(const Eigen::Vector3d& p){
 		geometry_msgs::PoseStamped ps;
 		ps.pose.position.x = p(0);
 		ps.pose.position.y = p(1);
 		ps.pose.position.z = p(2);
 		return ps;
-	}
-
-	void dynamicInspection::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
-		onboard_vision::ObstacleList msg;
-		this->detector_->getObstaclesInSensorRange(PI_const, msg);
-		for (onboard_vision::Obstacle ob : msg.obstacles){
-			Eigen::Vector3d pos (ob.px, ob.py, ob.pz);
-			Eigen::Vector3d vel (ob.vx, ob.vy, ob.vz);
-			Eigen::Vector3d size (ob.xsize, ob.ysize, ob.zsize);
-			obstaclesPos.push_back(pos);
-			obstaclesVel.push_back(vel);
-			obstaclesSize.push_back(size);
-		}
-	}
-
-	void dynamicInspection::freeMapCB(const ros::TimerEvent&){
-		onboard_vision::ObstacleList msg;
-		std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> freeRegions;
-		this->detector_->getObstacles(msg);
-		for (onboard_vision::Obstacle ob: msg.obstacles){
-			Eigen::Vector3d lowerBound (ob.px-ob.xsize/2-0.3, ob.py-ob.ysize/2-0.3, ob.pz);
-			Eigen::Vector3d upperBound (ob.px+ob.xsize/2+0.3, ob.py+ob.ysize/2+0.3, ob.pz+ob.zsize+0.2);
-			freeRegions.push_back(std::make_pair(lowerBound, upperBound));
-		}
-		this->map_->updateFreeRegions(freeRegions);
 	}
 }

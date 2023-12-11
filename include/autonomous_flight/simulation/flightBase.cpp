@@ -120,19 +120,36 @@ namespace AutoFlight{
 
 	void flightBase::run(){
 		// flight test with circle
-		double r = 2.0; // radius
-		double v = 1.5; // 2.0 m/s
+		double r; // radius
+		double v; // circle velocity
+    	
+    	// track circle radius parameters    	
+		if (not this->nh_.getParam("autonomous_flight/radius", r)){
+			r = 2.0;
+			cout << "[AutoFlight]: No circle radius param found. Use default: 2.0 m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Circle radius: " << r << "m." << endl;
+		}
+
+    	// track circle velocity parameters    	
+		if (not this->nh_.getParam("autonomous_flight/circle_velocity", v)){
+			v = 1.0;
+			cout << "[AutoFlight]: No circle velocity param found. Use default: 1.0 m/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Circle velocity: " << v << "m/s." << endl;
+		}
 
 		double z = this->odom_.pose.pose.position.z;
 		geometry_msgs::PoseStamped startPs;
 		startPs.pose.position.x = r;
 		startPs.pose.position.y = 0.0;
 		startPs.pose.position.z = z;
-		startPs.pose.orientation.w = 1.0;
 		this->updateTarget(startPs);
 		
 		cout << "[AutoFlight]: Go to target point..." << endl;
-		ros::Rate rate (100);
+		ros::Rate rate (30);
 		while (ros::ok() and std::abs(this->odom_.pose.pose.position.x - startPs.pose.position.x) >= 0.1){
 			ros::spinOnce();
 			rate.sleep();
