@@ -5,7 +5,6 @@
 */
 #include <autonomous_flight/simulation/flightBase.h>
 
-
 namespace AutoFlight{
 	flightBase::flightBase(const ros::NodeHandle& nh) : nh_(nh){
     	// parameters    	
