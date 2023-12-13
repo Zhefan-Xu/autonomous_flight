@@ -17,6 +17,8 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 
 
 ## II. Installation Guide
+This package has been tested on Ubuntu 18.04/20.04 LTS with ROS Melodic/Noetic on a regular PC/Laptop, NVIDIA Jetson Xavier NX, Orin NX and Intel NUC. Make sure you have installed the compatible ROS version.
+
 This package depends on [octomap_ros](http://wiki.ros.org/octomap), [onboard_detector](https://github.com/Zhefan-Xu/onboard_detector), [global_planner](https://github.com/Zhefan-Xu/global_planner), [trajectory_planner](https://github.com/Zhefan-Xu/trajectory_planner), [map_manager](https://github.com/Zhefan-Xu/map_manager), [tracking_controller](https://github.com/Zhefan-Xu/tracking_controller.git)  and [time_optimizer]([https://github.com/Zhefan-Xu/onboard_vision](https://github.com/Zhefan-Xu/time_optimizer.git)). Please install those packages first!
 
 
@@ -32,7 +34,7 @@ catkin_make
 Start the uav simulator first and you should be able to see a quadcopter in a predefined gazebo environment. Please check the repo [uav_simulator](https://github.com/Zhefan-Xu/uav_simulator) for further details.
 ```
 # if you want to test in PX4-based simulator
-roslaunch uav_simulator px4.launch
+roslaunch uav_simulator px4_start.launch
 
 # if you want to test in our customized uav simulator
 roslaunch uav_simulator start.launch
