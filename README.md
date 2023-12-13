@@ -8,7 +8,7 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 
 ## I. Autonomous Flight Options
   - ```Takeoff/Hovering```: Takeoff and hovering at the specified height.
-  - ```Takeoff/Track Circle```: Takeoff and tracking a circle trajectory with the given radius and velocity. 
+  - ```Takeoff/Track Circle```: Takeoff and tracking a circular trajectory with the given radius and velocity. 
   - ```Navigation```: Autonomous navigation in static environments.  
   - ```Dynamic Navigation```: Autonomous navigation in dynamic environments.
   - ```Inspection (Octomap)```: Autonomous surface inspection using the Octomap.
@@ -42,27 +42,34 @@ roslaunch uav_simulator start.launch
 
 a. Simple takeoff and hovering ```Takeoff/Hovering```:
 ```
-rosrun autonomous_flight takeoff_and_hover_node  # takeoff at 1.0 meter height
+roslaunch autonomous_flight takeoff_and_hover.launch  # takeoff at 1.0 meter height (by default parameter)
 ```
-
-b. Static environment navigation ```Navigation```
+b. Takeoff and tracking a circle ```Takeoff/Hovering```:
 ```
-roslaunch autonomous_flight navigation.launch   # navigation in the static enviornment
+roslaunch autonomous_flight takeoff_and_track_circle.launch  # takeoff and tracking a circular trajectory
 ```
-c. Dynamic environment navigation ```Dynamic Navigation```
+c. Static environment navigation ```Navigation```:
 ```
-roslaunch autonomous_flight dynamic_navigation.launch     # navigation in the dynamic environment
+roslaunch autonomous_flight navigation.launch   # navigation in the static enviornments
 ```
-d. Static environmnet inspection using octomap ```Inspection (Octomap)``` 
+d. Dynamic environment navigation ```Dynamic Navigation```:
 ```
-roslaunch octomap_server octomap_mapping.launch # remember to modify the parameters
+roslaunch autonomous_flight dynamic_navigation.launch     # navigation in the dynamic environments
+```
+e. Static environmnet inspection using octomap ```Inspection (Octomap)```:
+```
+roslaunch octomap_server octomap_mapping.launch # please remember to modify the parameters for ros topics/transforms
 roslaunch autonomous_flight inspection.launch
 ```
+f. Dynamic environment inspection using dynamic map ```Inspection (Dynamic Map)```:
+```
+roslaunch autonomous_flight dynamic_inspection.launch    # autonomous surface inspection
+```
+g. Unknown and dynamic environment exploration  ```Dynamic Exploration```:
+```
+roslaunch autonomous_flight dynamic_exploration.launch    # autonomous exploration in unknown and dynamic environments
+```
 
-e. Dynamic environment inspection using dynamic map ```Inspection (Dynamic Map)```
-```
-roslaunch autonomous_flight dynamic_inspection.launch
-```
 
 ## IV. Parameter Tunning
 All the parameters are in ```autonomous/cfg``` folder. For example, the parameters for ```Dynamic Navigation``` can be found in ```autonomous_flight/cfg/dynamic_navgation/***.yaml```.
