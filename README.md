@@ -21,7 +21,7 @@ This package depends on [octomap_ros](http://wiki.ros.org/octomap), [onboard_det
 
 
 ```
-cd ~/catkin_ws/src/CERLAB-Autonomy
+cd ~/catkin_ws/src
 git clone https://github.com/Zhefan-Xu/autonomous_flight.git
 
 cd ~/catkin_ws
