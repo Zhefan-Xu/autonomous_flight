@@ -72,7 +72,7 @@ roslaunch autonomous_flight dynamic_exploration.launch    # autonomous explorati
 
 
 ## IV. Parameter Tunning
-All the parameters are in ```autonomous_flight/cfg``` folder listed as follows. For example, the parameters for Dynamic Navigation can be found in autonomous_flight/cfg/dynamic_navgation/***.yaml
+All the parameters are in ```autonomous_flight/cfg``` folder. For example, the parameters for Dynamic Navigation can be found in autonomous_flight/cfg/dynamic_navgation/***.yaml
 
 
 
