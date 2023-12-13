@@ -17,7 +17,7 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 
 
 ## II. Installation Guide
-This package depends on [octomap_ros]([https://github.com/Zhefan-Xu/uav_simulator](http://wiki.ros.org/octomap)), [onboard_detector](https://github.com/Zhefan-Xu/onboard_detector), [global_planner](https://github.com/Zhefan-Xu/global_planner), [trajectory_planner](https://github.com/Zhefan-Xu/trajectory_planner), [map_manager](https://github.com/Zhefan-Xu/map_manager), [tracking_controller](https://github.com/Zhefan-Xu/tracking_controller.git)  and [time_optimizer]([https://github.com/Zhefan-Xu/onboard_vision](https://github.com/Zhefan-Xu/time_optimizer.git)). Please install those packages first!
+This package depends on [octomap_ros](http://wiki.ros.org/octomap), [onboard_detector](https://github.com/Zhefan-Xu/onboard_detector), [global_planner](https://github.com/Zhefan-Xu/global_planner), [trajectory_planner](https://github.com/Zhefan-Xu/trajectory_planner), [map_manager](https://github.com/Zhefan-Xu/map_manager), [tracking_controller](https://github.com/Zhefan-Xu/tracking_controller.git)  and [time_optimizer]([https://github.com/Zhefan-Xu/onboard_vision](https://github.com/Zhefan-Xu/time_optimizer.git)). Please install those packages first!
 
 
 ```
