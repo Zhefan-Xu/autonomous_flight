@@ -6,7 +6,7 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 - The branch ```simulation``` branch for **simulation** in our customized and easy-to-use simulator.
 
 
-## I. Autonomous Flight Option Descriptions
+## I. Autonomous Flight Options
   - ```Takeoff/Hovering```: Takeoff and hovering at the specified height.
   - ```Takeoff/Track Circle```: Takeoff and tracking a circle trajectory with the given radius and velocity. 
   - ```Navigation```: Autonomous navigation in static environments.  
