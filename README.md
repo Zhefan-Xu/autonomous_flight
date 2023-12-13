@@ -3,7 +3,7 @@
 This package includes the autonomous flight functions for unmanned aerial vehicles (UAVs) implemented in C++/ROS. It integrates our  perception, planning, and control modules to achive UAV autonomy in different tasks.
 
 - The branch ```px4``` is for the **real-world** or **PX4-based simulation** experiments. 
-- The branch ```simulation``` branch for **simulation** in our customized and easy-to-use simulator.
+- The branch ```simulation``` is for **simulation** in our customized and easy-to-use simulator.
 
 **Author**: [Zhefan Xu](https://zhefanxu.com/) from the Computational Engineering & Robotics Lab (CERLAB) at Carnegie Mellon University (CMU).
 
