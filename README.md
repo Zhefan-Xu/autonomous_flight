@@ -6,7 +6,7 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 - The branch ```simulation``` branch for **simulation** in our customized and easy-to-use simulator.
 
 
-### I. Autonomous Flight Options/Tasks Descriptions
+## I. Autonomous Flight Options/Tasks Descriptions
   - ```Takeoff/Hovering```: Takeoff and hovering at the specified height.
   - ```Takeoff/Track Circle```: Takeoff and tracking a circle trajectory with the given radius and velocity. 
   - ```Navigation```: Autonomous navigation in static environments.  
@@ -16,7 +16,7 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
   - ```Dynamic Exploration```: Autonomous exploration in unknown and dynamic environments. 
 
 
-### II. Installation
+## II. Installation
 This full package depends on [uav_simulator](https://github.com/Zhefan-Xu/uav_simulator), [map_manager](https://github.com/Zhefan-Xu/map_manager), [global_planner](https://github.com/Zhefan-Xu/global_planner), [trajectory_planner](https://github.com/Zhefan-Xu/trajectory_planner) and [onboard_vision](https://github.com/Zhefan-Xu/onboard_vision). Please install those packages first!
 ```
 cd ~/catkin_ws/src/CERLAB-Autonomy
@@ -26,7 +26,7 @@ cd ~/catkin_ws
 catkin_make
 ```
 
-### III. Quick Start
+## III. Quick Start
 Start the uav simulator first and you should be able to see a quadcopter in a predefined gazebo environment. Please check the repo [uav_simulator](https://github.com/Zhefan-Xu/uav_simulator) for further details.
 ```
 roslaunch uav_simulator start.launch
@@ -56,13 +56,8 @@ e. Dynamic environment inspection using dynamic map ```Inspection (Dynamic Map)`
 roslaunch autonomous_flight dynamic_inspection.launch
 ```
 
-### IV. Parameter Tunning
+## IV. Parameter Tunning
 All the parameters are in ```autonomous/cfg``` folder. For example, the parameters for ```Dynamic Navigation``` can be found in ```autonomous_flight/cfg/dynamic_navgation/***.yaml```.
 
 
-### TODO: Navigation
-1. add flight speed parameter to navigation
-2. parameters for whether use global planner
-3. Target sending callback (yaw angle?)
-4. All planners in one callback function for replan (global planner not do replan every time)
-5. Collision checking failsafe (if trajectory has collision, stop motion)
+
