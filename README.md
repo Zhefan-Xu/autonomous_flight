@@ -31,6 +31,10 @@ catkin_make
 ## III. Quick Start
 Start the uav simulator first and you should be able to see a quadcopter in a predefined gazebo environment. Please check the repo [uav_simulator](https://github.com/Zhefan-Xu/uav_simulator) for further details.
 ```
+# if you want to test in PX4-based simulator
+roslaunch uav_simulator px4.launch
+
+# if you want to test in our customized uav simulator
 roslaunch uav_simulator start.launch
 ```
 
