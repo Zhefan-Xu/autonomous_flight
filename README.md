@@ -1,4 +1,4 @@
-# Autonomous Flight for Unmanned Aerial Vehicles (UAV)
+# Autonomous Flight for Unmanned Aerial Vehicles (UAVs)
 
 This package includes the autonomous flight functions for unmanned aerial vehicles (UAVs) implemented in C++/ROS. It integrates our  perception, planning, and control modules to achive UAV autonomy in different tasks.
 
