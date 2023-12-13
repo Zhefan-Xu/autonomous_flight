@@ -6,12 +6,14 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 - The branch ```simulation``` branch for **simulation** in our customized and easy-to-use simulator.
 
 
-### I. Autonomous Flight Options
-  - ```Takeoff/Hovering```: Takeoff and hovering at the specified height. 
-  - ```Navigation```: Autonomous navigation in static environment.  
+### I. Autonomous Flight Options/Tasks Descriptions
+  - ```Takeoff/Hovering```: Takeoff and hovering at the specified height.
+  - ```Takeoff/Track Circle```: Takeoff and tracking a circle trajectory with the given radius and velocity. 
+  - ```Navigation```: Autonomous navigation in static environments.  
   - ```Dynamic Navigation```: Autonomous navigation in dynamic environments.
-  - ```Inspection (Octomap)```: Autonomous tunnel excavation frontier inspection using the Octomap.
-  - ```Inspection (Dynamic Map)```: Autonomous Tunnel Inspection using the Dynamic Map. 
+  - ```Inspection (Octomap)```: Autonomous surface inspection using the Octomap.
+  - ```Inspection (Dynamic Map)```: Autonomous surface inspection using the Dynamic Map.
+  - ```Dynamic Exploration```: Autonomous exploration in unknown and dynamic environments. 
 
 
 ### II. Installation
