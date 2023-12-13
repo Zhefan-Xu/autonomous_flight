@@ -8,7 +8,7 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 
 ## I. Autonomous Flight Options
   - ```Takeoff/Hovering```: Takeoff and hovering at the specified height.
-  - ```Takeoff/Track Circle```: Takeoff and tracking a circular trajectory with the given radius and velocity. 
+  - ```Takeoff/Tracking Circle```: Takeoff and tracking a circular trajectory with the given radius and velocity. 
   - ```Navigation```: Autonomous navigation in static environments.  
   - ```Dynamic Navigation```: Autonomous navigation in dynamic environments.
   - ```Inspection (Octomap)```: Autonomous surface inspection using the Octomap.
@@ -44,7 +44,7 @@ a. Simple takeoff and hovering ```Takeoff/Hovering```:
 ```
 roslaunch autonomous_flight takeoff_and_hover.launch  # takeoff at 1.0 meter height (by default parameter)
 ```
-b. Takeoff and tracking a circle ```Takeoff/Hovering```:
+b. Takeoff and tracking a circle ```Takeoff/Tracking Circle```:
 ```
 roslaunch autonomous_flight takeoff_and_track_circle.launch  # takeoff and tracking a circular trajectory
 ```
@@ -72,7 +72,8 @@ roslaunch autonomous_flight dynamic_exploration.launch    # autonomous explorati
 
 
 ## IV. Parameter Tunning
-All the parameters are in ```autonomous/cfg``` folder. For example, the parameters for ```Dynamic Navigation``` can be found in ```autonomous_flight/cfg/dynamic_navgation/***.yaml```.
+All the parameters are in ```autonomous_flight/cfg``` folder listed as follows. For example, the parameters for Dynamic Navigation can be found in autonomous_flight/cfg/dynamic_navgation/***.yaml
+
 
 
 
