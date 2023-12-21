@@ -327,7 +327,7 @@ namespace AutoFlight{
 						}
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory." << endl;
-							cout << "[AutoFlight]: Wait for new path. Press ENTER to Replan." << endl;
+							cout << "\033[1;32m[AutoFlight]: Wait for new path. Press ENTER to Replan.\033[0m" << endl;
 							this->replan_ = false;
 						}
 					}
@@ -405,7 +405,7 @@ namespace AutoFlight{
 				this->goal_ = this->waypoints_.poses[this->waypointIdx_];
 			}
 			if (this->waypointIdx_ + 1 > int(this->waypoints_.poses.size())){
-				cout << "[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan." << endl;
+				cout << "\033[1;32m[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan.\033[0m" << endl;
 				this->replan_ = false;
 				// this->explorationReplan_ = true;
 			}
@@ -419,7 +419,7 @@ namespace AutoFlight{
 			return;		
 		}
 		else if (this->waypoints_.poses.size() != 0 and this->isReach(this->goal_, this->reachGoalDistance_, true) and (this->replan_ or this->trajectoryReady_)){
-			cout << "[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan." << endl;
+			cout << "\033[[AutoFlight]: Finishing entire path. Wait for new path. Press ENTER to Replan.\033[0m" << endl;
 			this->replan_ = false;
 			this->trajectoryReady_ = false;
 			return;		
@@ -429,7 +429,7 @@ namespace AutoFlight{
 			if (not this->isGoalValid() and (this->replan_ or this->trajectoryReady_)){
 				this->replan_ = false;
 				this->trajectoryReady_ = false;
-				cout << "[AutoFlight]: Current goal is invalid. Need new path. Press ENTER to Replan." << endl;
+				cout << "\033[1;32m[AutoFlight]: Current goal is invalid. Need new path. Press ENTER to Replan.\033[0m" << endl;
 				// this->explorationReplan_ = true;
 				return;
 			}
@@ -452,7 +452,7 @@ namespace AutoFlight{
 				this->trajectoryReady_ = false;
 				this->replan_ = false;
 				this->stop();
-				cout << "[AutoFlight]: the goal of current local trajectory is not safe. Press ENTER to Replan." << endl;
+				cout << "\033[1;32m[AutoFlight]: the goal of current local trajectory is not safe. Press ENTER to Replan.\033[0m" << endl;
 				return;
 			}
 
@@ -558,13 +558,13 @@ namespace AutoFlight{
 	}
 
 	void dynamicExploration::run(){
-		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop." << endl;
+		cout << "\033[1;32m[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop.\033[0m" << endl;
 		std::cin.clear();
 		fflush(stdin);
 		std::cin.get();
 		this->takeoff();
 
-		cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		cout << "\033[1;32m[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land.\033[0m" << endl;
 		std::cin.clear();
 		fflush(stdin);
 		std::cin.get();
@@ -578,7 +578,7 @@ namespace AutoFlight{
 
 		this->initExplore();
 
-		cout << "[AutoFlight]: PRESS ENTER to Start Planning." << endl;
+		cout << "\033[1;32m[AutoFlight]: PRESS ENTER to Start Planning.\033[0m" << endl;
 		std::cin.clear();
 		fflush(stdin);
 		std::cin.get();
@@ -598,19 +598,19 @@ namespace AutoFlight{
 		if (this->initialScan_){
 			cout << "[AutoFlight]: Start initial scan..." << endl;
 			this->moveToOrientation(-PI_const/2, this->desiredAngularVel_);
-			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
+			cout << "\033[1;32m[AutoFlight]: Press ENTER to continue next 90 degree.\033[0m" << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();
 						
 			this->moveToOrientation(-PI_const, this->desiredAngularVel_);
-			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
+			cout << "\033[1;32m[AutoFlight]: Press ENTER to continue next 90 degree.\033[0m" << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();
 
 			this->moveToOrientation(PI_const/2, this->desiredAngularVel_);
-			cout << "[AutoFlight]: Press ENTER to continue next 90 degree." << endl;
+			cout << "\033[1;32m[AutoFlight]: Press ENTER to continue next 90 degree.\033[0m" << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();
