@@ -363,7 +363,7 @@ namespace AutoFlight{
 	}
 
 	void dynamicInspection::run(){
-		cout << "[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop." << endl;
+		cout << "\033[1;32m[AutoFlight]: Please double check all parameters. Then PRESS ENTER to continue or PRESS CTRL+C to stop.\033[0m" << endl;
 		std::cin.clear();
 		fflush(stdin);
 		std::cin.get();
@@ -377,7 +377,7 @@ namespace AutoFlight{
 		}
 
 
-		cout << "[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+		cout << "\033[1;32m[AutoFlight]: Takeoff succeed. Then PRESS ENTER to continue or PRESS CTRL+C to land.\033[0m" << endl;
 		std::cin.clear();
 		fflush(stdin);
 		std::cin.get();
@@ -597,7 +597,7 @@ namespace AutoFlight{
 			if (this->countBsplineFailure_ > 3){
 				cout << "[AutoFlight]: Wait for some time..." << endl;
 				// wait for 2 seconds
-				ros::Rate r (10);
+				ros::Rate r (100);
 				ros::Time startTime = ros::Time::now();
 				ros::Time endTime;
 				while (ros::ok()){
@@ -1328,7 +1328,7 @@ namespace AutoFlight{
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);	
 		this->td_.updateTrajectory(this->pwlTrajMsg_, this->pwlTraj_->getDuration());
 
-		ros::Rate r (50);
+		ros::Rate r (100);
 		while (ros::ok() and not this->isReach(psGoal, false)){
 			ros::spinOnce();
 			r.sleep();
@@ -1352,7 +1352,7 @@ namespace AutoFlight{
 		this->pwlTraj_->makePlan(this->pwlTrajMsg_, 0.1);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, this->pwlTraj_->getDuration());
 
-		ros::Rate r (50);
+		ros::Rate r (100);
 		while (ros::ok() and not this->isReach(psGoal, false)){
 			ros::spinOnce();
 			r.sleep();
@@ -1421,7 +1421,7 @@ namespace AutoFlight{
 		this->useYaw_ = true;
 		this->td_.updateTrajectory(rotationPath, endTime);
 
-		ros::Rate r (50);
+		ros::Rate r (100);
 		while (ros::ok() and not this->isReach(ps)){
 			ros::spinOnce();
 			r.sleep();
@@ -1464,7 +1464,7 @@ namespace AutoFlight{
 		}
 
         if (angleDiff >= this->confirmMaxAngle_){
-            cout << "[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+            cout << "\033[1;32m[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land.\033[0m" << endl;
             std::cin.clear();
             fflush(stdin);
             std::cin.get();
@@ -1473,7 +1473,7 @@ namespace AutoFlight{
 		for (int i=1; i<=count; ++i){
 			this->moveToOrientation(currYaw + direction * newAngleDiff * i);
 			// wait for some time
-			ros::Rate r (10);
+			ros::Rate r (100);
 			ros::Time startTime = ros::Time::now();
 			ros::Time endTime;
 			while (ros::ok()){
@@ -1484,7 +1484,7 @@ namespace AutoFlight{
 				r.sleep();
 			}	
 			if (angleDiff >= this->confirmMaxAngle_){
-				cout << "[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land." << endl;
+				cout << "\033[1;32m[AutoFlight]: Turning...Wait for a few seconds. Then PRESS ENTER to continue or PRESS CTRL+C to land.\033[0m" << endl;
 				std::cin.clear();
 				fflush(stdin);
 				std::cin.get();			
@@ -1759,7 +1759,7 @@ namespace AutoFlight{
 
 		// 2. for each height level check left and right
 		double maxRayLength = 7.0;
-		ros::Rate r (50);
+		ros::Rate r (100);
 
 		for (size_t i=0; i<heightLevels.size(); ++i){
 			Eigen::Vector3d pHeight (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, heightLevels[i]);
@@ -1828,7 +1828,7 @@ namespace AutoFlight{
 
 	void dynamicInspection::inspectZigZag(){
 		if (this->inspectionConfirm_){
-			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land." << endl;
+			cout << "\033[1;32m[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land.\033[0m" << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();
@@ -1918,7 +1918,7 @@ namespace AutoFlight{
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 
 
-		ros::Rate r (10);
+		ros::Rate r (100);
 		while ((ros::ok() and not (this->isReach(psEnd, false))) or (this->td_.getRemainTime() > 0)){
 			ros::spinOnce();
 			r.sleep();
@@ -1927,7 +1927,7 @@ namespace AutoFlight{
 
 	void dynamicInspection::inspectZigZagRange(){
 		if (this->inspectionConfirm_){
-			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land." << endl;
+			cout << "\033[1;32m[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue ZIG-ZAG or PRESS CTRL+C to land.\033[0m" << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();
@@ -2015,7 +2015,7 @@ namespace AutoFlight{
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
 
 
-		ros::Rate r (50);
+		ros::Rate r (100);
 		while ((ros::ok() and not (this->isReach(psEnd, false))) or (this->td_.getRemainTime() > 0)){
 			ros::spinOnce();
 			r.sleep();
@@ -2024,7 +2024,7 @@ namespace AutoFlight{
 
 	void dynamicInspection::inspectFringe(){
 		if (this->inspectionConfirm_){
-			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land." << endl;
+			cout << "\033[1;32m[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land.\033[0m" << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();
@@ -2091,7 +2091,7 @@ namespace AutoFlight{
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
 
 
-		ros::Rate r (50);
+		ros::Rate r (100);
 		while ((ros::ok() and not (this->isReach(psHeight, false))) or (this->td_.getRemainTime() > 0)){
 			ros::spinOnce();
 			r.sleep();
@@ -2119,7 +2119,7 @@ namespace AutoFlight{
 
 	void dynamicInspection::inspectFringeRange(){
 		if (this->inspectionConfirm_){
-			cout << "[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land." << endl;
+			cout << "\033[1;32m[AutoFlight]: Check flight conditions. Then PRESS ENTER to continue FRINGE or PRESS CTRL+C to land.\033[0m" << endl;
 			std::cin.clear();
 			fflush(stdin);
 			std::cin.get();
@@ -2172,7 +2172,7 @@ namespace AutoFlight{
 			double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
 			this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
 
-			ros::Rate r (50);
+			ros::Rate r (100);
 			while ((ros::ok() and not (this->isReach(psHeight1, false))) or (this->td_.getRemainTime() > 0)){
 				ros::spinOnce();
 				r.sleep();
@@ -2185,7 +2185,7 @@ namespace AutoFlight{
 			double duration1 = this->makePWLTraj(pathVec1, this->inspectionVel_, this->pwlTrajMsg_);
 			this->td_.updateTrajectory(this->pwlTrajMsg_, duration1);
 
-			ros::Rate r (50);
+			ros::Rate r (100);
 			while ((ros::ok() and not (this->isReach(psHeight2, false))) or (this->td_.getRemainTime() > 0)){
 				ros::spinOnce();
 				r.sleep();
@@ -2201,7 +2201,7 @@ namespace AutoFlight{
 
 			double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
 			this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
-			ros::Rate r (50);
+			ros::Rate r (100);
 			while ((ros::ok() and not (this->isReach(psCurr2, false))) or (this->td_.getRemainTime() > 0)){
 				ros::spinOnce();
 				r.sleep();
@@ -2214,7 +2214,7 @@ namespace AutoFlight{
 
 			double duration2 = this->makePWLTraj(pathVec2, this->inspectionVel_, this->pwlTrajMsg_);
 			this->td_.updateTrajectory(this->pwlTrajMsg_, duration2);
-			ros::Rate r (50);
+			ros::Rate r (100);
 			while ((ros::ok() and not (this->isReach(psCurr1, false))) or (this->td_.getRemainTime() > 0)){
 				ros::spinOnce();
 				r.sleep();
