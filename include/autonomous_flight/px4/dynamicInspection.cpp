@@ -801,7 +801,7 @@ namespace AutoFlight{
 			}
 			else{
 				for (size_t i=0; i<this->inspectionGoals_.size(); ++i){
-					cout << "[AutoFlight]: Inspectino ID: " << i << endl;
+					cout << "[AutoFlight]: Inspection ID: " << i << endl;
 					this->inspectionGoal_ = this->inspectionGoals_[i];
 					this->inspectionOrientation_ = this->inspectionOrientations_[i];
 					this->inspectionHeight_ = this->inspectionHeights_[i];
