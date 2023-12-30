@@ -1940,7 +1940,6 @@ namespace AutoFlight{
 			std::cin.get();
 		}
 		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
-		cout << "this" << endl;
 		// 1. move to the desired height
 		geometry_msgs::PoseStamped psHeight;
 		psHeight.pose = this->odom_.pose.pose;
