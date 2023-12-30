@@ -711,6 +711,13 @@ namespace AutoFlight{
 						else{
 							// if the current trajectory is still valid, then just ignore this iteration
 							// if the current trajectory/or new goal point is assigned is not valid, then just stop
+							cout << "traj fail" << endl;
+							cout << "trajectory ready: "  << this->trajectoryReady_ << endl;
+							cout << "has collision: " << endl;
+							cout << this->hasCollision() << endl;
+							cout << "has dynamic collision: " << endl;
+							cout << this->hasDynamicCollision() << endl;
+
 							if (this->hasCollision()){
 								this->trajectoryReady_ = false;
 								this->stop();
@@ -801,7 +808,7 @@ namespace AutoFlight{
 			}
 			else{
 				for (size_t i=0; i<this->inspectionGoals_.size(); ++i){
-					cout << "[AutoFlight]: Inspectino ID: " << i << endl;
+					cout << "[AutoFlight]: Inspection ID: " << i << endl;
 					this->inspectionGoal_ = this->inspectionGoals_[i];
 					this->inspectionOrientation_ = this->inspectionOrientations_[i];
 					this->inspectionHeight_ = this->inspectionHeights_[i];
@@ -1933,6 +1940,7 @@ namespace AutoFlight{
 			std::cin.get();
 		}
 		cout << "[AutoFlight]: Start Zig-Zag Inspection..." << endl;
+		cout << "this" << endl;
 		// 1. move to the desired height
 		geometry_msgs::PoseStamped psHeight;
 		psHeight.pose = this->odom_.pose.pose;
@@ -1940,7 +1948,7 @@ namespace AutoFlight{
 		this->moveToPosition(psHeight.pose.position, this->inspectionVel_);
 
 		std::vector<geometry_msgs::PoseStamped> zigzagPathVec;
-
+ 
 		// 2. find all height levels
 		std::vector<double> heightLevels;
 		
@@ -2013,7 +2021,6 @@ namespace AutoFlight{
 
 		double duration = this->makePWLTraj(zigzagPathVec, this->inspectionVel_, this->pwlTrajMsg_);
 		this->td_.updateTrajectory(this->pwlTrajMsg_, duration);
-
 
 		ros::Rate r (100);
 		while ((ros::ok() and not (this->isReach(psEnd, false))) or (this->td_.getRemainTime() > 0)){
