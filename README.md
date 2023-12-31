@@ -7,6 +7,10 @@ This package includes the autonomous flight functions for unmanned aerial vehicl
 
 **Author**: [Zhefan Xu](https://zhefanxu.com/), Computational Engineering & Robotics Lab (CERLAB) at Carnegie Mellon University (CMU).
 
+If you find this work helpful, kindly show your support by giving us a free ⭐️. Your recognition is truly valued.
+
+This repo can be used as a standalone package and also comes as a module of our [autonomy framework](https://github.com/Zhefan-Xu/CERLAB-UAV-Autonomy).
+
 ## I. Autonomous Flight Options
   - ```Takeoff/Hovering```: Takeoff and hovering at the specified height.
   - ```Takeoff/Tracking Circle```: Takeoff and tracking a circular trajectory with the given radius and velocity. 
