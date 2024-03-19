@@ -46,6 +46,10 @@ namespace AutoFlight{
 		
 		// parameters
 		double takeoffHgt_;
+		bool yawControl_;
+		int timeStep_;
+		double radius_;
+		double velocity_;
 
 		// status
 		bool poseControl_ = true;
@@ -69,6 +73,7 @@ namespace AutoFlight{
 		void stateUpdateCB(const ros::TimerEvent&);
 
 		void takeoff();
+		void circle();
 		void run(); // in flight base, this is a trajectory test function
 		void stop(); // stop at the current position
 		void moveToOrientation(double yaw, double desiredAngularVel);

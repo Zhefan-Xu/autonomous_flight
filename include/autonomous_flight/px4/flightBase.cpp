@@ -14,7 +14,34 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Takeoff Height: " << this->takeoffHgt_ << "m." << endl;
 		}
-
+		if (not this->nh_.getParam("autonomous_flight/circle_radius", this->radius_)){
+			this->radius_ = 2.0;
+			cout << "[AutoFlight]: No radius param found. Use default: 2.0 m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Circle Radius: " << this->radius_ << "m." << endl;
+		}
+		if (not this->nh_.getParam("autonomous_flight/time_to_max_radius", this->timeStep_)){
+			this->timeStep_ = 30;
+			cout << "[AutoFlight]: No time to max radius param found. Use default: 30s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Time to Maximum Circle Radius: " << this->timeStep_ <<"s." << endl;
+		}
+        if (not this->nh_.getParam("autonomous_flight/yaw_control", this->yawControl_)){
+			this->yawControl_ = false;
+			cout << "[AutoFlight]: No yaw control param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Yaw Control: " << this->yawControl_ << endl;
+		}
+        if (not this->nh_.getParam("autonomous_flight/velocity", this->velocity_)){
+			this->velocity_ = 0.5;
+			cout << "[AutoFlight]: No angular velocity param found. Use default: 0.5 m/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Velocity: " << this->velocity_ <<"m/s." << endl;
+		}
 		// Subscriber
 		this->stateSub_ = this->nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &flightBase::stateCB, this);
 		this->odomSub_ = this->nh_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 10, &flightBase::odomCB, this);
@@ -178,6 +205,123 @@ namespace AutoFlight{
 		}
 		cout << "[AutoFlight]: Takeoff succeed!" << endl;
 	}
+
+	void flightBase::circle(){
+        double x = 0;
+        double y = 0;
+        double z = 0;
+        double vx = 0;
+        double vy = 0;
+        double vz = 0;
+        double ax = 0;
+        double ay = 0;
+        double az = 0;
+        double yaw=0;
+        double theta = 0;
+        double radius = 0;
+        double velocity = 0;
+        ros::Rate r (30);
+		double theta_start;
+        double theta_end;
+        double step = this->timeStep_*30;
+        int circle = 1;
+        int terminate = 0;
+        ros::Time startTime = ros::Time::now();
+        ros::Time endTime1, endTime2, endTime3;
+        while(ros::ok() && terminate == 0){
+            x = radius * cos(theta);
+            y = radius * sin(theta);
+            vx = -velocity * sin(theta);
+            vy = velocity * cos(theta);
+            ax = - velocity*velocity/radius * cos(theta);
+            ay = - velocity*velocity/radius  * sin(theta);
+            if (this->yawControl_ == true){
+                yaw = theta + PI_const / 2;
+            }
+            else if (this->yawControl_ == false){
+                yaw = this->odom_.pose.pose.orientation.z;
+            }
+            z = this->takeoffHgt_;
+            vz = 0;
+            az = 0;
+            
+            tracking_controller::Target target;
+            target.position.x = x;
+            target.position.y = y;
+            target.position.z = z;
+            target.velocity.x = vx;
+            target.velocity.y = vy;
+            target.velocity.z = vz;
+			target.acceleration.x = ax;
+            target.acceleration.y = ay;
+            target.acceleration.z = az;
+            target.yaw = yaw;
+
+            this->updateTargetWithState(target);
+
+            if (circle == 1){
+                radius += this->radius_/step;
+                velocity += this->velocity_/step;
+                
+                if (std::abs(radius-radius_)<=0.01){
+                    theta_start = theta;
+                    endTime1 = ros::Time::now();
+                    circle += 1;
+                }
+            }
+            else if (circle == 2){
+                radius = this->radius_;
+                velocity = this->velocity_;
+	            theta_end = 3*2*PI_const;
+                if (std::abs((theta-theta_start)- theta_end)<=0.1){
+                    endTime2 = ros::Time::now();
+                    circle += 1; 
+                }
+            }
+            else if (circle == 3){
+                radius -= this->radius_/step;
+                velocity -= this->velocity_/step;
+                if (std::abs(radius-0.0)<=0.01){
+                    endTime3 = ros::Time::now();
+                    circle += 1;
+                }
+            }
+            else{
+                terminate = 1;
+                break;
+            }
+            ros::Time currentTime = ros::Time::now();
+            double t = (currentTime-startTime).toSec();
+            theta = velocity/radius*t;	
+            cout << "[AutoFlight]: Drawing Circle...Radius: " << radius << "\t\r" << std::flush;;
+            ros::spinOnce();
+            r.sleep();
+        }
+
+        if (this->yawControl_==true){
+            while (ros::ok() and std::abs(this->odom_.pose.pose.orientation.z-0.0)>=0.01){
+                theta += (PI_const*2)/180;
+                yaw = theta + PI_const / 2;
+
+                tracking_controller::Target target;
+                target.position.x = x;
+                target.position.y = y;
+                target.position.z = z;
+                target.velocity.x = vx;
+                target.velocity.y = vy;
+                target.velocity.z = vz;
+                target.acceleration.x = ax;
+                target.acceleration.y = ay;
+                target.acceleration.z = az;
+                target.yaw = yaw;
+                ROS_INFO("Decreasing Radius...");
+
+                updateTargetWithState(target);
+                ros::spinOnce();
+                r.sleep();
+            }
+        }
+    }
 
 	void flightBase::run(){
 
