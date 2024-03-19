@@ -207,7 +207,16 @@ namespace AutoFlight{
 	}
 
 	void flightBase::circle(){
-        double x,y,z,vx,vy,vz,ax,ay,az,yaw;
+        double x = 0;
+        double y = 0;
+        double z = 0;
+        double vx = 0;
+        double vy = 0;
+        double vz = 0;
+        double ax = 0;
+        double ay = 0;
+        double az = 0;
+        double yaw=0;
         double theta = 0;
         double radius = 0;
         double velocity = 0;
@@ -217,13 +226,9 @@ namespace AutoFlight{
         double step = this->timeStep_*30;
         int circle = 1;
         int terminate = 0;
-        double omega = 0;
-        ros::Time start_time = ros::Time::now();
-        ros::Time end_time1, end_time2, end_time3;
-        cout << "Step: " << step << endl;
+        ros::Time startTime = ros::Time::now();
+        ros::Time endTime1, endTime2, endTime3;
         while(ros::ok() && terminate == 0){
-            cout << "Radius: " << radius << endl;
-            cout << "Velocity: " << velocity << endl;
             x = radius * cos(theta);
             y = radius * sin(theta);
             vx = -velocity * sin(theta);
@@ -251,54 +256,46 @@ namespace AutoFlight{
             target.acceleration.y = ay;
             target.acceleration.z = az;
             target.yaw = yaw;
-            ROS_INFO("Drawing Circle...");
 
-            updateTargetWithState(target);
-            ros::spinOnce();
-            r.sleep();
-             cout << "Case: " << circle << endl;
-            if(circle ==1){
-                    radius += this->radius_/step;
-                    velocity += this->velocity_/step;
-                    cout << "Radius: " << radius << endl;
-                    if(std::abs(radius-radius_)<=0.01){
-                        theta_start = theta;
-                        end_time1 = ros::Time::now();
-                        double time = (end_time1-start_time).toSec();
-                        cout << "Time Taken: " << time << endl;
-                        circle += 1;
-                    }
+            this->updateTargetWithState(target);
+
+            if (circle == 1){
+                radius += this->radius_/step;
+                velocity += this->velocity_/step;
+                
+                if (std::abs(radius-radius_)<=0.01){
+                    theta_start = theta;
+                    endTime1 = ros::Time::now();
+                    circle += 1;
+                }
             }
-            else if (circle ==2){
-                    radius = this->radius_;
-                    velocity = this->velocity_;
-                    cout << "Radius: " << radius << endl;
-		            theta_end = 3*2*PI_const;
-                    if (std::abs((theta-theta_start)- theta_end)<=0.1){
-                        end_time2 = ros::Time::now();
-                        double time2 = (end_time2-end_time1).toSec();
-                        cout << "Time Taken: " << time2 << endl;
-                        circle += 1; 
-                    }
+            else if (circle == 2){
+                radius = this->radius_;
+                velocity = this->velocity_;
+	            theta_end = 3*2*PI_const;
+                if (std::abs((theta-theta_start)- theta_end)<=0.1){
+                    endTime2 = ros::Time::now();
+                    circle += 1; 
+                }
             }
             else if (circle == 3){
-                    radius -= this->radius_/step;
-                    velocity -= this->velocity_/step;
-                    cout << "Radius: " << radius << endl;
-                    if(std::abs(radius-0.0)<=0.01){
-                        end_time3 = ros::Time::now();
-                        double time3 = (end_time3-end_time2).toSec();
-                        cout << "Time Taken: " << time3 << endl;
-                        circle += 1;
-                    }
+                radius -= this->radius_/step;
+                velocity -= this->velocity_/step;
+                if (std::abs(radius-0.0)<=0.01){
+                    endTime3 = ros::Time::now();
+                    circle += 1;
+                }
             }
             else{
                 terminate = 1;
                 break;
             }
-            ros::Time current_time = ros::Time::now();
-            double t = (current_time-start_time).toSec();
+            ros::Time currentTime = ros::Time::now();
+            double t = (currentTime-startTime).toSec();
             theta = velocity/radius*t;	
+            cout << "[AutoFlight]: Drawing Circle...Radius: " << radius << "\t\r" << std::flush;;
+            ros::spinOnce();
+            r.sleep();
         }
 
         if (this->yawControl_==true){
