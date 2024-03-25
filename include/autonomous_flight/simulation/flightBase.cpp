@@ -17,13 +17,13 @@ namespace AutoFlight{
 		}
 
 		// subscriber
-		this->odomSub_ = this->nh_.subscribe("/CERLAB/quadcopter/odom", 10, &flightBase::odomCB, this);
-		this->clickSub_ = this->nh_.subscribe("/move_base_simple/goal", 10, &flightBase::clickCB, this);
+		this->odomSub_ = this->nh_.subscribe("/CERLAB/quadcopter/odom", 1000, &flightBase::odomCB, this);
+		this->clickSub_ = this->nh_.subscribe("/move_base_simple/goal", 1000, &flightBase::clickCB, this);
 		
 
 		// publisher
-		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/CERLAB/quadcopter/setpoint_pose", 10);
-		this->statePub_ = this->nh_.advertise<tracking_controller::Target>("/autonomous_flight/target_state", 10);
+		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/CERLAB/quadcopter/setpoint_pose", 1000);
+		this->statePub_ = this->nh_.advertise<tracking_controller::Target>("/autonomous_flight/target_state", 1000);
 
 		ros::Rate r (10);
 		while (ros::ok() and not this->odomReceived_){
@@ -240,6 +240,7 @@ namespace AutoFlight{
 				psT.pose.orientation = quatT;
 				
 			}
+
 			// this->updateTarget(psT);
 			target.position.x = psT.pose.position.x;
 			target.position.y = psT.pose.position.y;
@@ -279,7 +280,7 @@ namespace AutoFlight{
 		reachY = std::abs(targetY - currY) < 0.1;
 		reachZ = std::abs(targetZ - currZ) < 0.15;
 		if (useYaw){
-			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
+			reachYaw = std::abs(targetYaw - currYaw) < 0.1;
 		}
 		else{
 			reachYaw = true;
