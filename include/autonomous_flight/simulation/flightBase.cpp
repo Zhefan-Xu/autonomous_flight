@@ -310,7 +310,7 @@ namespace AutoFlight{
 		reachY = std::abs(targetY - currY) < dist;
 		reachZ = std::abs(targetZ - currZ) < dist;
 		if (useYaw){
-			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
+			reachYaw = std::abs(targetYaw - currYaw) < 0.1;
 		}
 		else{
 			reachYaw = true;
