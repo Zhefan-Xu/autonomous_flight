@@ -43,17 +43,17 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Velocity: " << this->velocity_ <<"m/s." << endl;
 		}
 		// Subscriber
-		this->stateSub_ = this->nh_.subscribe<mavros_msgs::State>("/mavros/state", 10, &flightBase::stateCB, this);
-		this->odomSub_ = this->nh_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 10, &flightBase::odomCB, this);
-		this->clickSub_ = this->nh_.subscribe("/move_base_simple/goal", 10, &flightBase::clickCB, this);
+		this->stateSub_ = this->nh_.subscribe<mavros_msgs::State>("/mavros/state", 1000, &flightBase::stateCB, this);
+		this->odomSub_ = this->nh_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 1000, &flightBase::odomCB, this);
+		this->clickSub_ = this->nh_.subscribe("/move_base_simple/goal", 1000, &flightBase::clickCB, this);
 		
 		// Service client
     	this->armClient_ = this->nh_.serviceClient<mavros_msgs::CommandBool>("mavros/cmd/arming");
     	this->setModeClient_ = this->nh_.serviceClient<mavros_msgs::SetMode>("mavros/set_mode");	
 
     	// Publisher
-		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 10);
-		this->statePub_ = this->nh_.advertise<tracking_controller::Target>("/autonomous_flight/target_state", 10);
+		this->posePub_ = this->nh_.advertise<geometry_msgs::PoseStamped>("/mavros/setpoint_position/local", 1000);
+		this->statePub_ = this->nh_.advertise<tracking_controller::Target>("/autonomous_flight/target_state", 1000);
 
 
 		// Wait for odometry and mavros to be ready
@@ -487,7 +487,7 @@ namespace AutoFlight{
 		reachY = std::abs(targetY - currY) < 0.1;
 		reachZ = std::abs(targetZ - currZ) < 0.15;
 		if (useYaw){
-			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
+			reachYaw = std::abs(targetYaw - currYaw) < 0.1;
 		}
 		else{
 			reachYaw = true;
@@ -517,7 +517,7 @@ namespace AutoFlight{
 		reachY = std::abs(targetY - currY) < dist;
 		reachZ = std::abs(targetZ - currZ) < dist;
 		if (useYaw){
-			reachYaw = std::abs(targetYaw - currYaw) < 0.05;
+			reachYaw = std::abs(targetYaw - currYaw) < 0.1;
 		}
 		else{
 			reachYaw = true;
