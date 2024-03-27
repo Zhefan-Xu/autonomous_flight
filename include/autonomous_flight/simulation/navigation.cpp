@@ -23,6 +23,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Use global planner is set to: " << this->useGlobalPlanner_ << "." << endl;
 		}	
 
+		//Use MPC Planner
+		if (not this->nh_.getParam("autonomous_flight/use_mpc_planner", this->useMPCPlanner_)){
+			this->useMPCPlanner_ = false;
+			cout << "[AutoFlight]: No use MPC planner param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use MPC planner is set to: " << this->useMPCPlanner_ << "." << endl;
+		}	
+
 		// No turning of yaw
 		if (not this->nh_.getParam("autonomous_flight/no_yaw_turning", this->noYawTurning_)){
 			this->noYawTurning_ = false;
@@ -105,42 +114,152 @@ namespace AutoFlight{
 		// initialize piecewise linear trajectory planner
 		this->pwlTraj_.reset(new trajPlanner::pwlTraj (this->nh_));
 
-		// initialize bspline trajectory planner
-		this->bsplineTraj_.reset(new trajPlanner::bsplineTraj (this->nh_));
-		this->bsplineTraj_->setMap(this->map_);
-		this->bsplineTraj_->updateMaxVel(this->desiredVel_);
-		this->bsplineTraj_->updateMaxAcc(this->desiredAcc_);
+		if (this->useMPCPlanner_){
+			this->mpc_.reset(new trajPlanner::mpcPlanner (this->nh_));
+			this->mpc_->updateMaxVel(this->desiredVel_);
+			this->mpc_->updateMaxAcc(this->desiredAcc_);
+			this->mpc_->setMap(this->map_);
+		}
+		else{
+			// initialize bspline trajectory planner
+			this->bsplineTraj_.reset(new trajPlanner::bsplineTraj (this->nh_));
+			this->bsplineTraj_->setMap(this->map_);
+			this->bsplineTraj_->updateMaxVel(this->desiredVel_);
+			this->bsplineTraj_->updateMaxAcc(this->desiredAcc_);
 
-		// initialize the trajectory divider
-		this->trajDivider_.reset(new timeOptimizer::trajDivider (this->nh_));
-		this->trajDivider_->setMap(this->map_);
+			// initialize the trajectory divider
+			this->trajDivider_.reset(new timeOptimizer::trajDivider (this->nh_));
+			this->trajDivider_->setMap(this->map_);
 
-		// initialize the time optimizer
-		this->timeOptimizer_.reset(new timeOptimizer::bsplineTimeOptimizer (this->nh_));
-		this->timeOptimizer_->setMap(this->map_);
+			// initialize the time optimizer
+			this->timeOptimizer_.reset(new timeOptimizer::bsplineTimeOptimizer (this->nh_));
+			this->timeOptimizer_->setMap(this->map_);
+		}
 	}
 
 	void navigation::registerPub(){
 		this->rrtPathPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/rrt_path", 10);
 		this->polyTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/poly_traj", 10);
 		this->pwlTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/pwl_trajectory", 10);
-		this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/bspline_trajectory", 10);
+		if (this->useMPCPlanner_){
+			this->mpcTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/mpc_trajectory", 10);
+		}
+		else{
+			this->bsplineTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/bspline_trajectory", 10);
+		}
 		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/input_trajectory", 10);
 		this->inputTrajPointsPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("navigation/input_trajetory_points", 10);
 	}
 
 	void navigation::registerCallback(){
-		// planner callback
-		this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::plannerCB, this);
-		
+		if (this->useMPCPlanner_){
+			this->mpcTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::mpcCB, this);
+		}
+		else{
+			// planner callback
+			this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::plannerCB, this);
+		}	
 		// collision check callback
 		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
-
 		// trajectory execution callback
-		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::trajExeCB, this);
-
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::trajExeCB, this);
+		// this->trajExeWorker_ = std::thread(&navigation::trajExeCB, this);
+		// this->trajExeWorker_.detach();
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &navigation::visCB, this);
+	}
+
+	void navigation::mpcCB(const ros::TimerEvent&){
+		ros::Time mpcCBStartTime = ros::Time::now();
+		cout<<"mpc start time: "<<mpcCBStartTime<<endl;
+		if (this->replan_){
+			if (not this->refTrajReady_){
+				if (this->useGlobalPlanner_){
+					this->rrtPlanner_->updateStart(this->odom_.pose.pose);
+					this->rrtPlanner_->updateGoal(this->goal_.pose);
+					nav_msgs::Path rrtPathMsgTemp;
+					this->rrtPlanner_->makePlan(rrtPathMsgTemp);
+					if (rrtPathMsgTemp.poses.size() >= 2){
+						this->rrtPathMsg_ = rrtPathMsgTemp;
+						// this->globalPlanReady_ = true;
+						// this->refTrajReady_ = false;
+					}
+					// this->needGlobalPlan_ = false;
+					Eigen::Vector3d startVel (0, 0, 0);
+					Eigen::Vector3d startAcc (0, 0, 0);
+					Eigen::Vector3d endVel (0, 0, 0);
+					Eigen::Vector3d endAcc (0, 0, 0);
+					std::vector<Eigen::Vector3d> startEndConditions {startVel, startAcc, endVel, endAcc};
+
+					this->polyTraj_->updatePath(rrtPathMsgTemp, startEndConditions);
+					this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint		
+					//TODO: Collision check or not
+					double dt = 0.1;//TODO::add in param?
+					nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
+					this->mpc_->updatePath(mpcInputTraj,dt);
+					this->inputTrajMsg_ = mpcInputTraj;
+					this->refTrajReady_ = true;
+				}
+				else{
+					nav_msgs::Path waypoints, polyTrajTemp;
+					geometry_msgs::PoseStamped start, goal;
+					start.pose = this->odom_.pose.pose; goal = this->goal_;
+					waypoints.poses = std::vector<geometry_msgs::PoseStamped> {start, goal};					
+					
+					Eigen::Vector3d startVel (0, 0, 0);
+					Eigen::Vector3d startAcc (0, 0, 0);
+					Eigen::Vector3d endVel (0, 0, 0);
+					Eigen::Vector3d endAcc (0, 0, 0);
+					std::vector<Eigen::Vector3d> startEndConditions {startVel, startAcc, endVel, endAcc};
+
+					this->polyTraj_->updatePath(waypoints, startEndConditions);
+					this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint
+
+					double dt = 0.1;//TODO::add in param?
+					nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
+					this->mpc_->updatePath(mpcInputTraj,dt);
+					this->inputTrajMsg_ = mpcInputTraj;
+					this->refTrajReady_ = true;
+				}
+			}
+			else if (this->refTrajReady_){
+				Eigen::Vector3d currPos, currVel;
+				this->getCurrentStates(currPos, currVel);
+				this->mpc_->updateCurrStates(currPos, currVel);
+				ros::Time trajStartTime = ros::Time::now();
+				// cout<<"mpc freq: "<<(trajStartTime-this->trajStartTime_).toSec()<<endl;
+				bool newTrajReturn = mpc_->makePlanCG();
+				nav_msgs::Path mpcTraj;
+				this->mpc_->getTrajectory(mpcTraj);
+				
+
+				if (this->hasCollision()){
+					this->stop();
+					this->trajectoryReady_ = false;
+					// this->refTrajReady_ = false;
+					// this->replan_ = false;
+				}
+				else{	
+					if (this->mpcFirstTime_ and not newTrajReturn){
+						this->trajectoryReady_ = false;
+					}
+					else{
+						this->mpcTrajMsg_ = mpcTraj;			
+						if (newTrajReturn){
+							this->trajStartTime_ = trajStartTime;
+						}
+						this->trajectoryReady_ = true;
+					}
+				}
+			}
+		}
+		ros::Time mpcCBEndTime = ros::Time::now();
+		cout<<"[AutoFlight]: mpc Callback time: "<<(mpcCBEndTime-mpcCBStartTime).toSec()<<endl;
+	}
+
+	void navigation::getCurrentStates(Eigen::Vector3d &currPos, Eigen::Vector3d &currVel){
+		currPos <<this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z;
+		currVel = this->currVel_;
 	}
 
 	void navigation::plannerCB(const ros::TimerEvent&){
@@ -380,60 +499,126 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
-		if (this->goalReceived_){
-			this->replan_ = false;
-			this->trajectoryReady_ = false;
-			if (not this->noYawTurning_ and not this->useYawControl_){
-				double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
-				this->facingYaw_ = yaw;
-				this->moveToOrientation(yaw, this->desiredAngularVel_);
-			}
-			this->firstTimeSave_ = true;
-			this->replan_ = true;
-			this->goalReceived_ = false;
-			if (this->useGlobalPlanner_){
-				cout << "[AutoFlight]: Start global planning." << endl;
-				this->needGlobalPlan_ = true;
-				this->globalPlanReady_ = false;
-			}
-
-			cout << "[AutoFlight]: Replan for new goal position." << endl; 
-			return;
-		}
-
-		// return;
-		if (this->trajectoryReady_){
-			if (this->hasCollision()){ // if trajectory not ready, do not replan
+		ros::Time replanCBStart = ros::Time::now();
+		cout<<"replanCB start time "<<replanCBStart<<endl;
+		if(this->useMPCPlanner_){
+			if (this->goalReceived_){
+				this->replan_ = false;
+				this->refTrajReady_ = false;
+				if (not this->noYawTurning_ and not this->useYawControl_){
+					double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
+					this->facingYaw_ = yaw;
+					this->moveToOrientation(yaw, this->desiredAngularVel_);
+				}
+				this->firstTimeSave_ = true;
 				this->replan_ = true;
-				cout << "[AutoFlight]: Replan for collision." << endl;
+				this->goalReceived_ = false;
+				if (this->useGlobalPlanner_){
+					cout << "[AutoFlight]: Start global planning." << endl;
+					// this->needGlobalPlan_ = true;
+					// this->globalPlanReady_ = false;
+				}
+
+				cout << "[AutoFlight]: Replan for new goal position." << endl; 
+				ros::Time replanCBEnd = ros::Time::now();
+				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
+				return;
+			}
+			
+			if (this->trajectoryReady_){
+				if (this->hasCollision()){ 
+					this->stop();
+					this->trajectoryReady_ = false;
+					this->replan_ = true;
+					cout << "[AutoFlight]: Collision detected, stop." << endl;
+									ros::Time replanCBEnd = ros::Time::now();
+				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
+					return;
+				}
+
+				if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.1){
+					this->stop();
+					this->replan_ = false;
+					this->refTrajReady_ = false;
+					this->trajectoryReady_ = false;
+					this->mpcFirstTime_ = true;
+					cout << "[AutoFlight]: Goal reached, stop replan." << endl;
+									ros::Time replanCBEnd = ros::Time::now();
+				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
+					return;
+				}
+			}
+		}
+		else{
+			if (this->goalReceived_){
+				this->replan_ = false;
+				this->trajectoryReady_ = false;
+				if (not this->noYawTurning_ and not this->useYawControl_){
+					double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
+					this->facingYaw_ = yaw;
+					this->moveToOrientation(yaw, this->desiredAngularVel_);
+				}
+				this->firstTimeSave_ = true;
+				this->replan_ = true;
+				this->goalReceived_ = false;
+				if (this->useGlobalPlanner_){
+					cout << "[AutoFlight]: Start global planning." << endl;
+					this->needGlobalPlan_ = true;
+					this->globalPlanReady_ = false;
+				}
+
+				cout << "[AutoFlight]: Replan for new goal position." << endl; 
 				return;
 			}
 
-			if (this->computeExecutionDistance() >= 1.5 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
-				this->replan_ = true;
-				cout << "[AutoFlight]: Regular replan." << endl;
-				return;
+			// return;
+			if (this->trajectoryReady_){
+				if (this->hasCollision()){ // if trajectory not ready, do not replan
+					this->replan_ = true;
+					cout << "[AutoFlight]: Replan for collision." << endl;
+					return;
+				}
+
+				if (this->computeExecutionDistance() >= 1.5 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
+					this->replan_ = true;
+					cout << "[AutoFlight]: Regular replan." << endl;
+					return;
+				}
 			}
 		}
+											ros::Time replanCBEnd = ros::Time::now();
+				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
+		return;
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
+		// ros::Rate r(20);
+		// while(ros::ok()){
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
+			cout<<realTime<<endl;
 			Eigen::Vector3d pos, vel, acc;
 			double endTime;
-			if (this->useTimeOptimizer_){
-				this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
-				endTime = this->timeOptimizer_->getDuration();
+			if (this->useMPCPlanner_){
+				pos = this->mpc_->getPos(realTime);
+				vel = this->mpc_->getVel(realTime);
+				acc = this->mpc_->getAcc(realTime);
+				endTime = this->mpc_->getHorizon()*this->mpc_->getTs();
 			}
 			else{
-				this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
-				double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
-				pos = this->trajectory_.at(this->trajTime_);
-				vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
-				acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
-				endTime = this->trajectory_.getDuration()/linearReparamFactor;
+				if (this->useTimeOptimizer_){
+					this->trajTime_ = this->timeOptimizer_->getStates(realTime, pos, vel, acc);
+					endTime = this->timeOptimizer_->getDuration();
+				}
+				else{
+					this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
+					double linearReparamFactor = this->bsplineTraj_->getLinearFactor();
+					pos = this->trajectory_.at(this->trajTime_);
+					vel = this->trajectory_.getDerivative().at(this->trajTime_) * linearReparamFactor;
+					acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
+					endTime = this->trajectory_.getDuration()/linearReparamFactor;
+				}
 			}
 
 
@@ -460,9 +645,17 @@ namespace AutoFlight{
 				else if (this->noYawTurning_){
 					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 				}
-				else{
-					target.yaw = atan2(vel(1), vel(0));
-				}				
+				// else{
+				// 	double currentYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+				// 	double targetYaw = atan2(vel(1), vel(0));
+				// 	//TODO: Yaw Clamp value in param
+				// 	if (targetYaw >= currentYaw){
+				// 		target.yaw = std::max(targetYaw,currentYaw+PI_const/8);
+				// 	}
+				// 	else{
+				// 		target.yaw = std::min(targetYaw,currentYaw-PI_const/8);
+				// 	}
+				// }				
 				target.position.x = pos(0);
 				target.position.y = pos(1);
 				target.position.z = pos(2);
@@ -475,6 +668,9 @@ namespace AutoFlight{
 				this->updateTargetWithState(target);						
 			}
 		}
+		// // ros::spinOnce();
+		// r.sleep();
+		// }
 	}
 
 
@@ -488,8 +684,15 @@ namespace AutoFlight{
 		if (this->pwlTrajMsg_.poses.size() != 0){
 			this->pwlTrajPub_.publish(this->pwlTrajMsg_);
 		}
-		if (this->bsplineTrajMsg_.poses.size() != 0){
-			this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
+		if (this->useMPCPlanner_){
+			if (this->mpcTrajMsg_.poses.size() != 0){
+				this->mpcTrajPub_.publish(this->mpcTrajMsg_);
+			}
+		}
+		else{
+			if (this->bsplineTrajMsg_.poses.size() != 0){
+				this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
+			}
 		}
 
 		this->publishInputTraj();
@@ -497,15 +700,13 @@ namespace AutoFlight{
 
 	void navigation::run(){
 		// take off the drone
-		this->takeoff();
-
-		int temp1 = system("mkdir ~/rosbag_navigation_info &");
-		int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
-		int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
-		if (temp1==-1 or temp2==-1 or temp3==-1){
-			cout << "[AutoFlight]: Recording fails." << endl;
-		}
-
+		// this->takeoff();
+		// int temp1 = system("mkdir ~/rosbag_navigation_info &");
+		// int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
+		// int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
+		// if (temp1==-1 or temp2==-1 or temp3==-1){
+		// 	cout << "[AutoFlight]: Recording fails." << endl;
+		// }
 		// register timer callback
 		this->registerCallback();
 	}
@@ -538,11 +739,25 @@ namespace AutoFlight{
 
 	bool navigation::hasCollision(){
 		if (this->trajectoryReady_){
-			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
-				Eigen::Vector3d p = this->trajectory_.at(t);
-				bool hasCollision = this->map_->isInflatedOccupied(p);
-				if (hasCollision){
-					return true;
+			if (this->useMPCPlanner_){
+				double dt = this->mpc_->getTs();
+				double endTime = this->mpc_->getHorizon()*dt;
+				for (double t = 0; t<=endTime; t+=dt){
+					Eigen::Vector3d p = this->mpc_->getPos(t);
+					bool hasCollision = this->map_->isInflatedOccupied(p);
+					if (hasCollision){
+						cout<<"[AutoFlight]: Collision detected !"<<endl;
+						return true;
+					}
+				}
+			}
+			else{
+				for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
+					Eigen::Vector3d p = this->trajectory_.at(t);
+					bool hasCollision = this->map_->isInflatedOccupied(p);
+					if (hasCollision){
+						return true;
+					}
 				}
 			}
 		}
@@ -643,9 +858,9 @@ namespace AutoFlight{
 				point.type = visualization_msgs::Marker::SPHERE;
 				point.action = visualization_msgs::Marker::ADD;
 				point.pose.position.x = this->inputTrajMsg_.poses[i].pose.position.x;
-				point.pose.position.y = this->inputTrajMsg_.poses[i].pose.position.x;
-				point.pose.position.z = this->inputTrajMsg_.poses[i].pose.position.x;
-				point.lifetime = ros::Duration(0.05);
+				point.pose.position.y = this->inputTrajMsg_.poses[i].pose.position.y;
+				point.pose.position.z = this->inputTrajMsg_.poses[i].pose.position.z;
+				point.lifetime = ros::Duration(0.1);
 				point.scale.x = 0.2;
 				point.scale.y = 0.2;
 				point.scale.z = 0.2;

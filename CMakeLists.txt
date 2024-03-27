@@ -127,6 +127,8 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/CERLAB-UAV-Autonomy/trajectory_planner/include/trajectory_planner/third_party/ACADO/acado
+  ${CMAKE_SOURCE_DIR}/CERLAB-UAV-Autonomy/trajectory_planner/include/trajectory_planner/third_party/ACADO
 )
 
 ## Declare a C++ library
