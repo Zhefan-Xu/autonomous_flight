@@ -645,15 +645,7 @@ namespace AutoFlight{
 					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 				}
 				else{
-					double targetYaw = atan2(vel(1), vel(0));
-					double currentYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-					if (targetYaw>currentYaw){
-						target.yaw = std::max(targetYaw,currentYaw+PI_const/1800);
-					}
-					else{
-						target.yaw = std::min(targetYaw,currentYaw-PI_const/1800);
-					}
-				
+					target.yaw = atan2(vel(1), vel(0));			
 				}				
 				target.position.x = pos(0);
 				target.position.y = pos(1);
