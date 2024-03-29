@@ -171,7 +171,7 @@ namespace AutoFlight{
 
 	void navigation::mpcCB(const ros::TimerEvent&){
 		ros::Time mpcCBStartTime = ros::Time::now();
-		cout<<"mpc start time: "<<mpcCBStartTime<<endl;
+		// cout<<"[AutoFlight]: mpc Callback time: "<<(mpcCBEndTime-mpcCBStartTime).toSec()<<endl;
 		if (this->replan_){
 			if (not this->refTrajReady_){
 				if (this->useGlobalPlanner_){
@@ -242,6 +242,11 @@ namespace AutoFlight{
 				else{	
 					if (this->mpcFirstTime_ and not newTrajReturn){
 						this->trajectoryReady_ = false;
+					}
+					else if (not newTrajReturn and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 2.0){
+						this->stop();
+						this->trajectoryReady_ = false;
+						this->replan_ = false;
 					}
 					else{
 						this->mpcTrajMsg_ = mpcTraj;			
@@ -499,8 +504,6 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
-		ros::Time replanCBStart = ros::Time::now();
-		cout<<"replanCB start time "<<replanCBStart<<endl;
 		if(this->useMPCPlanner_){
 			if (this->goalReceived_){
 				this->replan_ = false;
@@ -520,8 +523,6 @@ namespace AutoFlight{
 				}
 
 				cout << "[AutoFlight]: Replan for new goal position." << endl; 
-				ros::Time replanCBEnd = ros::Time::now();
-				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
 				return;
 			}
 			
@@ -530,21 +531,16 @@ namespace AutoFlight{
 					this->stop();
 					this->trajectoryReady_ = false;
 					this->replan_ = true;
-					cout << "[AutoFlight]: Collision detected, stop." << endl;
-									ros::Time replanCBEnd = ros::Time::now();
-				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
+					cout << "[AutoFlight]: Collision detected, replan." << endl;
 					return;
 				}
-
-				if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.1){
+				else if(AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3){
 					this->stop();
 					this->replan_ = false;
 					this->refTrajReady_ = false;
 					this->trajectoryReady_ = false;
 					this->mpcFirstTime_ = true;
 					cout << "[AutoFlight]: Goal reached, stop replan." << endl;
-									ros::Time replanCBEnd = ros::Time::now();
-				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
 					return;
 				}
 			}
@@ -586,8 +582,6 @@ namespace AutoFlight{
 				}
 			}
 		}
-											ros::Time replanCBEnd = ros::Time::now();
-				cout<<"replanCB time taken: "<<(replanCBEnd-replanCBStart).toSec()<<endl;
 		return;
 	}
 
@@ -597,7 +591,6 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
-			cout<<realTime<<endl;
 			Eigen::Vector3d pos, vel, acc;
 			double endTime;
 			if (this->useMPCPlanner_){
@@ -645,17 +638,17 @@ namespace AutoFlight{
 				else if (this->noYawTurning_){
 					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 				}
-				// else{
-				// 	double currentYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
-				// 	double targetYaw = atan2(vel(1), vel(0));
-				// 	//TODO: Yaw Clamp value in param
-				// 	if (targetYaw >= currentYaw){
-				// 		target.yaw = std::max(targetYaw,currentYaw+PI_const/8);
-				// 	}
-				// 	else{
-				// 		target.yaw = std::min(targetYaw,currentYaw-PI_const/8);
-				// 	}
-				// }				
+				else{
+					double targetYaw = atan2(vel(1), vel(0));
+					double currentYaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+					if (targetYaw>currentYaw){
+						target.yaw = std::max(targetYaw,currentYaw+PI_const/1800);
+					}
+					else{
+						target.yaw = std::min(targetYaw,currentYaw-PI_const/1800);
+					}
+				
+				}				
 				target.position.x = pos(0);
 				target.position.y = pos(1);
 				target.position.z = pos(2);
@@ -700,7 +693,7 @@ namespace AutoFlight{
 
 	void navigation::run(){
 		// take off the drone
-		// this->takeoff();
+		this->takeoff();
 		// int temp1 = system("mkdir ~/rosbag_navigation_info &");
 		// int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
 		// int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
@@ -741,8 +734,10 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			if (this->useMPCPlanner_){
 				double dt = this->mpc_->getTs();
-				double endTime = this->mpc_->getHorizon()*dt;
-				for (double t = 0; t<=endTime; t+=dt){
+				ros::Time currTime = ros::Time::now();
+				double startTime = (currTime-this->trajStartTime_).toSec();
+				double endTime = std::max(startTime+2, this->mpc_->getHorizon()*dt);
+				for (double t = startTime; t<=endTime; t+=dt){
 					Eigen::Vector3d p = this->mpc_->getPos(t);
 					bool hasCollision = this->map_->isInflatedOccupied(p);
 					if (hasCollision){
