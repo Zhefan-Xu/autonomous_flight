@@ -94,6 +94,7 @@ namespace AutoFlight{
 		void run();	
 		void getCurrentStates(Eigen::Vector3d &currPos, Eigen::Vector3d &currVel);
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);	
+		bool goalHasCollision();
 		bool hasCollision();
 		double computeExecutionDistance();
 		nav_msgs::Path getCurrentTraj(double dt);

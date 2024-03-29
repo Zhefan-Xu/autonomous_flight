@@ -48,4 +48,4 @@ mpc_planner/cloud_res: 0.2
 mpc_planner/local_cloud_region_x: 5.0 # forward
 mpc_planner/local_cloud_region_y: 2.0 # left and right
 mpc_planner/ground_height: 0.4
-mpc_planner/ceiling_height: 1.5
+mpc_planner/ceiling_height: 2.0

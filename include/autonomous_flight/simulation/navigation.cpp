@@ -170,7 +170,7 @@ namespace AutoFlight{
 	}
 
 	void navigation::mpcCB(const ros::TimerEvent&){
-		ros::Time mpcCBStartTime = ros::Time::now();
+		// ros::Time mpcCBStartTime = ros::Time::now();
 		// cout<<"[AutoFlight]: mpc Callback time: "<<(mpcCBEndTime-mpcCBStartTime).toSec()<<endl;
 		if (this->replan_){
 			if (not this->refTrajReady_){
@@ -198,6 +198,8 @@ namespace AutoFlight{
 					nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
 					this->mpc_->updatePath(mpcInputTraj,dt);
 					this->inputTrajMsg_ = mpcInputTraj;
+					//update real goal
+					// this->goal_ = mpcInputTraj
 					this->refTrajReady_ = true;
 				}
 				else{
@@ -243,11 +245,6 @@ namespace AutoFlight{
 					if (this->mpcFirstTime_ and not newTrajReturn){
 						this->trajectoryReady_ = false;
 					}
-					else if (not newTrajReturn and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 2.0){
-						this->stop();
-						this->trajectoryReady_ = false;
-						this->replan_ = false;
-					}
 					else{
 						this->mpcTrajMsg_ = mpcTraj;			
 						if (newTrajReturn){
@@ -258,8 +255,8 @@ namespace AutoFlight{
 				}
 			}
 		}
-		ros::Time mpcCBEndTime = ros::Time::now();
-		cout<<"[AutoFlight]: mpc Callback time: "<<(mpcCBEndTime-mpcCBStartTime).toSec()<<endl;
+		// ros::Time mpcCBEndTime = ros::Time::now();
+		// cout<<"[AutoFlight]: mpc Callback time: "<<(mpcCBEndTime-mpcCBStartTime).toSec()<<endl;
 	}
 
 	void navigation::getCurrentStates(Eigen::Vector3d &currPos, Eigen::Vector3d &currVel){
@@ -506,24 +503,33 @@ namespace AutoFlight{
 		*/
 		if(this->useMPCPlanner_){
 			if (this->goalReceived_){
-				this->replan_ = false;
-				this->refTrajReady_ = false;
-				if (not this->noYawTurning_ and not this->useYawControl_){
-					double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
-					this->facingYaw_ = yaw;
-					this->moveToOrientation(yaw, this->desiredAngularVel_);
+				if(this->goalHasCollision()){
+					this->replan_ = false;
+					this->refTrajReady_ = false;
+					this->goalReceived_ = false;
+					cout << "[AutoFlight]: Invalid goal position, please assign a new goal" << endl; 
+					return;
 				}
-				this->firstTimeSave_ = true;
-				this->replan_ = true;
-				this->goalReceived_ = false;
-				if (this->useGlobalPlanner_){
-					cout << "[AutoFlight]: Start global planning." << endl;
-					// this->needGlobalPlan_ = true;
-					// this->globalPlanReady_ = false;
-				}
+				else{
+					this->replan_ = false;
+					this->refTrajReady_ = false;
+					if (not this->noYawTurning_ and not this->useYawControl_){
+						double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
+						this->facingYaw_ = yaw;
+						this->moveToOrientation(yaw, this->desiredAngularVel_);
+					}
+					this->firstTimeSave_ = true;
+					this->replan_ = true;
+					this->goalReceived_ = false;
+					if (this->useGlobalPlanner_){
+						cout << "[AutoFlight]: Start global planning." << endl;
+						// this->needGlobalPlan_ = true;
+						// this->globalPlanReady_ = false;
+					}
 
-				cout << "[AutoFlight]: Replan for new goal position." << endl; 
-				return;
+					cout << "[AutoFlight]: Replan for new goal position." << endl; 
+					return;
+				}
 			}
 			
 			if (this->trajectoryReady_){
@@ -730,13 +736,33 @@ namespace AutoFlight{
 		startEndConditions.push_back(endAcc);
 	}
 
+	bool navigation::goalHasCollision(){
+		Eigen::Vector3d p;
+		double r = 0.5;//radius for goal collision check
+		for (double i=-r; i<=r;i+=0.1){
+			for(double j=-r;j<=r;j+=0.1){
+				for (double k = -r; k<=r; k+=0.1){
+					p(0) = this->goal_.pose.position.x+i;
+					p(1) = this->goal_.pose.position.y+j;
+					p(2) = this->goal_.pose.position.z+k;
+					if (this->map_->isInflatedOccupied(p)){
+						return true;
+
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 	bool navigation::hasCollision(){
 		if (this->trajectoryReady_){
 			if (this->useMPCPlanner_){
 				double dt = this->mpc_->getTs();
 				ros::Time currTime = ros::Time::now();
 				double startTime = (currTime-this->trajStartTime_).toSec();
-				double endTime = std::max(startTime+2, this->mpc_->getHorizon()*dt);
+				double endTime = std::min(startTime+2.0, this->mpc_->getHorizon()*dt);
+				// cout<<"collision check: start time  "<<startTime<<"end time: "<< endTime<<endl;
 				for (double t = startTime; t<=endTime; t+=dt){
 					Eigen::Vector3d p = this->mpc_->getPos(t);
 					bool hasCollision = this->map_->isInflatedOccupied(p);
