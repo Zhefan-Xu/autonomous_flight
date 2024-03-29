@@ -162,7 +162,7 @@ namespace AutoFlight{
 		// collision check callback
 		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
 		// trajectory execution callback
-		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::trajExeCB, this);
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::trajExeCB, this);
 		// this->trajExeWorker_ = std::thread(&navigation::trajExeCB, this);
 		// this->trajExeWorker_.detach();
 		// visualization callback
