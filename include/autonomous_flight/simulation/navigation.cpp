@@ -513,7 +513,7 @@ namespace AutoFlight{
 				else{
 					this->replan_ = false;
 					this->refTrajReady_ = false;
-					if (not this->noYawTurning_ and not this->useYawControl_){
+					if (not this->noYawTurning_ ){
 						double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
 						this->facingYaw_ = yaw;
 						this->moveToOrientation(yaw, this->desiredAngularVel_);
@@ -588,7 +588,6 @@ namespace AutoFlight{
 				}
 			}
 		}
-		return;
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
