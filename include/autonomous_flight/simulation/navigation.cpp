@@ -286,6 +286,7 @@ namespace AutoFlight{
 						this->globalPlanReady_ = true;
 					}
 					this->needGlobalPlan_ = false;
+					return;
 				}
 				else{
 					if (this->globalPlanReady_){
@@ -435,7 +436,6 @@ namespace AutoFlight{
 				}
 			}
 			
-
 			this->inputTrajMsg_ = inputTraj;
 
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
