@@ -165,6 +165,7 @@ namespace AutoFlight{
 						this->globalPlanReady_ = true;
 					}
 					this->needGlobalPlan_ = false;
+					return;
 				}
 				else{
 					if (this->globalPlanReady_){
