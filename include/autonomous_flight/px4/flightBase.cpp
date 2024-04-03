@@ -220,10 +220,11 @@ namespace AutoFlight{
         double theta = 0;
         double radius = 0;
         double velocity = 0;
-        ros::Rate r (30);
+		int rate = 100;
+        ros::Rate r (rate);
 		double theta_start;
         double theta_end;
-        double step = this->timeStep_*30;
+        double step = this->timeStep_*rate;
         int circle = 1;
         int terminate = 0;
         ros::Time startTime = ros::Time::now();
