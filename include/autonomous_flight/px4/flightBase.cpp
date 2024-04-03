@@ -239,7 +239,7 @@ namespace AutoFlight{
                 yaw = theta + PI_const / 2;
             }
             else if (this->yawControl_ == false){
-                yaw = this->odom_.pose.pose.orientation.z;
+                yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
             }
             z = this->takeoffHgt_;
             vz = 0;
