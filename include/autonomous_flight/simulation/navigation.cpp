@@ -116,7 +116,7 @@ namespace AutoFlight{
 
 		if (this->useMPCPlanner_){
 			this->mpc_.reset(new trajPlanner::mpcPlanner (this->nh_));
-			this->mpc_->updateMaxVel(this->desiredVel_);
+			this->mpc_->updateMaxVel(this->desiredVel_*1.5);
 			this->mpc_->updateMaxAcc(this->desiredAcc_);
 			this->mpc_->setMap(this->map_);
 		}
@@ -162,7 +162,7 @@ namespace AutoFlight{
 		// collision check callback
 		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
 		// trajectory execution callback
-		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::trajExeCB, this);
+		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.05), &navigation::trajExeCB, this);
 		// this->trajExeWorker_ = std::thread(&navigation::trajExeCB, this);
 		// this->trajExeWorker_.detach();
 		// visualization callback
@@ -171,7 +171,7 @@ namespace AutoFlight{
 
 	void navigation::mpcCB(const ros::TimerEvent&){
 		// ros::Time mpcCBStartTime = ros::Time::now();
-		// cout<<"[AutoFlight]: mpc Callback time: "<<(mpcCBEndTime-mpcCBStartTime).toSec()<<endl;
+		// cout<<"[AutoFlight]: mpc Callback start time: "<<mpcCBStartTime<<endl;
 		if (this->replan_){
 			if (not this->refTrajReady_){
 				if (this->useGlobalPlanner_){
@@ -198,9 +198,8 @@ namespace AutoFlight{
 					nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
 					this->mpc_->updatePath(mpcInputTraj,dt);
 					this->inputTrajMsg_ = mpcInputTraj;
-					//update real goal
-					// this->goal_ = mpcInputTraj
 					this->refTrajReady_ = true;
+					this->mpcFirstTime_ = true;
 				}
 				else{
 					nav_msgs::Path waypoints, polyTrajTemp;
@@ -222,6 +221,7 @@ namespace AutoFlight{
 					this->mpc_->updatePath(mpcInputTraj,dt);
 					this->inputTrajMsg_ = mpcInputTraj;
 					this->refTrajReady_ = true;
+					this->mpcFirstTime_ = true;
 				}
 			}
 			else if (this->refTrajReady_){
@@ -230,28 +230,38 @@ namespace AutoFlight{
 				this->mpc_->updateCurrStates(currPos, currVel);
 				ros::Time trajStartTime = ros::Time::now();
 				// cout<<"mpc freq: "<<(trajStartTime-this->trajStartTime_).toSec()<<endl;
-				bool newTrajReturn = mpc_->makePlanCG();
+				bool newTrajReturn = mpc_->makePlan();
 				nav_msgs::Path mpcTraj;
 				this->mpc_->getTrajectory(mpcTraj);
 				
-
-				if (this->hasCollision()){
+				if (newTrajReturn){
+					if (this->hasCollision()){
+						this->stop();
+						this->trajectoryReady_ = false;
+						// this->refTrajReady_ = false;
+						// this->replan_ = false;
+					}
+					else{	
+						// if (this->mpcFirstTime_ and not newTrajReturn){
+						// 	this->trajectoryReady_ = false;
+						// }
+						// else{
+							this->mpcTrajMsg_ = mpcTraj;			
+							if (newTrajReturn){
+								this->trajStartTime_ = trajStartTime;
+							}
+							this->trajectoryReady_ = true;
+							this->mpcFirstTime_ = false;
+						// }
+					}
+				}
+				else if (not this->mpcFirstTime_ and not newTrajReturn){
+					this->trajectoryReady_ = true;
+					this->mpcFirstTime_ = false;
+				}
+				else{
 					this->stop();
 					this->trajectoryReady_ = false;
-					// this->refTrajReady_ = false;
-					// this->replan_ = false;
-				}
-				else{	
-					if (this->mpcFirstTime_ and not newTrajReturn){
-						this->trajectoryReady_ = false;
-					}
-					else{
-						this->mpcTrajMsg_ = mpcTraj;			
-						if (newTrajReturn){
-							this->trajStartTime_ = trajStartTime;
-						}
-						this->trajectoryReady_ = true;
-					}
 				}
 			}
 		}
@@ -501,6 +511,8 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
+		// ros::Time start = ros::Time::now();
+		// cout<<"[AutoFlight]: replancheck CB start time "<<start<<endl;
 		if(this->useMPCPlanner_){
 			if (this->goalReceived_){
 				if(this->goalHasCollision()){
@@ -539,6 +551,14 @@ namespace AutoFlight{
 					this->replan_ = true;
 					cout << "[AutoFlight]: Collision detected, replan." << endl;
 					return;
+				}
+				else if (this->goalHasCollision()){
+					this->stop();
+					this->trajectoryReady_ = false;
+					this->replan_ = false;
+					this->refTrajReady_ = false;
+					this->mpcFirstTime_ = true;
+					cout<<"[AutoFlight]: Invalid goal, stop." << endl;
 				}
 				else if(AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3){
 					this->stop();
@@ -588,21 +608,32 @@ namespace AutoFlight{
 				}
 			}
 		}
+		// ros::Time end = ros::Time::now();
+		// cout<<"[AutoFlight]: replancheck CB time "<<(end-start).toSec()<<endl;
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
+		// ros::Time start = ros::Time::now();
+		// cout<<"[AutoFlight]: trajExe CB start time "<<start<<endl;
 		// ros::Rate r(20);
 		// while(ros::ok()){
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
+			// cout<<"real time: "<<realTime<<endl;
 			Eigen::Vector3d pos, vel, acc;
 			double endTime;
 			if (this->useMPCPlanner_){
-				pos = this->mpc_->getPos(realTime);
-				vel = this->mpc_->getVel(realTime);
-				acc = this->mpc_->getAcc(realTime);
 				endTime = this->mpc_->getHorizon()*this->mpc_->getTs();
+				if (realTime >= endTime-1.5){
+					this->stop();
+					return;
+				}
+				else{
+					pos = this->mpc_->getPos(realTime);
+					vel = this->mpc_->getVel(realTime);
+					acc = this->mpc_->getAcc(realTime);
+				}
 			}
 			else{
 				if (this->useTimeOptimizer_){
@@ -661,10 +692,14 @@ namespace AutoFlight{
 		// // ros::spinOnce();
 		// r.sleep();
 		// }
+		// ros::Time end = ros::Time::now();
+		// cout<<"[Auto Flight]: trajExe CB time "<<(end-start).toSec()<<endl;
 	}
 
 
 	void navigation::visCB(const ros::TimerEvent&){
+		// ros::Time start = ros::Time::now();
+		// cout<<"[AutoFlight]: vis CB start time "<<start<<endl;
 		if (this->rrtPathMsg_.poses.size() != 0){
 			this->rrtPathPub_.publish(this->rrtPathMsg_);
 		}
@@ -686,6 +721,8 @@ namespace AutoFlight{
 		}
 
 		this->publishInputTraj();
+		// ros::Time end = ros::Time::now();
+		// cout<<"[AutoFlight]: vis CB time "<<(end-start).toSec()<<endl;
 	}
 
 	void navigation::run(){

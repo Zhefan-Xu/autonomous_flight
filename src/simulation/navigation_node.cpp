@@ -13,6 +13,8 @@ int main(int argc, char** argv){
 
 	AutoFlight::navigation navigator (nh);
 	navigator.run();
-	ros::spin();
+	ros::MultiThreadedSpinner spinner(2);
+	spinner.spin();
+	// ros::spin();
 	return 0;
 }

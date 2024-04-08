@@ -37,11 +37,11 @@ bspline_traj/max_path_length: 7
 bspline_traj/max_obstacle_size: [10, 10, 10]
 
 mpc_planner/horizon: 30
-mpc_planner/z_range_min: 0.7 # this is not used. Will be overwritten.
-mpc_planner/z_range_max: 1.2 # this is not used. Will be overwritten.
+mpc_planner/z_range_min: 0.7 
+mpc_planner/z_range_max: 1.2 
 mpc_planner/safety_dist: 0.8
-mpc_planner/static_constraint_slack_ratio: 0.3 # this is not used. Will be overwritten.
-mpc_planner/dynamic_constraint_slack_ratio: 0.3 # this is not used. Will be overwritten.
+mpc_planner/static_constraint_slack_ratio: 0.3
+mpc_planner/dynamic_constraint_slack_ratio: 0.3 
 
 # clustering params
 mpc_planner/cloud_res: 0.2
