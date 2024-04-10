@@ -44,6 +44,7 @@ namespace AutoFlight{
 		ros::Publisher inputTrajPointsPub_;
 
 		std::thread trajExeWorker_;
+		std::thread mpcWorker_;
 		// parameters
 		bool useGlobalPlanner_;
 		bool useMPCPlanner_;
@@ -84,7 +85,7 @@ namespace AutoFlight{
 		void registerPub();
 		void registerCallback();
 
-		void mpcCB(const ros::TimerEvent&);
+		void mpcCB();
 		void plannerCB(const ros::TimerEvent&);
 		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
