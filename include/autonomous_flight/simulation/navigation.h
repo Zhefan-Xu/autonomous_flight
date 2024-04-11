@@ -49,13 +49,16 @@ namespace AutoFlight{
 		bool useGlobalPlanner_;
 		bool useMPCPlanner_;
 		bool noYawTurning_;
-		bool useYawControl_;
+		bool useYawControl_;		
+		bool useTimeOptimizer_;
+		bool usePredefinedGoal_;
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
 		std::string trajSavePath_;
-		bool useTimeOptimizer_;
-
+		nav_msgs::Path predefinedGoal_;
+		int goalIdx_ = 0;
+		int repeatPath_;
 		// navigation data
 		bool replan_ = false;
 		bool needGlobalPlan_ = false;

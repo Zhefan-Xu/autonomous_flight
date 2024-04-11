@@ -2,9 +2,21 @@ takeoff_height: 1.0 # m
 use_global_planner: false
 use_mpc_planner: true
 no_yaw_turning: false
-use_yaw_control: false
+use_yaw_control: true
 desired_velocity: 1.0 # m/s
 desired_acceleration: 1.0 # m/s^2
 desired_angular_velocity: 0.5 # rad/s
 trajectory_info_save_path: "No"
 use_time_optimizer: false
+
+# target parameters
+use_predefined_goal: true
+goal: [0, 0, 1.0,
+       4, 0, 1.0,
+       4, -4, 1.0,
+       -4, -4, 1.0,
+       # -4, 4, 1.0,
+       # 4, 4, 1.0,
+       # 4, 0, 1.0,
+       0, 0, 1.0] #x,y,z
+execute_path: 2
