@@ -223,7 +223,7 @@ namespace AutoFlight{
 						std::vector<Eigen::Vector3d> startEndConditions {startVel, startAcc, endVel, endAcc};
 
 						this->polyTraj_->updatePath(this->predefinedGoal_, startEndConditions);
-						this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint
+						this->polyTraj_->makePlan(this->polyTrajMsg_); // include corridor constraint
 
 						double dt = 0.1; 
 						nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
@@ -251,7 +251,7 @@ namespace AutoFlight{
 							std::vector<Eigen::Vector3d> startEndConditions {startVel, startAcc, endVel, endAcc};
 
 							this->polyTraj_->updatePath(rrtPathMsgTemp, startEndConditions);
-							this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint		
+							this->polyTraj_->makePlan(this->polyTrajMsg_); // include corridor constraint		
 							
 							
 							double dt = 0.1;
@@ -274,7 +274,7 @@ namespace AutoFlight{
 							std::vector<Eigen::Vector3d> startEndConditions {startVel, startAcc, endVel, endAcc};
 
 							this->polyTraj_->updatePath(waypoints, startEndConditions);
-							this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint
+							this->polyTraj_->makePlan(this->polyTrajMsg_); // include corridor constraint
 
 							double dt = 0.1;
 							nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
@@ -578,7 +578,7 @@ namespace AutoFlight{
 					this->replan_ = false;
 					this->refTrajReady_ = false;
 					this->goalReceived_ = false;
-					cout << "[AutoFlight]: Invalid goal position, please assign a new goal" << endl; 
+					cout << "[AutoFlight]: Invalid goal position, please assign a new goal." << endl; 
 					return;
 				}
 				else{
@@ -606,7 +606,7 @@ namespace AutoFlight{
 						this->stop();
 						this->trajectoryReady_ = false;
 						this->replan_ = true;
-						cout << "[AutoFlight]: Collision detected, replan." << endl;
+						cout << "[AutoFlight]: Collision detected. MPC replan." << endl;
 						return;
 					}
 					else{
@@ -630,7 +630,7 @@ namespace AutoFlight{
 							this->trajectoryReady_ = false;
 							this->mpcFirstTime_ = true;
 							if (this->repeatPathNum_ == 0){
-								cout << "[AutoFlight]: Goal reached. Stop replan." << endl;
+								cout << "[AutoFlight]: Goal reached. MPC Stop replan." << endl;
 							}
 							return;
 						}
@@ -642,7 +642,7 @@ namespace AutoFlight{
 						this->stop();
 						this->trajectoryReady_ = false;
 						this->replan_ = true;
-						cout << "[AutoFlight]: Collision detected. replan." << endl;
+						cout << "[AutoFlight]: Collision detected. MPC replan." << endl;
 						return;
 					}
 					else if (this->goalHasCollision()){
@@ -651,7 +651,7 @@ namespace AutoFlight{
 						this->replan_ = false;
 						this->refTrajReady_ = false;
 						this->mpcFirstTime_ = true;
-						cout<<"[AutoFlight]: Invalid goal, stop." << endl;
+						cout<<"[AutoFlight]: Invalid goal. Stop!" << endl;
 					}
 					else if(AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3){
 						this->stop();
@@ -659,7 +659,7 @@ namespace AutoFlight{
 						this->refTrajReady_ = false;
 						this->trajectoryReady_ = false;
 						this->mpcFirstTime_ = true;
-						cout << "[AutoFlight]: Goal reached, stop replan." << endl;
+						cout << "[AutoFlight]: Goal reached. MPC Stop replan." << endl;
 						return;
 					}
 				}
