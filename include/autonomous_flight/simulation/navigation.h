@@ -13,6 +13,7 @@
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
 #include <trajectory_planner/bsplineTraj.h>
+#include <trajectory_planner/mpcPlanner.h>
 #include <time_optimizer/trajectoryDivider.h>
 #include <time_optimizer/bsplineTimeOptimizer.h>
 
@@ -26,9 +27,9 @@ namespace AutoFlight{
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
 		std::shared_ptr<timeOptimizer::trajDivider> trajDivider_;
 		std::shared_ptr<timeOptimizer::bsplineTimeOptimizer> timeOptimizer_;
+		std::shared_ptr<trajPlanner::mpcPlanner> mpc_;
 
-
-
+		ros::Timer mpcTimer_;
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
@@ -38,27 +39,37 @@ namespace AutoFlight{
 		ros::Publisher polyTrajPub_;
 		ros::Publisher pwlTrajPub_;
 		ros::Publisher bsplineTrajPub_;
+		ros::Publisher mpcTrajPub_;
 		ros::Publisher inputTrajPub_;
 		ros::Publisher inputTrajPointsPub_;
 
+		std::thread trajExeWorker_;
+		std::thread mpcWorker_;
 		// parameters
 		bool useGlobalPlanner_;
+		bool useMPCPlanner_;
 		bool noYawTurning_;
-		bool useYawControl_;
+		bool useYawControl_;		
+		bool useTimeOptimizer_;
+		bool usePredefinedGoal_;
 		double desiredVel_;
 		double desiredAcc_;
 		double desiredAngularVel_;
 		std::string trajSavePath_;
-		bool useTimeOptimizer_;
-
+		nav_msgs::Path predefinedGoal_;
+		int goalIdx_ = 0;
+		int repeatPath_;
 		// navigation data
 		bool replan_ = false;
 		bool needGlobalPlan_ = false;
 		bool globalPlanReady_ = false;
+		bool refTrajReady_ = false;
+		bool mpcFirstTime_ = false;
 		nav_msgs::Path rrtPathMsg_;
 		nav_msgs::Path polyTrajMsg_;
 		nav_msgs::Path pwlTrajMsg_;
 		nav_msgs::Path bsplineTrajMsg_;
+		nav_msgs::Path mpcTrajMsg_;
 		nav_msgs::Path inputTrajMsg_;
 		bool trajectoryReady_ = false;
 		ros::Time trajStartTime_;
@@ -77,13 +88,17 @@ namespace AutoFlight{
 		void registerPub();
 		void registerCallback();
 
+		void mpcCB();
 		void plannerCB(const ros::TimerEvent&);
 		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
+		// void trajExeCB();
 		void visCB(const ros::TimerEvent&);
 
 		void run();	
+		void getCurrentStates(Eigen::Vector3d &currPos, Eigen::Vector3d &currVel);
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);	
+		bool goalHasCollision();
 		bool hasCollision();
 		double computeExecutionDistance();
 		nav_msgs::Path getCurrentTraj(double dt);

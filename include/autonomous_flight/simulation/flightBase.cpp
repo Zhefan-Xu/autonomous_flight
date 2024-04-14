@@ -43,7 +43,7 @@ namespace AutoFlight{
 
 
 	void flightBase::publishTarget(){
-		ros::Rate r (200);
+		ros::Rate r (20);
 		while (ros::ok()){
 	        if (this->poseControl_){
 	        	this->posePub_.publish(this->poseTgt_);
