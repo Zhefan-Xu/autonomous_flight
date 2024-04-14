@@ -128,12 +128,12 @@ namespace AutoFlight{
 		}
 
 		// whether or not to repeat tracking predefined path
-		if (not this->nh_.getParam("autonomous_flight/execute_path", this->repeatPath_)){
-			this->repeatPath_ = 1;
-			cout << "[AutoFlight]: No execute path param found. Use default: 1." << endl;
+		if (not this->nh_.getParam("autonomous_flight/execute_path_times", this->repeatPathNum_)){
+			this->repeatPathNum_ = 1;
+			cout << "[AutoFlight]: No execute path number of times param found. Use default: 1." << endl;
 		} 
 		else{
-			cout << "[AutoFlight]: Execute path is set to: " << this->repeatPath_ << "." << endl;
+			cout << "[AutoFlight]: Execute path number of times is set to: " << this->repeatPathNum_ << "." << endl;
 		}
 	}
 
@@ -193,20 +193,19 @@ namespace AutoFlight{
 
 	void navigation::registerCallback(){
 		if (this->useMPCPlanner_){
-			// this->mpcTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::mpcCB, this);
 			this->mpcWorker_ = std::thread(&navigation::mpcCB, this);
 			this->mpcWorker_.detach();
 		}
 		else{
-			// planner callback
+			// Bspline planner callback
 			this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::plannerCB, this);
 		}	
 		// collision check callback
 		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
+
 		// trajectory execution callback
 		this->trajExeTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::trajExeCB, this);
-		// this->trajExeWorker_ = std::thread(&navigation::trajExeCB, this);
-		// this->trajExeWorker_.detach();
+
 		// visualization callback
 		this->visTimer_ = this->nh_.createTimer(ros::Duration(0.033), &navigation::visCB, this);
 	}
@@ -223,21 +222,17 @@ namespace AutoFlight{
 						Eigen::Vector3d endAcc (0, 0, 0);
 						std::vector<Eigen::Vector3d> startEndConditions {startVel, startAcc, endVel, endAcc};
 
-						// this->polyTraj_->updatePath(waypoints, startEndConditions);
 						this->polyTraj_->updatePath(this->predefinedGoal_, startEndConditions);
 						this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint
 
-						double dt = 0.1;//TODO::add in param?
+						double dt = 0.1; 
 						nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
-						this->mpc_->updatePath(mpcInputTraj,dt);
+						this->mpc_->updatePath(mpcInputTraj, dt);
 						this->inputTrajMsg_ = mpcInputTraj;
 						this->mpcFirstTime_ = true;
 						this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
-						this->repeatPath_ -= 1;
-						// if (not this->repeatPath_){
-						// 	this->predefinedGoal_.poses.clear();
-						// 	// this->usePredefinedGoal_ = false;
-						// }
+						this->repeatPathNum_ -= 1;
+			
 						this->refTrajReady_ = true;
 					}
 					else{
@@ -248,10 +243,7 @@ namespace AutoFlight{
 							this->rrtPlanner_->makePlan(rrtPathMsgTemp);
 							if (rrtPathMsgTemp.poses.size() >= 2){
 								this->rrtPathMsg_ = rrtPathMsgTemp;
-								// this->globalPlanReady_ = true;
-								// this->refTrajReady_ = false;
 							}
-							// this->needGlobalPlan_ = false;
 							Eigen::Vector3d startVel (0, 0, 0);
 							Eigen::Vector3d startAcc (0, 0, 0);
 							Eigen::Vector3d endVel (0, 0, 0);
@@ -260,8 +252,9 @@ namespace AutoFlight{
 
 							this->polyTraj_->updatePath(rrtPathMsgTemp, startEndConditions);
 							this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint		
-							//TODO: Collision check or not
-							double dt = 0.1;//TODO::add in param?
+							
+							
+							double dt = 0.1;
 							nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
 							this->mpc_->updatePath(mpcInputTraj,dt);
 							this->inputTrajMsg_ = mpcInputTraj;
@@ -283,7 +276,7 @@ namespace AutoFlight{
 							this->polyTraj_->updatePath(waypoints, startEndConditions);
 							this->polyTraj_->makePlan(this->polyTrajMsg_); // no corridor constraint
 
-							double dt = 0.1;//TODO::add in param?
+							double dt = 0.1;
 							nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
 							this->mpc_->updatePath(mpcInputTraj,dt);
 							this->inputTrajMsg_ = mpcInputTraj;
@@ -293,8 +286,8 @@ namespace AutoFlight{
 					}
 				}
 				else if (this->refTrajReady_){
-					Eigen::Vector3d currPos, currVel;
-					this->getCurrentStates(currPos, currVel);
+					Eigen::Vector3d currPos = this->currPos_;
+					Eigen::Vector3d currVel = this->currVel_;
 					this->mpc_->updateCurrStates(currPos, currVel);
 					ros::Time trajStartTime = ros::Time::now();
 					bool newTrajReturn = mpc_->makePlan();
@@ -302,25 +295,25 @@ namespace AutoFlight{
 					this->mpc_->getTrajectory(mpcTraj);
 					
 					if (newTrajReturn){
+						this->trajStartTime_ = trajStartTime;
 						if (this->hasCollision()){
 							this->trajectoryReady_ = false;
 							this->stop();
-							// this->refTrajReady_ = false;
-							// this->replan_ = false;
 						}
 						else{
-							this->trajectoryReady_ = false;
-							this->mpcTrajMsg_ = mpcTraj;			
-							if (newTrajReturn){
-								this->trajStartTime_ = trajStartTime;
-							}
+							this->mpcTrajMsg_ = mpcTraj;
 							this->trajectoryReady_ = true;
 							this->mpcFirstTime_ = false;
 						}
 					}
-					else if (not this->mpcFirstTime_ and not newTrajReturn){
-						this->trajectoryReady_ = true;
-						this->mpcFirstTime_ = false;
+					else if (not this->mpcFirstTime_){
+						if (this->hasCollision()){
+							this->trajectoryReady_ = false;
+							this->stop();
+						}
+						else{
+							this->trajectoryReady_ = true;
+						}
 					}
 					else{
 						this->trajectoryReady_ = false;
@@ -331,10 +324,8 @@ namespace AutoFlight{
 		}
 		r.sleep();
 	}
-	void navigation::getCurrentStates(Eigen::Vector3d &currPos, Eigen::Vector3d &currVel){
-		currPos <<this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z;
-		currVel = this->currVel_;
-	}
+
+
 
 	void navigation::plannerCB(const ros::TimerEvent&){
 		if (not this->firstGoal_) return;
@@ -573,8 +564,6 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
-		// ros::Time start = ros::Time::now();
-		// cout<<"[AutoFlight]: replancheck CB start time "<<start<<endl;
 		if(this->useMPCPlanner_){
 			if (this->usePredefinedGoal_){
 				if (not this->refTrajReady_ and this->predefinedGoal_.poses.size()>0){
@@ -583,7 +572,8 @@ namespace AutoFlight{
 					return;
 				}
 			}
-			else if(this->goalReceived_){
+			else if (this->goalReceived_){
+				this->trajectoryReady_ = false;
 				if(this->goalHasCollision()){
 					this->replan_ = false;
 					this->refTrajReady_ = false;
@@ -604,8 +594,6 @@ namespace AutoFlight{
 					this->goalReceived_ = false;
 					if (this->useGlobalPlanner_){
 						cout << "[AutoFlight]: Start global planning." << endl;
-						// this->needGlobalPlan_ = true;
-						// this->globalPlanReady_ = false;
 					}
 
 					cout << "[AutoFlight]: Replan for new goal position." << endl; 
@@ -622,16 +610,15 @@ namespace AutoFlight{
 						return;
 					}
 					else{
-						if(AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) > 0.3 and 
-							this->goalIdx_ < this->predefinedGoal_.poses.size()-1){
+						if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) > 0.3 and 
+							this->goalIdx_ < int(this->predefinedGoal_.poses.size())-1){
 							this->goalIdx_ = this->predefinedGoal_.poses.size()-1;
 							this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
-							// cout<<"[AutoFlight]: heading to next goal"<<endl;
 							return;
 						}
 						else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
-							this->goalIdx_ == this->predefinedGoal_.poses.size()-1){
-							if (this->repeatPath_ == 0){
+							this->goalIdx_ == int(this->predefinedGoal_.poses.size())-1){
+							if (this->repeatPathNum_ == 0){
 								this->predefinedGoal_.poses.clear();
 							}
 							else{
@@ -642,8 +629,8 @@ namespace AutoFlight{
 							this->refTrajReady_ = false;
 							this->trajectoryReady_ = false;
 							this->mpcFirstTime_ = true;
-							if (this->repeatPath_ == 0){
-								cout << "[AutoFlight]: Goal reached, stop replan." << endl;
+							if (this->repeatPathNum_ == 0){
+								cout << "[AutoFlight]: Goal reached. Stop replan." << endl;
 							}
 							return;
 						}
@@ -655,7 +642,7 @@ namespace AutoFlight{
 						this->stop();
 						this->trajectoryReady_ = false;
 						this->replan_ = true;
-						cout << "[AutoFlight]: Collision detected, replan." << endl;
+						cout << "[AutoFlight]: Collision detected. replan." << endl;
 						return;
 					}
 					else if (this->goalHasCollision()){
@@ -715,28 +702,19 @@ namespace AutoFlight{
 				}
 			}
 		}
-		// ros::Time end = ros::Time::now();
-		// cout<<"[AutoFlight]: replancheck CB time "<<(end-start).toSec()<<endl;
 	}
 
 	void navigation::trajExeCB(const ros::TimerEvent&){
 		if (this->trajectoryReady_){
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
-			// cout<<"real time: "<<realTime<<endl;
 			Eigen::Vector3d pos, vel, acc;
 			double endTime;
 			if (this->useMPCPlanner_){
-				endTime = this->mpc_->getHorizon()*this->mpc_->getTs();
-				// if (realTime >= endTime-1.5){
-				// 	this->stop();
-				// 	return;
-				// }
-				// else{
+				endTime = this->mpc_->getHorizon() * this->mpc_->getTs();
 				pos = this->mpc_->getPos(realTime);
 				vel = this->mpc_->getVel(realTime);
 				acc = this->mpc_->getAcc(realTime);
-				// }
 			}
 			else{
 				if (this->useTimeOptimizer_){
@@ -778,9 +756,29 @@ namespace AutoFlight{
 					target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 				}
 				else{
-					if (vel.norm()>=0.3){
+					if (this->useMPCPlanner_){
+						// smoothing yaw angle
+						double forwardDist = 1.0;
+						double dt = this->mpc_->getTs();
+						bool noYawChange = true;
+						for (double t=realTime; t<=endTime; t+=dt){
+							Eigen::Vector3d p = this->mpc_->getPos(t);
+							if ((p - pos).norm() >= forwardDist){
+								target.yaw = atan2(p(1) - pos(1), p(0) - pos(0));
+								noYawChange = false;
+								break;
+							}
+						}
+
+						if (noYawChange){
+							target.yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
+						}
+					}
+					else{
 						target.yaw = atan2(vel(1), vel(0));		
 					}
+
+					
 				}				
 				target.position.x = pos(0);
 				target.position.y = pos(1);
@@ -891,11 +889,11 @@ namespace AutoFlight{
 				double startTime = std::min(1.0, (currTime-this->trajStartTime_).toSec());
 				double endTime = std::min(startTime+2.0, this->mpc_->getHorizon()*dt);
 				// cout<<"collision check: start time  "<<startTime<<"end time: "<< endTime<<endl;
-				for (double t = startTime; t<=endTime; t+=dt){
+				for (double t=startTime; t<=endTime; t+=dt){
 					Eigen::Vector3d p = this->mpc_->getPos(t);
 					bool hasCollision = this->map_->isInflatedOccupied(p);
 					if (hasCollision){
-						cout<<"[AutoFlight]: Collision detected !"<<endl;
+						cout<<"[AutoFlight]: MPC collision detected!"<<endl;
 						return true;
 					}
 				}

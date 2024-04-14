@@ -58,7 +58,7 @@ namespace AutoFlight{
 		std::string trajSavePath_;
 		nav_msgs::Path predefinedGoal_;
 		int goalIdx_ = 0;
-		int repeatPath_;
+		int repeatPathNum_;
 		// navigation data
 		bool replan_ = false;
 		bool needGlobalPlan_ = false;
@@ -96,7 +96,6 @@ namespace AutoFlight{
 		void visCB(const ros::TimerEvent&);
 
 		void run();	
-		void getCurrentStates(Eigen::Vector3d &currPos, Eigen::Vector3d &currVel);
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);	
 		bool goalHasCollision();
 		bool hasCollision();
