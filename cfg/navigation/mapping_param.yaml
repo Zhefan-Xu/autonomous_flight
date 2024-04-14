@@ -4,6 +4,8 @@ depth_image_topic: /camera/depth/image_raw
 # depth_image_topic: /no_topic
 pose_topic: /CERLAB/quadcopter/pose
 odom_topic: /CERLAB/quadcopter/odom
+# pose_topic: /mavros/local_position/pose
+# odom_topic: /mavros/local_position/odom
 
 # robot size
 robot_size: [0.5, 0.5, 0.3]
@@ -34,7 +36,7 @@ p_occ: 0.80
 # Map
 map_resolution: 0.1
 ground_height: -0.1 # m
-map_size: [80, 40, 3] # meter. in x y z direction (reserved size)
+map_size: [40, 40, 3] # meter. in x y z direction (reserved size)
 local_update_range: [5, 5, 5]
 local_bound_inflation: 3.0 # inflate local bound in meter
 clean_local_map: false
@@ -45,5 +47,8 @@ max_height_visualization: 2.5 # m
 visualize_global_map: true
 verbose: false
 
-prebuilt_map_directory: "No"
+# prebuilt_map_directory: "No"
+# prebuilt_map_directory: "/home/jhy/catkin_ws/src/CERLAB-UAV-Autonomy/trajectory_planner/map/square_static_map.pcd"
+prebuilt_map_directory: "/home/zhefan/catkin_ws/src/CERLAB-UAV-Autonomy/trajectory_planner/map/square_static_map.pcd"
+
 # prebuilt_map_directory: "/home/cerlab/map/static_map.pcd"

@@ -80,6 +80,7 @@ namespace AutoFlight{
 		Eigen::Vector3d currVelBody (this->odom_.twist.twist.linear.x, this->odom_.twist.twist.linear.y, this->odom_.twist.twist.linear.z);
 		Eigen::Vector4d orientationQuat (this->odom_.pose.pose.orientation.w, this->odom_.pose.pose.orientation.x, this->odom_.pose.pose.orientation.y, this->odom_.pose.pose.orientation.z);
 		Eigen::Matrix3d orientationRot = AutoFlight::quat2RotMatrix(orientationQuat);
+		this->currPos_ = Eigen::Vector3d (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		this->currVel_ = orientationRot * currVelBody;	
 		ros::Time currTime = ros::Time::now();	
 		if (this->stateUpdateFirstTime_){
