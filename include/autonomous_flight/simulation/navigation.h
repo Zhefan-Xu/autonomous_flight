@@ -42,6 +42,7 @@ namespace AutoFlight{
 		ros::Publisher mpcTrajPub_;
 		ros::Publisher inputTrajPub_;
 		ros::Publisher inputTrajPointsPub_;
+		ros::Publisher goalPub_;
 
 		std::thread trajExeWorker_;
 		std::thread mpcWorker_;
@@ -103,6 +104,7 @@ namespace AutoFlight{
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
 		void publishInputTraj();
+		void publishGoal();
 	};
 }
 

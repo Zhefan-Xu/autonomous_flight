@@ -123,7 +123,7 @@ namespace AutoFlight{
 				pathTemp.push_back(goal);
 				cout << "[AutoFlight]: Goal is set to: " << goal.pose.position.x <<", "<< goal.pose.position.y<<", "<< goal.pose.position.z << "." << endl;
 			}
-			this->predefinedGoal_.poses = pathTemp;
+						this->predefinedGoal_.poses = pathTemp;
 			
 		}
 
@@ -189,6 +189,7 @@ namespace AutoFlight{
 		}
 		this->inputTrajPub_ = this->nh_.advertise<nav_msgs::Path>("navigation/input_trajectory", 10);
 		this->inputTrajPointsPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("navigation/input_trajetory_points", 10);
+		this->goalPub_ = this->nh_.advertise<visualization_msgs::MarkerArray>("navigation/goal", 10);
 	}
 
 	void navigation::registerCallback(){
@@ -321,8 +322,8 @@ namespace AutoFlight{
 					}
 				}
 			}
+			r.sleep();
 		}
-		r.sleep();
 	}
 
 
@@ -619,18 +620,24 @@ namespace AutoFlight{
 						else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
 							this->goalIdx_ == int(this->predefinedGoal_.poses.size())-1){
 							if (this->repeatPathNum_ == 0){
+								this->stop();
+								this->replan_ = false;
 								this->predefinedGoal_.poses.clear();
+								this->trajectoryReady_ = false;
+								this->refTrajReady_ = false;
+								cout << "[AutoFlight]: Goal reached. MPC Stop replan." << endl;
 							}
 							else{
 								this->goalIdx_ = 0;
-							}
-							this->stop();
-							this->replan_ = false;
-							this->refTrajReady_ = false;
-							this->trajectoryReady_ = false;
-							this->mpcFirstTime_ = true;
-							if (this->repeatPathNum_ == 0){
-								cout << "[AutoFlight]: Goal reached. MPC Stop replan." << endl;
+								double dt = 0.1;
+								nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
+								this->mpc_->updatePath(mpcInputTraj, dt);
+								this->inputTrajMsg_ = mpcInputTraj;
+								this->mpcFirstTime_ = true;
+								this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
+								cout << "[AutoFlight]: Goal reached."<<this->repeatPathNum_<<" rounds left." << endl;
+								this->repeatPathNum_ -= 1;
+								this->refTrajReady_ = true;
 							}
 							return;
 						}
@@ -817,8 +824,8 @@ namespace AutoFlight{
 				this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
 			}
 		}
-
 		this->publishInputTraj();
+		this->publishGoal();
 		// ros::Time end = ros::Time::now();
 		// cout<<"[AutoFlight]: vis CB time "<<(end-start).toSec()<<endl;
 	}
@@ -1020,6 +1027,45 @@ namespace AutoFlight{
 			}
 			msg.markers = pointVec;	
 			this->inputTrajPointsPub_.publish(msg);
+		}
+	}
+
+	void navigation::publishGoal(){
+		nav_msgs::Path goal;
+		if (this->usePredefinedGoal_){
+			goal = this->predefinedGoal_;	
+		}
+		else{
+			goal.poses = std::vector<geometry_msgs::PoseStamped> {this->goal_};
+		}	
+		if (goal.poses.size() != 0){
+			visualization_msgs::MarkerArray msg;
+			std::vector<visualization_msgs::Marker> pointVec;
+			visualization_msgs::Marker point;
+			int pointCount = 0;
+			for (int i=0; i<int(goal.poses.size()); ++i){
+				point.header.frame_id = "map";
+				point.header.stamp = ros::Time::now();
+				point.ns = "input_traj_points";
+				point.id = pointCount;
+				point.type = visualization_msgs::Marker::SPHERE;
+				point.action = visualization_msgs::Marker::ADD;
+				point.pose.position.x = goal.poses[i].pose.position.x;
+				point.pose.position.y = goal.poses[i].pose.position.y;
+				point.pose.position.z = goal.poses[i].pose.position.z;
+				point.lifetime = ros::Duration(0.5);
+				point.scale.x = 0.3;
+				point.scale.y = 0.3;
+				point.scale.z = 0.3;
+				point.color.a = 1.0;
+				point.color.r = 1;
+				point.color.g = 0;
+				point.color.b = 0;
+				pointVec.push_back(point);
+				++pointCount;			
+			}
+			msg.markers = pointVec;	
+			this->goalPub_.publish(msg);
 		}
 	}
 }
