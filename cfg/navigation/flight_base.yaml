@@ -1,7 +1,11 @@
 takeoff_height: 1.0 # m
 use_global_planner: false
 use_mpc_planner: true # if set true, will use MPC as the local planner instead of bspline
+use_mpc_planner: true # if set true, will use MPC as the local planner instead of bspline
 no_yaw_turning: false
+use_yaw_control: true
+desired_velocity: 1.0 # m/s
+desired_acceleration: 1.0 # m/s^2
 use_yaw_control: true
 desired_velocity: 1.0 # m/s
 desired_acceleration: 1.0 # m/s^2

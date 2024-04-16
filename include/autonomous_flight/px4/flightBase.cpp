@@ -14,34 +14,7 @@ namespace AutoFlight{
 		else{
 			cout << "[AutoFlight]: Takeoff Height: " << this->takeoffHgt_ << "m." << endl;
 		}
-		if (not this->nh_.getParam("autonomous_flight/circle_radius", this->radius_)){
-			this->radius_ = 2.0;
-			cout << "[AutoFlight]: No radius param found. Use default: 2.0 m." << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Circle Radius: " << this->radius_ << "m." << endl;
-		}
-		if (not this->nh_.getParam("autonomous_flight/time_to_max_radius", this->timeStep_)){
-			this->timeStep_ = 30;
-			cout << "[AutoFlight]: No time to max radius param found. Use default: 30s." << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Time to Maximum Circle Radius: " << this->timeStep_ <<"s." << endl;
-		}
-        if (not this->nh_.getParam("autonomous_flight/yaw_control", this->yawControl_)){
-			this->yawControl_ = false;
-			cout << "[AutoFlight]: No yaw control param found. Use default: false." << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Yaw Control: " << this->yawControl_ << endl;
-		}
-        if (not this->nh_.getParam("autonomous_flight/velocity", this->velocity_)){
-			this->velocity_ = 0.5;
-			cout << "[AutoFlight]: No angular velocity param found. Use default: 0.5 m/s." << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Velocity: " << this->velocity_ <<"m/s." << endl;
-		}
+
 		// Subscriber
 		this->stateSub_ = this->nh_.subscribe<mavros_msgs::State>("/mavros/state", 1000, &flightBase::stateCB, this);
 		this->odomSub_ = this->nh_.subscribe<nav_msgs::Odometry>("/mavros/local_position/odom", 1000, &flightBase::odomCB, this);
@@ -207,6 +180,39 @@ namespace AutoFlight{
 	}
 
 	void flightBase::circle(){
+		// circle tracking parameters
+		if (not this->nh_.getParam("autonomous_flight/circle_radius", this->radius_)){
+			this->radius_ = 2.0;
+			cout << "[AutoFlight]: No radius param found. Use default: 2.0 m." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Circle Radius: " << this->radius_ << "m." << endl;
+		}
+
+		if (not this->nh_.getParam("autonomous_flight/time_to_max_radius", this->timeStep_)){
+			this->timeStep_ = 30;
+			cout << "[AutoFlight]: No time to max radius param found. Use default: 30s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Time to Maximum Circle Radius: " << this->timeStep_ <<"s." << endl;
+		}
+
+        if (not this->nh_.getParam("autonomous_flight/yaw_control", this->yawControl_)){
+			this->yawControl_ = false;
+			cout << "[AutoFlight]: No yaw control param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Yaw Control: " << this->yawControl_ << endl;
+		}
+		
+        if (not this->nh_.getParam("autonomous_flight/velocity", this->velocity_)){
+			this->velocity_ = 0.5;
+			cout << "[AutoFlight]: No angular velocity param found. Use default: 0.5 m/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Velocity: " << this->velocity_ <<"m/s." << endl;
+		}
+
         double x = 0;
         double y = 0;
         double z = 0;
@@ -220,10 +226,11 @@ namespace AutoFlight{
         double theta = 0;
         double radius = 0;
         double velocity = 0;
-        ros::Rate r (30);
+		int rate = 100;
+        ros::Rate r (rate);
 		double theta_start;
         double theta_end;
-        double step = this->timeStep_*30;
+        double step = this->timeStep_*rate;
         int circle = 1;
         int terminate = 0;
         ros::Time startTime = ros::Time::now();
@@ -239,7 +246,7 @@ namespace AutoFlight{
                 yaw = theta + PI_const / 2;
             }
             else if (this->yawControl_ == false){
-                yaw = this->odom_.pose.pose.orientation.z;
+                yaw = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
             }
             z = this->takeoffHgt_;
             vz = 0;
