@@ -215,6 +215,7 @@ namespace AutoFlight{
 		ros::Rate r(10);
 		while (ros::ok()){
 			if (this->replan_){
+				this->replanning_ = true;
 				if (not this->refTrajReady_){
 					if (this->usePredefinedGoal_){			
 						Eigen::Vector3d startVel (0, 0, 0);
@@ -322,6 +323,7 @@ namespace AutoFlight{
 					}
 				}
 			}
+			this->replanning_ = false;
 			r.sleep();
 		}
 	}
@@ -574,16 +576,20 @@ namespace AutoFlight{
 				}
 			}
 			else if (this->goalReceived_){
+				this->replan_ = false;
+				this->trajectoryReady_ = false;
+				ros::Rate r(200);
+				while(ros::ok() and this->replanning_){
+					r.sleep();
+				}
 				this->trajectoryReady_ = false;
 				if(this->goalHasCollision()){
-					this->replan_ = false;
 					this->refTrajReady_ = false;
 					this->goalReceived_ = false;
 					cout << "[AutoFlight]: Invalid goal position, please assign a new goal." << endl; 
 					return;
 				}
 				else{
-					this->replan_ = false;
 					this->refTrajReady_ = false;
 					if (not this->noYawTurning_ ){
 						double yaw = atan2(this->goal_.pose.position.y - this->odom_.pose.pose.position.y, this->goal_.pose.position.x - this->odom_.pose.pose.position.x);
@@ -644,25 +650,36 @@ namespace AutoFlight{
 					}
 
 				}
-				else{
-					if (this->hasCollision()){ 
+				else{					
+					if (this->goalHasCollision()){
+						this->replan_ = false;
+						this->trajectoryReady_ = false;
+						ros::Rate r(200);
+						while(ros::ok() and this->replanning_){
+							r.sleep();
+						}
+						this->trajectoryReady_ = false;
+						this->stop();
+						this->refTrajReady_ = false;
+						this->mpcFirstTime_ = true;
+						cout<<"[AutoFlight]: Invalid goal. Stop!" << endl;
+						return;
+					}
+					else if (this->hasCollision()){ 
 						this->stop();
 						this->trajectoryReady_ = false;
 						this->replan_ = true;
 						cout << "[AutoFlight]: Collision detected. MPC replan." << endl;
 						return;
 					}
-					else if (this->goalHasCollision()){
-						this->stop();
-						this->trajectoryReady_ = false;
-						this->replan_ = false;
-						this->refTrajReady_ = false;
-						this->mpcFirstTime_ = true;
-						cout<<"[AutoFlight]: Invalid goal. Stop!" << endl;
-					}
 					else if(AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3){
-						this->stop();
 						this->replan_ = false;
+						this->trajectoryReady_ = false;
+						ros::Rate r(200);
+						while(ros::ok() and this->replanning_){
+							r.sleep();
+						}
+						this->stop();
 						this->refTrajReady_ = false;
 						this->trajectoryReady_ = false;
 						this->mpcFirstTime_ = true;

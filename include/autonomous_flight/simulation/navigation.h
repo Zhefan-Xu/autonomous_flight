@@ -62,6 +62,7 @@ namespace AutoFlight{
 		int repeatPathNum_;
 		// navigation data
 		bool replan_ = false;
+		bool replanning_ = false;
 		bool needGlobalPlan_ = false;
 		bool globalPlanReady_ = false;
 		bool refTrajReady_ = false;

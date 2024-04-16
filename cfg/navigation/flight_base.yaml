@@ -1,5 +1,5 @@
 takeoff_height: 1.0 # m
-use_global_planner: true
+use_global_planner: false
 use_mpc_planner: true # if set true, will use MPC as the local planner instead of bspline
 no_yaw_turning: false
 use_yaw_control: true
@@ -42,4 +42,4 @@ goal: [0, 0, 1.0,
 #        -6.5, 7.5,1.0,
 #        0.0, 0.0, 1.0]
 
-execute_path_times: 2 # how many times to repeat the trajectory 
+execute_path_times: 5 # how many times to repeat the trajectory 
