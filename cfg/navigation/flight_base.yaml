@@ -10,7 +10,7 @@ trajectory_info_save_path: "No"
 use_time_optimizer: false
 
 # target parameters
-use_predefined_goal: false
+use_predefined_goal: true
 # goal: [0, 0, 1.0,
 #        4, 0, 1.0,
 #        4, -4, 1.0,
