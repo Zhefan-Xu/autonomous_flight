@@ -123,7 +123,7 @@ namespace AutoFlight{
 				pathTemp.push_back(goal);
 				cout << "[AutoFlight]: Goal is set to: " << goal.pose.position.x <<", "<< goal.pose.position.y<<", "<< goal.pose.position.z << "." << endl;
 			}
-						this->predefinedGoal_.poses = pathTemp;
+			this->predefinedGoal_.poses = pathTemp;
 			
 		}
 
@@ -582,7 +582,6 @@ namespace AutoFlight{
 				while(ros::ok() and this->replanning_){
 					r.sleep();
 				}
-				this->trajectoryReady_ = false;
 				if(this->goalHasCollision()){
 					this->refTrajReady_ = false;
 					this->goalReceived_ = false;
@@ -619,7 +618,7 @@ namespace AutoFlight{
 					else{
 						if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) > 0.3 and 
 							this->goalIdx_ < int(this->predefinedGoal_.poses.size())-1){
-							this->goalIdx_ = this->predefinedGoal_.poses.size()-1;
+							this->goalIdx_ = int(this->predefinedGoal_.poses.size())-1;
 							this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
 							return;
 						}
@@ -641,7 +640,7 @@ namespace AutoFlight{
 								this->inputTrajMsg_ = mpcInputTraj;
 								this->mpcFirstTime_ = true;
 								this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
-								cout << "[AutoFlight]: Goal reached."<<this->repeatPathNum_<<" rounds left." << endl;
+								cout << "[AutoFlight]: Goal reached. " << this->repeatPathNum_ << " rounds left." << endl;
 								this->repeatPathNum_ -= 1;
 								this->refTrajReady_ = true;
 							}
