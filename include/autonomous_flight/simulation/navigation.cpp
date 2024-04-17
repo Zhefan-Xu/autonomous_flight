@@ -620,7 +620,7 @@ namespace AutoFlight{
 						return;
 					}
 					else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
-						(currTime-this->trackingStartTime_ ).toSec() >= 10){
+						(currTime-this->trackingStartTime_ ).toSec() >= 3){
 						if (this->repeatPathNum_ == 0){
 							this->replan_ = false;
 							this->trajectoryReady_ = false;
