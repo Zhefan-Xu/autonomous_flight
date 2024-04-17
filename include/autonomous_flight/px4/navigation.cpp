@@ -134,7 +134,7 @@ namespace AutoFlight{
 		} 
 		else{
 			cout << "[AutoFlight]: Execute path number of times is set to: " << this->repeatPathNum_ << "." << endl;
-		}		
+		}
 	}
 
 	void navigation::initModules(){
@@ -201,7 +201,6 @@ namespace AutoFlight{
 			// Bspline planner callback
 			this->plannerTimer_ = this->nh_.createTimer(ros::Duration(0.1), &navigation::plannerCB, this);
 		}	
-
 		// collision check callback
 		this->replanCheckTimer_ = this->nh_.createTimer(ros::Duration(0.01), &navigation::replanCheckCB, this);
 
@@ -327,6 +326,7 @@ namespace AutoFlight{
 			r.sleep();
 		}
 	}
+
 
 
 	void navigation::plannerCB(const ros::TimerEvent&){
@@ -501,7 +501,6 @@ namespace AutoFlight{
 				}
 			}
 			
-
 			this->inputTrajMsg_ = inputTraj;
 
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
@@ -621,7 +620,7 @@ namespace AutoFlight{
 						return;
 					}
 					else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
-						(currTime-this->trackingStartTime_ ).toSec() >= 10){
+						(currTime-this->trackingStartTime_ ).toSec() >= 3){
 						if (this->repeatPathNum_ == 0){
 							this->replan_ = false;
 							this->trajectoryReady_ = false;
@@ -807,6 +806,8 @@ namespace AutoFlight{
 					else{
 						target.yaw = atan2(vel(1), vel(0));		
 					}
+
+					
 				}				
 				target.position.x = pos(0);
 				target.position.y = pos(1);
@@ -824,6 +825,8 @@ namespace AutoFlight{
 
 
 	void navigation::visCB(const ros::TimerEvent&){
+		// ros::Time start = ros::Time::now();
+		// cout<<"[AutoFlight]: vis CB start time "<<start<<endl;
 		if (this->rrtPathMsg_.poses.size() != 0){
 			this->rrtPathPub_.publish(this->rrtPathMsg_);
 		}
@@ -843,22 +846,21 @@ namespace AutoFlight{
 				this->bsplineTrajPub_.publish(this->bsplineTrajMsg_);
 			}
 		}
-
 		this->publishInputTraj();
 		this->publishGoal();
+		// ros::Time end = ros::Time::now();
+		// cout<<"[AutoFlight]: vis CB time "<<(end-start).toSec()<<endl;
 	}
 
 	void navigation::run(){
 		// take off the drone
 		this->takeoff();
-
 		// int temp1 = system("mkdir ~/rosbag_navigation_info &");
 		// int temp2 = system("mv ~/rosbag_navigation_info/exploration_info.bag ~/rosbag_navigation_info/previous.bag &");
 		// int temp3 = system("rosbag record -O ~/rosbag_navigation_info/navigation_info.bag /camera/color/image_raw /occupancy_map/inflated_voxel_map /navigation/bspline_trajectory /mavros/local_position/pose /mavros/setpoint_position/local /tracking_controller/vel_and_acc_info /tracking_controller/target_pose /tracking_controller/trajectory_history /trajDivider/braking_zone /trajDivider/kdtree_range __name:=navigation_bag_info &");
 		// if (temp1==-1 or temp2==-1 or temp3==-1){
 		// 	cout << "[AutoFlight]: Recording fails." << endl;
 		// }
-
 		// register timer callback
 		this->registerCallback();
 	}
@@ -1032,9 +1034,9 @@ namespace AutoFlight{
 				point.type = visualization_msgs::Marker::SPHERE;
 				point.action = visualization_msgs::Marker::ADD;
 				point.pose.position.x = this->inputTrajMsg_.poses[i].pose.position.x;
-				point.pose.position.y = this->inputTrajMsg_.poses[i].pose.position.x;
-				point.pose.position.z = this->inputTrajMsg_.poses[i].pose.position.x;
-				point.lifetime = ros::Duration(0.05);
+				point.pose.position.y = this->inputTrajMsg_.poses[i].pose.position.y;
+				point.pose.position.z = this->inputTrajMsg_.poses[i].pose.position.z;
+				point.lifetime = ros::Duration(0.1);
 				point.scale.x = 0.2;
 				point.scale.y = 0.2;
 				point.scale.z = 0.2;
