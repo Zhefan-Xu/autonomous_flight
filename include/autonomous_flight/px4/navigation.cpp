@@ -123,7 +123,7 @@ namespace AutoFlight{
 				pathTemp.push_back(goal);
 				cout << "[AutoFlight]: Goal is set to: " << goal.pose.position.x <<", "<< goal.pose.position.y<<", "<< goal.pose.position.z << "." << endl;
 			}
-						this->predefinedGoal_.poses = pathTemp;
+			this->predefinedGoal_.poses = pathTemp;
 			
 		}
 
@@ -642,10 +642,10 @@ namespace AutoFlight{
 							this->inputTrajMsg_ = mpcInputTraj;
 							this->mpcFirstTime_ = true;
 							if (this->repeatPathNum_ > 1){
-								cout << "[AutoFlight]: Goal reached."<<this->repeatPathNum_<<" rounds left." << endl;
+								cout << "[AutoFlight]: Goal reached. " << this->repeatPathNum_ << " rounds left." << endl;
 							}
 							else{
-								cout << "[AutoFlight]: Goal reached."<<this->repeatPathNum_<<" round left." << endl;
+								cout << "[AutoFlight]: Goal reached. " << this->repeatPathNum_ << " round left." << endl;
 							}
 							this->repeatPathNum_ -= 1;
 							this->refTrajReady_ = true;
