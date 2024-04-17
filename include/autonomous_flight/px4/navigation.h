@@ -75,6 +75,7 @@ namespace AutoFlight{
 		nav_msgs::Path inputTrajMsg_;
 		bool trajectoryReady_ = false;
 		ros::Time trajStartTime_;
+		ros::Time trackingStartTime_;
 		double trajTime_; // current trajectory time
 		double prevInputTrajTime_ = 0.0;
 		double facingYaw_;
