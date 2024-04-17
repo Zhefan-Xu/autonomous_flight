@@ -10,7 +10,7 @@ trajectory_info_save_path: "No"
 use_time_optimizer: false
 
 # target parameters
-use_predefined_goal: true
+use_predefined_goal: false
 # goal: [0, 0, 1.0,
 #        4, 0, 1.0,
 #        4, -4, 1.0,
@@ -33,4 +33,13 @@ goal: [0, 0, 1.0,
        -3.0, -0.8, 1.0,
        0, 0, 1.0] # x,y,z
 
-execute_path_times: 2 # how many times to repeat the trajectory 
+# goal: [0.0, 0.0, 1.0,
+#        -17.0, 1.0, 1.0,
+#        -15.0, -3.0, 1.0,
+#        -6.0, -3.6, 1.0,
+#        4.0, -6.0, 1.0,
+#        8.0, 7.5, 1.0,
+#        -6.5, 7.5,1.0,
+#        0.0, 0.0, 1.0]
+
+execute_path_times: 5 # how many times to repeat the trajectory 
