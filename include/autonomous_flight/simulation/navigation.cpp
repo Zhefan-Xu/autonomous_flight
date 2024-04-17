@@ -123,7 +123,7 @@ namespace AutoFlight{
 				pathTemp.push_back(goal);
 				cout << "[AutoFlight]: Goal is set to: " << goal.pose.position.x <<", "<< goal.pose.position.y<<", "<< goal.pose.position.z << "." << endl;
 			}
-						this->predefinedGoal_.poses = pathTemp;
+				this->predefinedGoal_.poses = pathTemp;
 			
 		}
 
@@ -232,10 +232,9 @@ namespace AutoFlight{
 						this->mpc_->updatePath(mpcInputTraj, dt);
 						this->inputTrajMsg_ = mpcInputTraj;
 						this->mpcFirstTime_ = true;
-						this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
 						this->repeatPathNum_ -= 1;
-			
 						this->refTrajReady_ = true;
+						this->trackingStartTime_ = ros::Time::now();
 					}
 					else{
 						if (this->useGlobalPlanner_){
@@ -570,6 +569,9 @@ namespace AutoFlight{
 		if(this->useMPCPlanner_){
 			if (this->usePredefinedGoal_){
 				if (not this->refTrajReady_ and this->predefinedGoal_.poses.size()>0){
+					this->replan_ = false;
+					this->refTrajReady_ = false;
+					this->goal_ = this->predefinedGoal_.poses.back();
 					this->replan_ = true;
 					// cout<<"[AutoFlight]: Plan for reference Trajectory using pre-defined goal"<<endl;
 					return;
@@ -609,6 +611,7 @@ namespace AutoFlight{
 			}
 			if (this->trajectoryReady_){
 				if (this->usePredefinedGoal_){
+					ros::Time currTime = ros::Time::now();
 					if (this->hasCollision()){ 
 						this->stop();
 						this->trajectoryReady_ = false;
@@ -616,37 +619,39 @@ namespace AutoFlight{
 						cout << "[AutoFlight]: Collision detected. MPC replan." << endl;
 						return;
 					}
-					else{
-						if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) > 0.3 and 
-							this->goalIdx_ < int(this->predefinedGoal_.poses.size())-1){
-							this->goalIdx_ = this->predefinedGoal_.poses.size()-1;
-							this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
-							return;
+					else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
+						(currTime-this->trackingStartTime_ ).toSec() >= 10){
+						if (this->repeatPathNum_ == 0){
+							this->replan_ = false;
+							this->trajectoryReady_ = false;
+							ros::Rate r(200);
+							while(ros::ok() and this->replanning_){
+								r.sleep();
+							}
+							this->trajectoryReady_ = false;
+							this->stop();
+							this->predefinedGoal_.poses.clear();
+							this->refTrajReady_ = false;
+							cout << "[AutoFlight]: Goal reached. MPC Stop replan." << endl;
 						}
-						else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
-							this->goalIdx_ == int(this->predefinedGoal_.poses.size())-1){
-							if (this->repeatPathNum_ == 0){
-								this->stop();
-								this->replan_ = false;
-								this->predefinedGoal_.poses.clear();
-								this->trajectoryReady_ = false;
-								this->refTrajReady_ = false;
-								cout << "[AutoFlight]: Goal reached. MPC Stop replan." << endl;
+						else{
+							double dt = 0.1;
+							nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
+							this->mpc_->updatePath(mpcInputTraj, dt);
+							this->inputTrajMsg_ = mpcInputTraj;
+							this->mpcFirstTime_ = true;
+							if (this->repeatPathNum_ > 1){
+								cout << "[AutoFlight]: Goal reached. " << this->repeatPathNum_ << " rounds left." << endl;
 							}
 							else{
-								this->goalIdx_ = 0;
-								double dt = 0.1;
-								nav_msgs::Path mpcInputTraj = this->polyTraj_->getTrajectory(dt);
-								this->mpc_->updatePath(mpcInputTraj, dt);
-								this->inputTrajMsg_ = mpcInputTraj;
-								this->mpcFirstTime_ = true;
-								this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
-								cout << "[AutoFlight]: Goal reached."<<this->repeatPathNum_<<" rounds left." << endl;
-								this->repeatPathNum_ -= 1;
-								this->refTrajReady_ = true;
+								cout << "[AutoFlight]: Goal reached. " << this->repeatPathNum_ << " round left." << endl;
 							}
-							return;
+							this->repeatPathNum_ -= 1;
+							this->refTrajReady_ = true;
+							this->trackingStartTime_ = ros::Time::now();
+							this->replan_ = true;
 						}
+						return;
 					}
 
 				}
