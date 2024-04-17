@@ -123,7 +123,7 @@ namespace AutoFlight{
 				pathTemp.push_back(goal);
 				cout << "[AutoFlight]: Goal is set to: " << goal.pose.position.x <<", "<< goal.pose.position.y<<", "<< goal.pose.position.z << "." << endl;
 			}
-				this->predefinedGoal_.poses = pathTemp;
+			this->predefinedGoal_.poses = pathTemp;
 			
 		}
 
