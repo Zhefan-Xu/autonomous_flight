@@ -212,7 +212,7 @@ namespace AutoFlight{
 	}
 
 	void navigation::mpcCB(){
-		ros::Rate r(10);
+		ros::Rate r(100);
 		while (ros::ok()){
 			if (this->replan_){
 				this->replanning_ = true;
@@ -291,11 +291,12 @@ namespace AutoFlight{
 					Eigen::Vector3d currVel = this->currVel_;
 					this->mpc_->updateCurrStates(currPos, currVel);
 					ros::Time trajStartTime = ros::Time::now();
-					bool newTrajReturn = mpc_->makePlan();
+					// bool newTrajReturn = this->mpc_->makePlan();
+					bool newTrajReturn = this->mpc_->OSQPSolve();
 					nav_msgs::Path mpcTraj;
-					this->mpc_->getTrajectory(mpcTraj);
 					
 					if (newTrajReturn){
+						this->mpc_->getTrajectory(mpcTraj);
 						this->trajStartTime_ = trajStartTime;
 						if (this->hasCollision()){
 							this->trajectoryReady_ = false;
@@ -319,6 +320,7 @@ namespace AutoFlight{
 					else{
 						this->trajectoryReady_ = false;
 						this->stop();	
+						this->replan_ = true;
 					}
 				}
 			}
@@ -620,7 +622,7 @@ namespace AutoFlight{
 						return;
 					}
 					else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
-						(currTime-this->trackingStartTime_ ).toSec() >= 3){
+						(currTime-this->trackingStartTime_ ).toSec() >= 10){
 						if (this->repeatPathNum_ == 0){
 							this->replan_ = false;
 							this->trajectoryReady_ = false;
