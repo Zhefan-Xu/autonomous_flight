@@ -212,7 +212,7 @@ namespace AutoFlight{
 	}
 
 	void navigation::mpcCB(){
-		ros::Rate r(10);
+		ros::Rate r(100);
 		while (ros::ok()){
 			if (this->replan_){
 				this->replanning_ = true;
@@ -291,7 +291,8 @@ namespace AutoFlight{
 					Eigen::Vector3d currVel = this->currVel_;
 					this->mpc_->updateCurrStates(currPos, currVel);
 					ros::Time trajStartTime = ros::Time::now();
-					bool newTrajReturn = mpc_->makePlan();
+					// bool newTrajReturn = this->mpc_->makePlan();
+					bool newTrajReturn = this->mpc_->OSQPSolve();
 					nav_msgs::Path mpcTraj;
 					
 					if (newTrajReturn){
