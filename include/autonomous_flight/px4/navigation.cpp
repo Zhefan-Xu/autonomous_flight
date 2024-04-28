@@ -293,9 +293,9 @@ namespace AutoFlight{
 					ros::Time trajStartTime = ros::Time::now();
 					bool newTrajReturn = mpc_->makePlan();
 					nav_msgs::Path mpcTraj;
-					this->mpc_->getTrajectory(mpcTraj);
 					
 					if (newTrajReturn){
+						this->mpc_->getTrajectory(mpcTraj);
 						this->trajStartTime_ = trajStartTime;
 						if (this->hasCollision()){
 							this->trajectoryReady_ = false;
@@ -319,6 +319,7 @@ namespace AutoFlight{
 					else{
 						this->trajectoryReady_ = false;
 						this->stop();	
+						this->replan_ = true;
 					}
 				}
 			}
@@ -620,7 +621,7 @@ namespace AutoFlight{
 						return;
 					}
 					else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and 
-						(currTime-this->trackingStartTime_ ).toSec() >= 3){
+						(currTime-this->trackingStartTime_ ).toSec() >= 10){
 						if (this->repeatPathNum_ == 0){
 							this->replan_ = false;
 							this->trajectoryReady_ = false;
