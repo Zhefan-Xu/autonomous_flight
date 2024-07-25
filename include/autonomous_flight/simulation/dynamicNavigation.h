@@ -10,6 +10,7 @@
 #include <autonomous_flight/simulation/flightBase.h>
 #include <map_manager/dynamicMap.h>
 #include <onboard_detector/fakeDetector.h>
+#include <dynamic_predictor/dynamicPredictor.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>
@@ -21,12 +22,14 @@ namespace AutoFlight{
 	private:
 		std::shared_ptr<mapManager::dynamicMap> map_;
 		std::shared_ptr<onboardDetector::fakeDetector> detector_;
+		std::shared_ptr<dynamicPredictor::predictor> predictor_;
 		std::shared_ptr<globalPlanner::rrtOccMap<3>> rrtPlanner_;
 		std::shared_ptr<trajPlanner::polyTrajOccMap> polyTraj_;
 		std::shared_ptr<trajPlanner::pwlTraj> pwlTraj_;
 		std::shared_ptr<trajPlanner::bsplineTraj> bsplineTraj_;
 		std::shared_ptr<trajPlanner::mpcPlanner> mpc_;
 
+		ros::Timer mpcTimer_;
 		ros::Timer plannerTimer_;
 		ros::Timer replanCheckTimer_;
 		ros::Timer trajExeTimer_;
@@ -45,6 +48,7 @@ namespace AutoFlight{
 
 		// parameters
 		bool useFakeDetector_;
+		bool usePredictor_;
 		bool useGlobalPlanner_;
 		bool useMPCPlanner_;
 		bool noYawTurning_;

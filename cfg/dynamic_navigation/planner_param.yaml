@@ -11,7 +11,7 @@ rrt/pass_goal_check: true
 poly_traj/polynomial_degree: 7
 poly_traj/differential_degree: 4
 poly_traj/continuity_degree: 3
-poly_traj/desired_velocity: 1.0 # this is not used. Will be overwritten.
+poly_traj/desired_velocity: 1.5 # this is not used. Will be overwritten.
 poly_traj/initial_radius: 0.5
 poly_traj/timeout: 0.1
 poly_traj/corridor_res: 5.0
@@ -20,7 +20,7 @@ poly_traj/soft_constraint: true
 poly_traj/constraint_radius: 0.5
 poly_traj/sample_delta_time: 0.1
 poly_traj/maximum_iteration_num: 10
-poly_traj/use_pwl_failsafe: false
+poly_traj/use_pwl_failsafe: true
 
 bspline_traj/timestep: 0.1
 bspline_traj/distance_threshold: 0.5
@@ -42,9 +42,9 @@ bspline_traj/prediction_horizon: 2.0
 mpc_planner/horizon: 30
 mpc_planner/z_range_min: 0.7 
 mpc_planner/z_range_max: 1.2 
-mpc_planner/safety_dist: 0.8
+mpc_planner/safety_dist: 0.5
 mpc_planner/static_constraint_slack_ratio: 0.4
-mpc_planner/dynamic_constraint_slack_ratio: 0.3 
+mpc_planner/dynamic_constraint_slack_ratio: 0.2 
 
 # clustering params
 mpc_planner/cloud_res: 0.2

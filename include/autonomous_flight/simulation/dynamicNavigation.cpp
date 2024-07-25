@@ -28,6 +28,15 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Use fake detector is set to: " << this->useFakeDetector_ << "." << endl;
 		}
 
+		// use predictor	
+		if (not this->nh_.getParam("autonomous_flight/use_predictor", this->usePredictor_)){
+			this->usePredictor_ = false;
+			cout << "[AutoFlight]: No use predictor param found. Use default: false." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Use predictor is set to: " << this->usePredictor_ << "." << endl;
+		}
+
 
     	// use global planner or not	
 		if (not this->nh_.getParam("autonomous_flight/use_global_planner", this->useGlobalPlanner_)){
@@ -162,6 +171,12 @@ namespace AutoFlight{
 		else{
 			this->map_.reset(new mapManager::dynamicMap (this->nh_));
 		}
+
+		if (this->usePredictor_){
+			this->predictor_.reset(new dynamicPredictor::predictor (this->nh_));
+			this->predictor_->setMap(this->map_);
+			this->predictor_->setDetector(this->map_->getDetector());
+		}
 		// initialize rrt planner
 		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
 		this->rrtPlanner_->setMap(this->map_);
@@ -208,6 +223,7 @@ namespace AutoFlight{
 		if (this->useMPCPlanner_){
 			this->mpcWorker_ = std::thread(&dynamicNavigation::mpcCB, this);
 			this->mpcWorker_.detach();
+			// this->mpcTimer_ = this->nh_.createTimer(ros::Duration(0.1), &dynamicNavigation::mpcCB, this);
 		}
 		else{
 			// planner callback
@@ -303,18 +319,32 @@ namespace AutoFlight{
 					Eigen::Vector3d currPos = this->currPos_;
 					Eigen::Vector3d currVel = this->currVel_;
 					this->mpc_->updateCurrStates(currPos, currVel);
-					std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-					if (this->useFakeDetector_){
-						this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					if (this->usePredictor_){
+						std::vector<std::vector<std::vector<Eigen::Vector3d>>> predPos, predSize;
+						std::vector<Eigen::VectorXd> intentProb;
+						this->predictor_->getPrediction(predPos, predSize, intentProb);
+						this->mpc_->updatePredObstacles(predPos, predSize, intentProb);
 					}
-					else{ 
-						this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+					else{
+						std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+						if (this->useFakeDetector_){
+							this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
+						else{ 
+							this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+						}
+						this->mpc_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
-					this->mpc_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					ros::Time trajStartTime = ros::Time::now();
-					bool newTrajReturn = mpc_->makePlan();
-					nav_msgs::Path mpcTraj;
-					this->mpc_->getTrajectory(mpcTraj);
+					bool newTrajReturn;
+					if (this->usePredictor_){
+						// makePlan with predictor
+						newTrajReturn = this->mpc_->makePlanWithPred();
+					}
+					else{
+						newTrajReturn = this->mpc_->makePlan();
+					}
+					nav_msgs::Path mpcTraj;	
 					
 					if (newTrajReturn){
 						this->trajStartTime_ = trajStartTime;
@@ -323,6 +353,7 @@ namespace AutoFlight{
 							this->stop();
 						}
 						else{
+							this->mpc_->getTrajectory(mpcTraj);
 							this->mpcTrajMsg_ = mpcTraj;
 							this->trajectoryReady_ = true;
 							this->mpcFirstTime_ = false;
@@ -648,7 +679,7 @@ namespace AutoFlight{
 			if (this->trajectoryReady_){
 				if (this->usePredefinedGoal_){
 					ros::Time currTime = ros::Time::now();
-					if (this->hasCollision()){ 
+					if (this->hasCollision() ){ 
 						this->stop();
 						this->trajectoryReady_ = false;
 						this->replan_ = true;
@@ -1105,7 +1136,7 @@ namespace AutoFlight{
 		std::vector<onboardDetector::box3D> obstacles;
 		this->detector_->getObstaclesInSensorRange(PI_const, obstacles);
 		for (onboardDetector::box3D ob : obstacles){
-			Eigen::Vector3d pos (ob.x, ob.y, ob.z);
+			Eigen::Vector3d pos (ob.x, ob.y, ob.z+ob.z_width/2);
 			Eigen::Vector3d vel (ob.Vx, ob.Vy, 0.0);
 			Eigen::Vector3d size (ob.x_width, ob.y_width, ob.z_width);
 			obstaclesPos.push_back(pos);

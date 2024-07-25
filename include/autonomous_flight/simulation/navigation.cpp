@@ -291,9 +291,9 @@ namespace AutoFlight{
 					Eigen::Vector3d currVel = this->currVel_;
 					this->mpc_->updateCurrStates(currPos, currVel);
 					ros::Time trajStartTime = ros::Time::now();
-					bool newTrajReturn = mpc_->makePlan();
+					bool newTrajReturn = this->mpc_->makePlan();
 					nav_msgs::Path mpcTraj;
-					this->mpc_->getTrajectory(mpcTraj);
+					
 					
 					if (newTrajReturn){
 						this->trajStartTime_ = trajStartTime;
@@ -302,6 +302,7 @@ namespace AutoFlight{
 							this->stop();
 						}
 						else{
+							this->mpc_->getTrajectory(mpcTraj);
 							this->mpcTrajMsg_ = mpcTraj;
 							this->trajectoryReady_ = true;
 							this->mpcFirstTime_ = false;
