@@ -318,7 +318,13 @@ namespace AutoFlight{
 				else if (this->refTrajReady_){
 					Eigen::Vector3d currPos = this->currPos_;
 					Eigen::Vector3d currVel = this->currVel_;
-					this->mpc_->updateCurrStates(currPos, currVel);
+					double currYaw = this->currYaw_;
+					if (this->useYawControl_){
+						this->mpc_->updateCurrStates(currPos, currVel, currYaw);
+					}
+					else{
+						this->mpc_->updateCurrStates(currPos, currVel);
+					}
 					if (this->usePredictor_){
 						std::vector<std::vector<std::vector<Eigen::Vector3d>>> predPos, predSize;
 						std::vector<Eigen::VectorXd> intentProb;
@@ -818,9 +824,11 @@ namespace AutoFlight{
 			ros::Time currTime = ros::Time::now();
 			double realTime = (currTime - this->trajStartTime_).toSec();
 			Eigen::Vector3d pos, vel, acc;
+			Eigen::Vector3d refPos;
 			double endTime;
 			if (this->useMPCPlanner_){
 				endTime = this->mpc_->getHorizon() * this->mpc_->getTs();
+				refPos = this->mpc_->getRef(realTime);
 				pos = this->mpc_->getPos(realTime);
 				vel = this->mpc_->getVel(realTime);
 				acc = this->mpc_->getAcc(realTime);
@@ -863,9 +871,10 @@ namespace AutoFlight{
 						double dt = this->mpc_->getTs();
 						bool noYawChange = true;
 						for (double t=realTime; t<=endTime; t+=dt){
-							Eigen::Vector3d p = this->mpc_->getPos(t);
-							if ((p - pos).norm() >= forwardDist){
-								target.yaw = atan2(p(1) - pos(1), p(0) - pos(0));
+							// Eigen::Vector3d p = this->mpc_->getPos(t);
+							Eigen::Vector3d p = this->mpc_->getRef(t);
+							if ((p - refPos).norm() >= forwardDist){
+								target.yaw = atan2(p(1) - refPos(1), p(0) - refPos(0));
 								noYawChange = false;
 								break;
 							}
