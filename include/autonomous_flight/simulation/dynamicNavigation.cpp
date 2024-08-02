@@ -12,7 +12,7 @@ namespace AutoFlight{
 		this->registerPub();
 		if (this->useFakeDetector_){
 			// free map callback
-			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+			// this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 		}
 		
 	}
@@ -175,7 +175,10 @@ namespace AutoFlight{
 		if (this->usePredictor_){
 			this->predictor_.reset(new dynamicPredictor::predictor (this->nh_));
 			this->predictor_->setMap(this->map_);
-			this->predictor_->setDetector(this->map_->getDetector());
+			this->predictor_->setUseFakeDetector(this->useFakeDetector_);
+			if (this->useFakeDetector_){
+				this->predictor_->setDetector(this->detector_);
+			}
 		}
 		// initialize rrt planner
 		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
@@ -319,12 +322,12 @@ namespace AutoFlight{
 					Eigen::Vector3d currPos = this->currPos_;
 					Eigen::Vector3d currVel = this->currVel_;
 					double currYaw = this->currYaw_;
-					if (this->useYawControl_){
-						this->mpc_->updateCurrStates(currPos, currVel, currYaw);
-					}
-					else{
+					// if (this->useYawControl_){
+					// 	this->mpc_->updateCurrStates(currPos, currVel, currYaw);
+					// }
+					// else{
 						this->mpc_->updateCurrStates(currPos, currVel);
-					}
+					// }
 					if (this->usePredictor_){
 						std::vector<std::vector<std::vector<Eigen::Vector3d>>> predPos, predSize;
 						std::vector<Eigen::VectorXd> intentProb;
@@ -828,10 +831,10 @@ namespace AutoFlight{
 			double endTime;
 			if (this->useMPCPlanner_){
 				endTime = this->mpc_->getHorizon() * this->mpc_->getTs();
-				refPos = this->mpc_->getRef(realTime);
 				pos = this->mpc_->getPos(realTime);
 				vel = this->mpc_->getVel(realTime);
 				acc = this->mpc_->getAcc(realTime);
+				refPos = this->mpc_->getRef(realTime);
 			}
 			else{
 				this->trajTime_ = this->bsplineTraj_->getLinearReparamTime(realTime);
@@ -873,7 +876,7 @@ namespace AutoFlight{
 						for (double t=realTime; t<=endTime; t+=dt){
 							// Eigen::Vector3d p = this->mpc_->getPos(t);
 							Eigen::Vector3d p = this->mpc_->getRef(t);
-							if ((p - refPos).norm() >= forwardDist){
+							if ((p - pos).norm() >= forwardDist){
 								target.yaw = atan2(p(1) - refPos(1), p(0) - refPos(0));
 								noYawChange = false;
 								break;
@@ -998,11 +1001,28 @@ namespace AutoFlight{
 
 	bool dynamicNavigation::hasCollision(){
 		if (this->trajectoryReady_){
-			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
-				Eigen::Vector3d p = this->trajectory_.at(t);
-				bool hasCollision = this->map_->isInflatedOccupied(p);
-				if (hasCollision){
-					return true;
+			if (this->useMPCPlanner_){
+				double dt = this->mpc_->getTs();
+				ros::Time currTime = ros::Time::now();
+				double startTime = std::min(1.0, (currTime-this->trajStartTime_).toSec());
+				double endTime = std::min(startTime+2.0, this->mpc_->getHorizon()*dt);
+				// cout<<"collision check: start time  "<<startTime<<"end time: "<< endTime<<endl;
+				for (double t=startTime; t<=endTime; t+=dt){
+					Eigen::Vector3d p = this->mpc_->getPos(t);
+					bool hasCollision = this->map_->isInflatedOccupied(p);
+					if (hasCollision){
+						cout<<"[AutoFlight]: MPC collision detected!"<<endl;
+						return true;
+					}
+				}
+			}
+			else{
+				for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
+					Eigen::Vector3d p = this->trajectory_.at(t);
+					bool hasCollision = this->map_->isInflatedOccupied(p);
+					if (hasCollision){
+						return true;
+					}
 				}
 			}
 		}
