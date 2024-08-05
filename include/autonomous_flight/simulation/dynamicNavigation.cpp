@@ -12,7 +12,7 @@ namespace AutoFlight{
 		this->registerPub();
 		if (this->useFakeDetector_){
 			// free map callback
-			// this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
+			this->freeMapTimer_ = this->nh_.createTimer(ros::Duration(0.01), &dynamicNavigation::freeMapCB, this);
 		}
 		
 	}
