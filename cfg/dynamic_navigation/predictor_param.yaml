@@ -1,6 +1,4 @@
-use_fake_detector: true
 #Trajectory Prediction param
-robot_size: [0.2,0.2,0.2]
 prediction_size: 30 # prediction length
 prediction_time_step: 0.1 #sec
 min_turning_time: 2.0 #sec

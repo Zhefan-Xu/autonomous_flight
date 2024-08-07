@@ -85,6 +85,7 @@ namespace AutoFlight{
 		bool firstTimeSave_ = false;
 		bool lastDynamicObstacle_ = false;
 		ros::Time lastDynamicObstacleTime_;
+		Eigen::Vector3d robotSize_ = Eigen::Vector3d(0.0,0.0,0.0);
 		
 
 
@@ -112,7 +113,7 @@ namespace AutoFlight{
 		bool replanForDynamicObstacle();
 		nav_msgs::Path getCurrentTraj(double dt);
 		nav_msgs::Path getRestGlobalPath();
-		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize);
+		void getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize, const Eigen::Vector3d &robotSize = Eigen::Vector3d(0.0,0.0,0.0));
 	
 		void publishGoal();
 	};

@@ -171,11 +171,11 @@ namespace AutoFlight{
 		else{
 			this->map_.reset(new mapManager::dynamicMap (this->nh_));
 		}
+		this->map_->getRobotSize(this->robotSize_);
 
 		if (this->usePredictor_){
 			this->predictor_.reset(new dynamicPredictor::predictor (this->nh_));
 			this->predictor_->setMap(this->map_);
-			this->predictor_->setUseFakeDetector(this->useFakeDetector_);
 			if (this->useFakeDetector_){
 				this->predictor_->setDetector(this->detector_);
 			}
@@ -337,7 +337,7 @@ namespace AutoFlight{
 					else{
 						std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 						if (this->useFakeDetector_){
-							this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+							this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, this->robotSize_);
 						}
 						else{ 
 							this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -1161,11 +1161,11 @@ namespace AutoFlight{
 		return currPath;		
 	}
 
-	void dynamicNavigation::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize){
+	void dynamicNavigation::getDynamicObstacles(std::vector<Eigen::Vector3d>& obstaclesPos, std::vector<Eigen::Vector3d>& obstaclesVel, std::vector<Eigen::Vector3d>& obstaclesSize, const Eigen::Vector3d &robotSize){
 		std::vector<onboardDetector::box3D> obstacles;
-		this->detector_->getObstaclesInSensorRange(PI_const, obstacles);
+		this->detector_->getObstaclesInSensorRange(2*PI_const, obstacles, robotSize);
 		for (onboardDetector::box3D ob : obstacles){
-			Eigen::Vector3d pos (ob.x, ob.y, ob.z+ob.z_width/2);
+			Eigen::Vector3d pos (ob.x, ob.y, ob.z);
 			Eigen::Vector3d vel (ob.Vx, ob.Vy, 0.0);
 			Eigen::Vector3d size (ob.x_width, ob.y_width, ob.z_width);
 			obstaclesPos.push_back(pos);
