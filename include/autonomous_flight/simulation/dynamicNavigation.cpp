@@ -92,6 +92,24 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Desired acceleration is set to: " << this->desiredAcc_ << "m/s^2." << endl;
 		}
 
+		// maximum linear velocity    	
+		if (not this->nh_.getParam("autonomous_flight/maximum_velocity", this->maxVel_)){
+			this->maxVel_ = 1.0;
+			cout << "[AutoFlight]: No maximum velocity param found. Use default: 1.0 m/s." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Maximum velocity is set to: " << this->maxVel_ << "m/s." << endl;
+		}
+
+		// maximum acceleration
+		if (not this->nh_.getParam("autonomous_flight/maximum_acceleration", this->maxAcc_)){
+			this->maxAcc_ = 1.0;
+			cout << "[AutoFlight]: No maximum acceleration param found. Use default: 1.0 m/s^2." << endl;
+		}
+		else{
+			cout << "[AutoFlight]: Maximum acceleration is set to: " << this->maxAcc_ << "m/s^2." << endl;
+		}
+
 
     	// desired angular velocity    	
 		if (not this->nh_.getParam("autonomous_flight/desired_angular_velocity", this->desiredAngularVel_)){
@@ -195,8 +213,10 @@ namespace AutoFlight{
 
 		if (this->useMPCPlanner_){
 			this->mpc_.reset(new trajPlanner::mpcPlanner (this->nh_));
-			this->mpc_->updateMaxVel(this->desiredVel_*1.5);
-			this->mpc_->updateMaxAcc(this->desiredAcc_);
+			// this->mpc_->updateMaxVel(this->desiredVel_*1.5);
+			// this->mpc_->updateMaxAcc(this->desiredAcc_);
+			this->mpc_->updateMaxVel(this->maxVel_);
+			this->mpc_->updateMaxAcc(this->maxAcc_);
 			this->mpc_->setMap(this->map_);
 		}
 		else{

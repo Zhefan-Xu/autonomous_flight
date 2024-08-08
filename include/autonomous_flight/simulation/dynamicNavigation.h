@@ -56,6 +56,8 @@ namespace AutoFlight{
 		bool usePredefinedGoal_;
 		double desiredVel_;
 		double desiredAcc_;
+		double maxVel_;
+		double maxAcc_;
 		double desiredAngularVel_;
 		double replanTimeForDynamicObstacle_;
 		std::string trajSavePath_;
