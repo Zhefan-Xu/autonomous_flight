@@ -137,7 +137,6 @@ namespace AutoFlight{
 		else{
 			int numGoals = int(goalVecTemp.size())/3;
 			std::vector<geometry_msgs::PoseStamped> pathTemp;
-			// this->preDef
 			for (int i=0; i<numGoals; ++i){
 				geometry_msgs::PoseStamped goal;
 				goal.pose.position.x = goalVecTemp[i*3+0];
@@ -147,7 +146,6 @@ namespace AutoFlight{
 				cout << "[AutoFlight]: Goal is set to: " << goal.pose.position.x <<", "<< goal.pose.position.y<<", "<< goal.pose.position.z << "." << endl;
 			}
 			this->predefinedGoal_.poses = pathTemp;
-			
 		}
 
 		// whether or not to repeat tracking predefined path
@@ -171,6 +169,7 @@ namespace AutoFlight{
 			this->map_.reset(new mapManager::dynamicMap (this->nh_));
 		}
 
+		// initialize predictor
 		if (this->usePredictor_){
 			this->predictor_.reset(new dynamicPredictor::predictor (this->nh_));
 			this->predictor_->setMap(this->map_);
@@ -178,6 +177,7 @@ namespace AutoFlight{
 				this->predictor_->setDetector(this->detector_);
 			}
 		}
+
 		// initialize rrt planner
 		this->rrtPlanner_.reset(new globalPlanner::rrtOccMap<3> (this->nh_));
 		this->rrtPlanner_->setMap(this->map_);
@@ -339,6 +339,7 @@ namespace AutoFlight{
 						}
 						this->mpc_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 					}
+
 					ros::Time trajStartTime = ros::Time::now();
 					bool newTrajReturn;
 					if (this->usePredictor_){
@@ -585,13 +586,6 @@ namespace AutoFlight{
 					this->trajStartTime_ = ros::Time::now();
 					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
-
-					// optimize time
-					// ros::Time timeOptStartTime = ros::Time::now();
-					// this->timeOptimizer_->optimize(this->trajectory_, this->desiredVel_, this->desiredAcc_, 0.1);
-					// ros::Time timeOptEndTime = ros::Time::now();
-					// cout << "[AutoFlight]: Time optimizatoin spends: " << (timeOptEndTime - timeOptStartTime).toSec() << "s." << endl;
-
 					this->trajectoryReady_ = true;
 					this->replan_ = false;
 					cout << "\033[1;32m[AutoFlight]: Trajectory generated successfully.\033[0m " << endl;
@@ -639,7 +633,7 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
-		if(this->useMPCPlanner_){
+		if (this->useMPCPlanner_){
 			if (this->usePredefinedGoal_){
 				if (not this->refTrajReady_ and this->predefinedGoal_.poses.size()>0){
 					this->replan_ = false;
@@ -1003,7 +997,6 @@ namespace AutoFlight{
 				ros::Time currTime = ros::Time::now();
 				double startTime = std::min(1.0, (currTime-this->trajStartTime_).toSec());
 				double endTime = std::min(startTime+2.0, this->mpc_->getHorizon()*dt);
-				// cout<<"collision check: start time  "<<startTime<<"end time: "<< endTime<<endl;
 				for (double t=startTime; t<=endTime; t+=dt){
 					Eigen::Vector3d p = this->mpc_->getPos(t);
 					bool hasCollision = this->map_->isInflatedOccupied(p);

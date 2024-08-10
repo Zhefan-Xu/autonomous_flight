@@ -60,7 +60,7 @@ namespace AutoFlight{
 		nav_msgs::Path predefinedGoal_;
 		int goalIdx_ = 0;
 		int repeatPathNum_;
-		
+
 		// navigation data
 		bool replan_ = false;
 		bool replanning_ = false;
@@ -83,8 +83,6 @@ namespace AutoFlight{
 		trajPlanner::bspline trajectory_; // trajectory data for tracking
 		bool firstTimeSave_ = false;
 		
-
-
 	public:
 		navigation(const ros::NodeHandle& nh);
 		void initParam();

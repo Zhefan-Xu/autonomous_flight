@@ -36,7 +36,6 @@ bspline_traj/uncertain_aware_factor: 1.0
 bspline_traj/max_path_length: 7
 bspline_traj/max_obstacle_size: [10, 10, 10]
 
-# TODO: check this
 mpc_planner/horizon: 30
 mpc_planner/z_range_min: 0.7 
 mpc_planner/z_range_max: 1.2 
