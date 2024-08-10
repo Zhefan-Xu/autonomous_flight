@@ -341,13 +341,8 @@ namespace AutoFlight{
 				else if (this->refTrajReady_){
 					Eigen::Vector3d currPos = this->currPos_;
 					Eigen::Vector3d currVel = this->currVel_;
-					double currYaw = this->currYaw_;
-					// if (this->useYawControl_){
-					// 	this->mpc_->updateCurrStates(currPos, currVel, currYaw);
-					// }
-					// else{
-						this->mpc_->updateCurrStates(currPos, currVel);
-					// }
+	
+					this->mpc_->updateCurrStates(currPos, currVel);
 					if (this->usePredictor_){
 						std::vector<std::vector<std::vector<Eigen::Vector3d>>> predPos, predSize;
 						std::vector<Eigen::VectorXd> intentProb;
