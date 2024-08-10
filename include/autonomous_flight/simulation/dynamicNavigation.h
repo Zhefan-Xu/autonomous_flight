@@ -56,14 +56,13 @@ namespace AutoFlight{
 		bool usePredefinedGoal_;
 		double desiredVel_;
 		double desiredAcc_;
-		double maxVel_;
-		double maxAcc_;
 		double desiredAngularVel_;
 		double replanTimeForDynamicObstacle_;
 		std::string trajSavePath_;
 		nav_msgs::Path predefinedGoal_;
 		int goalIdx_ = 0;
 		int repeatPathNum_;
+
 		// navigation data
 		bool replan_ = false;
 		bool replanning_ = false;
@@ -87,7 +86,6 @@ namespace AutoFlight{
 		bool firstTimeSave_ = false;
 		bool lastDynamicObstacle_ = false;
 		ros::Time lastDynamicObstacleTime_;
-		Eigen::Vector3d robotSize_ = Eigen::Vector3d(0.0,0.0,0.0);
 		
 
 

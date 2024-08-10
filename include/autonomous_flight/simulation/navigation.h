@@ -44,8 +44,8 @@ namespace AutoFlight{
 		ros::Publisher inputTrajPointsPub_;
 		ros::Publisher goalPub_;
 
-		std::thread trajExeWorker_;
 		std::thread mpcWorker_;
+
 		// parameters
 		bool useGlobalPlanner_;
 		bool useMPCPlanner_;
@@ -60,6 +60,7 @@ namespace AutoFlight{
 		nav_msgs::Path predefinedGoal_;
 		int goalIdx_ = 0;
 		int repeatPathNum_;
+		
 		// navigation data
 		bool replan_ = false;
 		bool replanning_ = false;

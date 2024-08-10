@@ -92,25 +92,6 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Desired acceleration is set to: " << this->desiredAcc_ << "m/s^2." << endl;
 		}
 
-		// maximum linear velocity    	
-		if (not this->nh_.getParam("autonomous_flight/maximum_velocity", this->maxVel_)){
-			this->maxVel_ = 1.0;
-			cout << "[AutoFlight]: No maximum velocity param found. Use default: 1.0 m/s." << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Maximum velocity is set to: " << this->maxVel_ << "m/s." << endl;
-		}
-
-		// maximum acceleration
-		if (not this->nh_.getParam("autonomous_flight/maximum_acceleration", this->maxAcc_)){
-			this->maxAcc_ = 1.0;
-			cout << "[AutoFlight]: No maximum acceleration param found. Use default: 1.0 m/s^2." << endl;
-		}
-		else{
-			cout << "[AutoFlight]: Maximum acceleration is set to: " << this->maxAcc_ << "m/s^2." << endl;
-		}
-
-
     	// desired angular velocity    	
 		if (not this->nh_.getParam("autonomous_flight/desired_angular_velocity", this->desiredAngularVel_)){
 			this->desiredAngularVel_ = 1.0;
@@ -189,7 +170,6 @@ namespace AutoFlight{
 		else{
 			this->map_.reset(new mapManager::dynamicMap (this->nh_));
 		}
-		this->map_->getRobotSize(this->robotSize_);
 
 		if (this->usePredictor_){
 			this->predictor_.reset(new dynamicPredictor::predictor (this->nh_));
@@ -213,10 +193,8 @@ namespace AutoFlight{
 
 		if (this->useMPCPlanner_){
 			this->mpc_.reset(new trajPlanner::mpcPlanner (this->nh_));
-			// this->mpc_->updateMaxVel(this->desiredVel_*1.5);
-			// this->mpc_->updateMaxAcc(this->desiredAcc_);
-			this->mpc_->updateMaxVel(this->maxVel_);
-			this->mpc_->updateMaxAcc(this->maxAcc_);
+			this->mpc_->updateMaxVel(this->desiredVel_);
+			this->mpc_->updateMaxAcc(this->desiredAcc_);
 			this->mpc_->setMap(this->map_);
 		}
 		else{
@@ -352,7 +330,9 @@ namespace AutoFlight{
 					else{
 						std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 						if (this->useFakeDetector_){
-							this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, this->robotSize_);
+							Eigen::Vector3d robotSize;
+							this->map_->getRobotSize(robotSize);
+							this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, robotSize);
 						}
 						else{ 
 							this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -409,7 +389,9 @@ namespace AutoFlight{
 		if (this->replan_){
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 			if (this->useFakeDetector_){
-				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				Eigen::Vector3d robotSize;
+				this->map_->getRobotSize(robotSize);
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, robotSize);
 			}
 			else{ 
 				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -1048,7 +1030,9 @@ namespace AutoFlight{
 		if (this->trajectoryReady_){
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 			if (this->useFakeDetector_){
-				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				Eigen::Vector3d robotSize;
+				this->map_->getRobotSize(robotSize);
+				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, robotSize);
 			}
 			else{ 
 				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
@@ -1097,7 +1081,9 @@ namespace AutoFlight{
 		ros::Time currTime = ros::Time::now();
 		std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
 		if (this->useFakeDetector_){
-			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+			Eigen::Vector3d robotSize;
+			this->map_->getRobotSize(robotSize);
+			this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, robotSize);
 		}
 		else{ 
 			this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
