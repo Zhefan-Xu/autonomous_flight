@@ -114,7 +114,6 @@ namespace AutoFlight{
 		else{
 			int numGoals = int(goalVecTemp.size())/3;
 			std::vector<geometry_msgs::PoseStamped> pathTemp;
-			// this->preDef
 			for (int i=0; i<numGoals; ++i){
 				geometry_msgs::PoseStamped goal;
 				goal.pose.position.x = goalVecTemp[i*3+0];
@@ -289,11 +288,12 @@ namespace AutoFlight{
 				else if (this->refTrajReady_){
 					Eigen::Vector3d currPos = this->currPos_;
 					Eigen::Vector3d currVel = this->currVel_;
+
 					this->mpc_->updateCurrStates(currPos, currVel);
+					
 					ros::Time trajStartTime = ros::Time::now();
-					bool newTrajReturn = mpc_->makePlan();
+					bool newTrajReturn = this->mpc_->makePlan();
 					nav_msgs::Path mpcTraj;
-					this->mpc_->getTrajectory(mpcTraj);
 					
 					if (newTrajReturn){
 						this->trajStartTime_ = trajStartTime;
@@ -302,6 +302,7 @@ namespace AutoFlight{
 							this->stop();
 						}
 						else{
+							this->mpc_->getTrajectory(mpcTraj);
 							this->mpcTrajMsg_ = mpcTraj;
 							this->trajectoryReady_ = true;
 							this->mpcFirstTime_ = false;
@@ -566,7 +567,7 @@ namespace AutoFlight{
 			2. new goal point assigned
 			3. fixed distance
 		*/
-		if(this->useMPCPlanner_){
+		if (this->useMPCPlanner_){
 			if (this->usePredefinedGoal_){
 				if (not this->refTrajReady_ and this->predefinedGoal_.poses.size()>0){
 					this->replan_ = false;
@@ -917,7 +918,6 @@ namespace AutoFlight{
 				ros::Time currTime = ros::Time::now();
 				double startTime = std::min(1.0, (currTime-this->trajStartTime_).toSec());
 				double endTime = std::min(startTime+2.0, this->mpc_->getHorizon()*dt);
-				// cout<<"collision check: start time  "<<startTime<<"end time: "<< endTime<<endl;
 				for (double t=startTime; t<=endTime; t+=dt){
 					Eigen::Vector3d p = this->mpc_->getPos(t);
 					bool hasCollision = this->map_->isInflatedOccupied(p);

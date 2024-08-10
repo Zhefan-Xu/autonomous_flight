@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   map_manager
   tracking_controller
   time_optimizer
+  dynamic_predictor
 )
 
 ## System dependencies are found with CMake's conventions

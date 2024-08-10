@@ -82,6 +82,7 @@ namespace AutoFlight{
 		Eigen::Matrix3d orientationRot = AutoFlight::quat2RotMatrix(orientationQuat);
 		this->currPos_ = Eigen::Vector3d (this->odom_.pose.pose.position.x, this->odom_.pose.pose.position.y, this->odom_.pose.pose.position.z);
 		this->currVel_ = orientationRot * currVelBody;	
+		this->currYaw_ = AutoFlight::rpy_from_quaternion(this->odom_.pose.pose.orientation);
 		ros::Time currTime = ros::Time::now();	
 		if (this->stateUpdateFirstTime_){
 			this->currAcc_ = Eigen::Vector3d (0.0, 0.0, 0.0);

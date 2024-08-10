@@ -1,5 +1,5 @@
 takeoff_height: 1.0 # m
-use_global_planner: false 
+use_global_planner: false
 use_mpc_planner: false # if set true, will use MPC as the local planner instead of bspline
 no_yaw_turning: false
 use_yaw_control: false
@@ -12,27 +12,10 @@ use_time_optimizer: false
 # MPC target parameters
 use_predefined_goal: false
 goal: [0, 0, 1.0,
-       4.3, -1.2, 1.0,
-       8.4, -4.3, 1.0,
-       8.3, -8.1, 1.0,
-       4.4, -7.7, 1.0,
-       3.2, -5.3, 1.0,
-       0.3, -5.1, 1.0,
-       0.4, -8.4, 1.0,
-       -4.1, -8.5, 1.0,
-       -6.0, -5.5, 1.0,
-       -8.3, -4.3, 1.0,
-       -7.0, -0.5, 1.0,
-       -3.0, -0.8, 1.0,
-       0, 0, 1.0] # [x,y,z]
-
-# goal: [0.0, 0.0, 1.0,
-#        -17.0, 1.0, 1.0,
-#        -15.0, -3.0, 1.0,
-#        -6.0, -3.6, 1.0,
-#        4.0, -6.0, 1.0,
-#        8.0, 7.5, 1.0,
-#        -6.5, 7.5,1.0,
-#        0.0, 0.0, 1.0]
-
-execute_path_times: 5 # how many times to repeat the trajectory 
+       7.5, 0, 1.0,
+       15, 0, 1.0,
+       15, 4.0, 1.0,
+       7.5, 4.0, 1.0,
+       0, 4.0, 1.0,
+       0, 0, 1.0]
+execute_path_times: 2 # how many times to repeat the trajectory 

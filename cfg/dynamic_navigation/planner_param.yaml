@@ -4,7 +4,7 @@ rrt/env_box: [-100, 100, -100, 100, 1.0, 1.0]
 rrt/incremental_distance: 0.5
 rrt/goal_reach_distance: 0.4
 rrt/connect_goal_ratio: 0.2
-rrt/max_shortcut_dist: 5
+rrt/max_shortcut_dist: 3
 rrt/ignore_unknown: true
 rrt/pass_goal_check: true
 
@@ -38,3 +38,16 @@ bspline_traj/uncertain_aware_factor: 1.0
 bspline_traj/max_path_length: 7
 bspline_traj/max_obstacle_size: [5, 5, 3]
 bspline_traj/prediction_horizon: 2.0
+
+mpc_planner/horizon: 30
+mpc_planner/z_range_min: 0.7 
+mpc_planner/z_range_max: 1.2 
+mpc_planner/safety_dist: 0.5
+mpc_planner/static_constraint_slack_ratio: 0.4
+mpc_planner/dynamic_constraint_slack_ratio: 0.2 
+# MPC clustering params
+mpc_planner/cloud_res: 0.2
+mpc_planner/local_cloud_region_x: 5.0 # forward
+mpc_planner/local_cloud_region_y: 2.0 # left and right
+mpc_planner/ground_height: 0.4
+mpc_planner/ceiling_height: 2.0
