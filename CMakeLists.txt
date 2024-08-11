@@ -4,6 +4,8 @@ project(autonomous_flight)
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS} -O3 -Wall")
+# add_compile_options(-std=c++11)
+set(CMAKE_CXX_FLAGS "-std=c++14 ${CMAKE_CXX_FLAGS} -O3 -Wall")
 
 
 ## Find catkin macros and libraries
@@ -133,11 +135,12 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
-  include/${PROJECT_NAME}/px4/flightBase.cpp
-  include/${PROJECT_NAME}/px4/navigation.cpp
-  include/${PROJECT_NAME}/px4/dynamicNavigation.cpp
-  include/${PROJECT_NAME}/px4/dynamicInspection.cpp
-  include/${PROJECT_NAME}/px4/dynamicExploration.cpp
+   include/${PROJECT_NAME}/px4/flightBase.cpp
+   include/${PROJECT_NAME}/px4/inspection.cpp
+   include/${PROJECT_NAME}/px4/navigation.cpp
+   include/${PROJECT_NAME}/px4/dynamicNavigation.cpp
+   include/${PROJECT_NAME}/px4/dynamicInspection.cpp
+   include/${PROJECT_NAME}/px4/dynamicExploration.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -152,6 +155,8 @@ add_library(
 # add_executable(test_bspline_node src/simulation/test_bspline_node.cpp)
 add_executable(takeoff_and_hover_node src/px4/takeoff_and_hover_node.cpp)
 add_executable(takeoff_and_track_circle_node src/px4/takeoff_and_track_circle_node.cpp)
+add_executable(offboard_mode_node src/px4/offboard_mode_node.cpp)
+add_executable(inspection_node src/px4/inspection_node.cpp)
 add_executable(navigation_node src/px4/navigation_node.cpp)
 add_executable(dynamic_navigation_node src/px4/dynamic_navigation_node.cpp)
 add_executable(dynamic_inspection_node src/px4/dynamic_inspection_node.cpp)
@@ -175,6 +180,8 @@ add_executable(dynamic_exploration_node src/px4/dynamic_exploration_node.cpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(takeoff_and_hover_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(takeoff_and_track_circle_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(offboard_mode_node ${catkin_LIBRARIES})
+target_link_libraries(inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})

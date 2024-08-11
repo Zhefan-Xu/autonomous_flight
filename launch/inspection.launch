@@ -1,0 +1,16 @@
+<launch>
+	<!-- Argument for simulation mode -->
+    <arg name="simulation" default="true" />
+	<param name="autonomous_flight/simulation" type="bool" value="$(arg simulation)" />
+	<group if="$(arg simulation)">
+		<remap from="/mavros/local_position/odom" to="CERLAB/quadcopter/odom" />
+		<remap from="/mavros/setpoint_raw/local" to="CERLAB/quadcopter/cmd_acc" />
+		<rosparam file="$(find autonomous_flight)/cfg/inspection/inspection_param.yaml" />
+		<node pkg="autonomous_flight" type="inspection_node" name="inspection_node" output="screen" />
+	<group>
+	<group unless="$(arg simulation)">
+		<rosparam file="$(find autonomous_flight)/cfg/inspection/inspection_param.yaml" />
+		<node pkg="autonomous_flight" type="inspection_node" name="inspection_node" output="screen" />
+	<group>
+
+</launch>

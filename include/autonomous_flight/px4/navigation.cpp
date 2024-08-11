@@ -1,7 +1,7 @@
 /*
 	FILE: navigation.cpp
 	------------------------
-	navigation implementation file in simulation
+	navigation implementation file
 */
 #include <autonomous_flight/px4/navigation.h>
 

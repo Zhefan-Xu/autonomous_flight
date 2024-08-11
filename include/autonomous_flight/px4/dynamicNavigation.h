@@ -1,7 +1,7 @@
 /*
 	FILE: dynamicNavigation.h
 	------------------------
-	dynamic navigation header file in simulation
+	dynamic navigation header file
 */
 
 #ifndef AUTOFLIGHT_DYNAMIC_NAVIGATION_H

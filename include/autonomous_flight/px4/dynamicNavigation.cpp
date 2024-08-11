@@ -1,7 +1,7 @@
 /*
 	FILE: dynamicNavigation.cpp
 	------------------------
-	dynamic navigation implementation file in simulation
+	dynamic navigation implementation file
 */
 #include <autonomous_flight/px4/dynamicNavigation.h>
 

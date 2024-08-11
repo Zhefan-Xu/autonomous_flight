@@ -1,7 +1,7 @@
 /*
 	FILE: navigation.h
 	------------------------
-	navigation header file in simulation
+	navigation header file
 */
 
 #ifndef AUTOFLIGHT_NAVIGATION_H
@@ -60,7 +60,6 @@ namespace AutoFlight{
 		nav_msgs::Path predefinedGoal_;
 		int goalIdx_ = 0;
 		int repeatPathNum_;
-
 		// navigation data
 		bool replan_ = false;
 		bool replanning_ = false;
