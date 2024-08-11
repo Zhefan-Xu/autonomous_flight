@@ -39,7 +39,8 @@ bspline_traj/max_obstacle_size: [10, 10, 10]
 mpc_planner/horizon: 30
 mpc_planner/z_range_min: 0.7 
 mpc_planner/z_range_max: 1.2 
-mpc_planner/safety_dist: 0.8
+mpc_planner/static_safety_dist: 0.5
+mpc_planner/dynamic_safety_dist: 0.5
 mpc_planner/static_constraint_slack_ratio: 0.4
 mpc_planner/dynamic_constraint_slack_ratio: 0.3 
 # MPC clustering params
