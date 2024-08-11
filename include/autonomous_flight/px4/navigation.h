@@ -7,7 +7,7 @@
 #ifndef AUTOFLIGHT_NAVIGATION_H
 #define AUTOFLIGHT_NAVIGATION_H
 
-#include <autonomous_flight/simulation/flightBase.h>
+#include <autonomous_flight/px4/flightBase.h>
 #include <map_manager/occupancyMap.h>
 #include <global_planner/rrtOccMap.h>
 #include <trajectory_planner/polyTrajOccMap.h>

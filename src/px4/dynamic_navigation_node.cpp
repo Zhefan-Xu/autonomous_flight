@@ -5,7 +5,7 @@
 */
 
 #include <ros/ros.h>
-#include <autonomous_flight/simulation/dynamicNavigation.h>
+#include <autonomous_flight/px4/dynamicNavigation.h>
 
 int main(int argc, char** argv){
 	ros::init(argc, argv, "dynamic_navigation_node");

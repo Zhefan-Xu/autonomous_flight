@@ -13,7 +13,7 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <gazebo_msgs/SetModelState.h>
-#include <autonomous_flight/simulation/utils.h>
+#include <autonomous_flight/px4/utils.h>
 #include <tracking_controller/Target.h>
 #include <Eigen/Dense>
 #include <thread>

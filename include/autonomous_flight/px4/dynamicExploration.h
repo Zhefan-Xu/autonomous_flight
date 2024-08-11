@@ -5,7 +5,7 @@
 */
 #ifndef DYNAMIC_EXPLORATION
 #define DYNAMIC_EXPLORATION
-#include <autonomous_flight/simulation/flightBase.h>
+#include <autonomous_flight/px4/flightBase.h>
 #include <global_planner/dep.h>
 #include <trajectory_planner/polyTrajOccMap.h>
 #include <trajectory_planner/piecewiseLinearTraj.h>

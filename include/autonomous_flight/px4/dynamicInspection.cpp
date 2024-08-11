@@ -4,7 +4,7 @@
 	Implementation of dynamic inspection
 */
 
-#include <autonomous_flight/simulation/dynamicInspection.h>
+#include <autonomous_flight/px4/dynamicInspection.h>
 
 namespace AutoFlight{
 	dynamicInspection::dynamicInspection(const ros::NodeHandle& nh) : flightBase(nh){

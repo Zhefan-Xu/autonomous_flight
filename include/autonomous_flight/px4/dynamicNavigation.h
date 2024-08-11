@@ -7,7 +7,7 @@
 #ifndef AUTOFLIGHT_DYNAMIC_NAVIGATION_H
 #define AUTOFLIGHT_DYNAMIC_NAVIGATION_H
 
-#include <autonomous_flight/simulation/flightBase.h>
+#include <autonomous_flight/px4/flightBase.h>
 #include <map_manager/dynamicMap.h>
 #include <onboard_detector/fakeDetector.h>
 #include <dynamic_predictor/dynamicPredictor.h>

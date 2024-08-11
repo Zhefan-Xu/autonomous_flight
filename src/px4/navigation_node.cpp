@@ -5,7 +5,7 @@
 */
 
 #include <ros/ros.h>
-#include <autonomous_flight/simulation/navigation.h>
+#include <autonomous_flight/px4/navigation.h>
 
 int main(int argc, char** argv){
 	ros::init(argc, argv, "navigation_node");
