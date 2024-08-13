@@ -4,7 +4,7 @@
 	dynamic exploration ROS node
 */
 
-#include <autonomous_flight/simulation/dynamicExploration.h>
+#include <autonomous_flight/px4/dynamicExploration.h>
 
 int main(int argc, char** argv){
 	ros::init(argc, argv, "dynamic_exploration_node");

@@ -133,11 +133,12 @@ include_directories(
 ## Declare a C++ library
 add_library(
   ${PROJECT_NAME}
-  include/${PROJECT_NAME}/simulation/flightBase.cpp
-  include/${PROJECT_NAME}/simulation/navigation.cpp
-  include/${PROJECT_NAME}/simulation/dynamicNavigation.cpp
-  include/${PROJECT_NAME}/simulation/dynamicInspection.cpp
-  include/${PROJECT_NAME}/simulation/dynamicExploration.cpp
+   include/${PROJECT_NAME}/px4/flightBase.cpp
+   include/${PROJECT_NAME}/px4/inspection.cpp
+   include/${PROJECT_NAME}/px4/navigation.cpp
+   include/${PROJECT_NAME}/px4/dynamicNavigation.cpp
+   include/${PROJECT_NAME}/px4/dynamicInspection.cpp
+   include/${PROJECT_NAME}/px4/dynamicExploration.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -150,12 +151,14 @@ add_library(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/autonomous_flight_node.cpp)
 # add_executable(test_bspline_node src/simulation/test_bspline_node.cpp)
-add_executable(takeoff_and_hover_node src/simulation/takeoff_and_hover_node.cpp)
-add_executable(takeoff_and_track_circle_node src/simulation/takeoff_and_track_circle_node.cpp)
-add_executable(navigation_node src/simulation/navigation_node.cpp)
-add_executable(dynamic_navigation_node src/simulation/dynamic_navigation_node.cpp)
-add_executable(dynamic_inspection_node src/simulation/dynamic_inspection_node.cpp)
-add_executable(dynamic_exploration_node src/simulation/dynamic_exploration_node.cpp)
+add_executable(takeoff_and_hover_node src/px4/takeoff_and_hover_node.cpp)
+add_executable(takeoff_and_track_circle_node src/px4/takeoff_and_track_circle_node.cpp)
+add_executable(offboard_mode_node src/px4/offboard_mode_node.cpp)
+add_executable(inspection_node src/px4/inspection_node.cpp)
+add_executable(navigation_node src/px4/navigation_node.cpp)
+add_executable(dynamic_navigation_node src/px4/dynamic_navigation_node.cpp)
+add_executable(dynamic_inspection_node src/px4/dynamic_inspection_node.cpp)
+add_executable(dynamic_exploration_node src/px4/dynamic_exploration_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -175,6 +178,8 @@ add_executable(dynamic_exploration_node src/simulation/dynamic_exploration_node.
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(takeoff_and_hover_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(takeoff_and_track_circle_node ${catkin_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(offboard_mode_node ${catkin_LIBRARIES})
+target_link_libraries(inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_navigation_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 target_link_libraries(dynamic_inspection_node ${catkin_LIBRARIES} ${PROJECT_NAME})

@@ -1,9 +1,9 @@
 /*
 	FILE: navigation.cpp
 	------------------------
-	navigation implementation file in simulation
+	navigation implementation file
 */
-#include <autonomous_flight/simulation/navigation.h>
+#include <autonomous_flight/px4/navigation.h>
 
 namespace AutoFlight{
 	navigation::navigation(const ros::NodeHandle& nh) : flightBase(nh){

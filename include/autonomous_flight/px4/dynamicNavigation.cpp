@@ -1,9 +1,9 @@
 /*
 	FILE: dynamicNavigation.cpp
 	------------------------
-	dynamic navigation implementation file in simulation
+	dynamic navigation implementation file
 */
-#include <autonomous_flight/simulation/dynamicNavigation.h>
+#include <autonomous_flight/px4/dynamicNavigation.h>
 
 namespace AutoFlight{
 	dynamicNavigation::dynamicNavigation(const ros::NodeHandle& nh) : flightBase(nh){
@@ -193,7 +193,7 @@ namespace AutoFlight{
 
 		if (this->useMPCPlanner_){
 			this->mpc_.reset(new trajPlanner::mpcPlanner (this->nh_));
-			this->mpc_->updateMaxVel(this->desiredVel_);
+			this->mpc_->updateMaxVel(this->desiredVel_*1.5);
 			this->mpc_->updateMaxAcc(this->desiredAcc_);
 			this->mpc_->setMap(this->map_);
 		}
@@ -353,7 +353,7 @@ namespace AutoFlight{
 					
 					if (newTrajReturn){
 						this->trajStartTime_ = trajStartTime;
-						if (this->hasCollision()){
+						if (this->hasCollision() or this->hasDynamicCollision()){
 							this->trajectoryReady_ = false;
 							this->stop();
 						}
@@ -365,7 +365,7 @@ namespace AutoFlight{
 						}
 					}
 					else if (not this->mpcFirstTime_){
-						if (this->hasCollision()){
+						if (this->hasCollision() or this->hasDynamicCollision()){
 							this->trajectoryReady_ = false;
 							this->stop();
 						}
@@ -679,7 +679,7 @@ namespace AutoFlight{
 			if (this->trajectoryReady_){
 				if (this->usePredefinedGoal_){
 					ros::Time currTime = ros::Time::now();
-					if (this->hasCollision() ){ 
+					if (this->hasCollision() or this->hasDynamicCollision()){ 
 						this->stop();
 						this->trajectoryReady_ = false;
 						this->replan_ = true;
@@ -737,7 +737,7 @@ namespace AutoFlight{
 						cout<<"[AutoFlight]: Invalid goal. Stop!" << endl;
 						return;
 					}
-					else if (this->hasCollision()){ 
+					else if (this->hasCollision() or this->hasDynamicCollision()){ 
 						this->stop();
 						this->trajectoryReady_ = false;
 						this->replan_ = true;
@@ -1021,29 +1021,60 @@ namespace AutoFlight{
 
 	bool dynamicNavigation::hasDynamicCollision(){
 		if (this->trajectoryReady_){
-			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-			if (this->useFakeDetector_){
-				Eigen::Vector3d robotSize;
-				this->map_->getRobotSize(robotSize);
-				this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, robotSize);
+			if (this->useMPCPlanner_){
+				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+				if (this->useFakeDetector_){
+					Eigen::Vector3d robotSize;
+					this->map_->getRobotSize(robotSize);
+					this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, robotSize);
+				}
+				else{ 
+					this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}
+				double dt = this->mpc_->getTs();
+				ros::Time currTime = ros::Time::now();
+				double startTime = std::min(1.0, (currTime-this->trajStartTime_).toSec());
+				double endTime = std::min(startTime+1.0, this->mpc_->getHorizon()*dt);
+				for (double t=startTime; t<=endTime; t+=dt){
+					Eigen::Vector3d p = this->mpc_->getPos(t);
+					for (size_t i=0; i<obstaclesPos.size(); ++i){
+						Eigen::Vector3d ob = obstaclesPos[i];
+						Eigen::Vector3d size = obstaclesSize[i];
+						Eigen::Vector3d lowerBound = ob - size/2;
+						Eigen::Vector3d upperBound = ob + size/2;
+						if (p(0) >= lowerBound(0) and p(0) <= upperBound(0) and
+							p(1) >= lowerBound(1) and p(1) <= upperBound(1) and
+							p(2) >= lowerBound(2) and p(2) <= upperBound(2)){
+							return true;
+						}					
+					}
+				}
 			}
-			else{ 
-				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
-			}
+			else{
+				std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
+				if (this->useFakeDetector_){
+					Eigen::Vector3d robotSize;
+					this->map_->getRobotSize(robotSize);
+					this->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize, robotSize);
+				}
+				else{ 
+					this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
+				}
 
-			for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
-				Eigen::Vector3d p = this->trajectory_.at(t);
-				
-				for (size_t i=0; i<obstaclesPos.size(); ++i){
-					Eigen::Vector3d ob = obstaclesPos[i];
-					Eigen::Vector3d size = obstaclesSize[i];
-					Eigen::Vector3d lowerBound = ob - size/2;
-					Eigen::Vector3d upperBound = ob + size/2;
-					if (p(0) >= lowerBound(0) and p(0) <= upperBound(0) and
-						p(1) >= lowerBound(1) and p(1) <= upperBound(1) and
-						p(2) >= lowerBound(2) and p(2) <= upperBound(2)){
-						return true;
-					}					
+				for (double t=this->trajTime_; t<=this->trajectory_.getDuration(); t+=0.1){
+					Eigen::Vector3d p = this->trajectory_.at(t);
+					
+					for (size_t i=0; i<obstaclesPos.size(); ++i){
+						Eigen::Vector3d ob = obstaclesPos[i];
+						Eigen::Vector3d size = obstaclesSize[i];
+						Eigen::Vector3d lowerBound = ob - size/2;
+						Eigen::Vector3d upperBound = ob + size/2;
+						if (p(0) >= lowerBound(0) and p(0) <= upperBound(0) and
+							p(1) >= lowerBound(1) and p(1) <= upperBound(1) and
+							p(2) >= lowerBound(2) and p(2) <= upperBound(2)){
+							return true;
+						}					
+					}
 				}
 			}
 		}

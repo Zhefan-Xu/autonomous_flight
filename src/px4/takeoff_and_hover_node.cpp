@@ -5,7 +5,7 @@
 */
 
 #include <ros/ros.h>
-#include <autonomous_flight/simulation/flightBase.h>
+#include <autonomous_flight/px4/flightBase.h>
 
 int main(int argc, char** argv){
 	ros::init(argc, argv, "takeoff_and_hover_node");

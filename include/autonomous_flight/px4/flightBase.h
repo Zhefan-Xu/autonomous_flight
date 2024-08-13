@@ -13,8 +13,11 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <gazebo_msgs/SetModelState.h>
-#include <autonomous_flight/simulation/utils.h>
+#include <autonomous_flight/px4/utils.h>
 #include <tracking_controller/Target.h>
+#include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/SetMode.h>
+#include <mavros_msgs/State.h>
 #include <Eigen/Dense>
 #include <thread>
 #include <mutex>
@@ -32,9 +35,12 @@ namespace AutoFlight{
 		ros::Subscriber clickSub_;
 		ros::Publisher posePub_;
 		ros::Publisher statePub_;
+        ros::ServiceClient armClient_;
+		ros::ServiceClient setModeClient_;
 		ros::Timer stateUpdateTimer_;
 
 		nav_msgs::Odometry odom_;
+        mavros_msgs::State mavrosState_;
 		geometry_msgs::PoseStamped poseTgt_; // target pose
 		tracking_controller::Target stateTgt_;
 		geometry_msgs::PoseStamped goal_;
@@ -45,11 +51,17 @@ namespace AutoFlight{
 		bool stateUpdateFirstTime_ = true;
 
 		// parameter
-		double takeoffHgt_ ;
+        bool simulation_;
+		double takeoffHgt_;
+        bool yawControl_;
+		int timeStep_;
+		double radius_;
+		double velocity_;
 
 		// status
 		bool poseControl_ = true;
 		bool odomReceived_ = false;
+        bool mavrosStateReceived_ = false;
 		bool hasTakeoff_ = false;
 		bool firstGoal_ = false;
 		bool goalReceived_ = false;
@@ -65,11 +77,13 @@ namespace AutoFlight{
 		void publishTarget();
 		
 		// callback functions
+        void stateCB(const mavros_msgs::State::ConstPtr& state);
 		void odomCB(const nav_msgs::OdometryConstPtr& odom); 
 		void clickCB(const geometry_msgs::PoseStamped::ConstPtr& cp);
 		void stateUpdateCB(const ros::TimerEvent&);
 
 		void takeoff();
+        void circle();
 		void run();
 		void stop();
 		void moveToOrientation(double yaw, double desiredAngularVel);

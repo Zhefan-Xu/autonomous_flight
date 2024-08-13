@@ -1,13 +1,9 @@
 <launch>
-	<remap from="/mavros/local_position/odom" to="CERLAB/quadcopter/odom" />
-	<remap from="/mavros/setpoint_raw/local" to="CERLAB/quadcopter/cmd_acc" />
 	<rosparam file="$(find tracking_controller)/cfg/controller_param.yaml" ns="controller"/>
-	<node pkg="tracking_controller" type="tracking_controller_node" name="tracking_controller_node" output="screen" />
-	<!-- <node pkg="tracking_controller" type="tracking_controller_node" name="tracking_controller_node" /> -->
-
-
 	<rosparam file="$(find autonomous_flight)/cfg/navigation/flight_base.yaml" ns="autonomous_flight"/>
 	<rosparam file="$(find autonomous_flight)/cfg/navigation/planner_param.yaml" />
 	<rosparam file="$(find autonomous_flight)/cfg/navigation/mapping_param.yaml" ns="/occupancy_map" />
+
+	<node pkg="tracking_controller" type="tracking_controller_node" name="tracking_controller_node" output="screen" />
 	<node pkg="autonomous_flight" type="navigation_node" name="navigation_node" output="screen" />
 </launch>

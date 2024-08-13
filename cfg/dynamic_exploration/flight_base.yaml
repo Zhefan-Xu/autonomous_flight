@@ -1,3 +1,4 @@
+simulation: true
 use_fake_detector: true
 takeoff_height: 1.0 # m
 desired_velocity: 1.0 # m/s

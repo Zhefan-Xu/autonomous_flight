@@ -1,5 +1,6 @@
+simulation: true
 use_fake_detector: false
-use_predictor: true
+use_predictor: false
 takeoff_height: 1.0 # m
 use_global_planner: false
 use_mpc_planner: false # if set true, will use MPC as the local planner instead of bspline

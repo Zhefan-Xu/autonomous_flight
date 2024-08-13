@@ -5,7 +5,7 @@
 */
 
 #include <ros/ros.h>
-#include <autonomous_flight/simulation/flightBase.h>
+#include <autonomous_flight/px4/flightBase.h>
 
 int main(int argc, char** argv){
 	ros::init(argc, argv, "takeoff_and_track_circle_node");
@@ -13,7 +13,10 @@ int main(int argc, char** argv){
 
 	AutoFlight::flightBase fb (nh);
 	fb.takeoff();
-	fb.run();
+	fb.circle();
+	fb.stop();
+	// fb.run(); // flight test
 	ros::spin();
+
 	return 0;
 }

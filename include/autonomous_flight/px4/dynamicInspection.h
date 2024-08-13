@@ -5,7 +5,7 @@
 */
 #ifndef DYNAMIC_INSPECTION
 #define DYNAMIC_INSPECTION
-#include <autonomous_flight/simulation/flightBase.h>
+#include <autonomous_flight/px4/flightBase.h>
 #include <map_manager/dynamicMap.h>
 #include <onboard_detector/fakeDetector.h>
 #include <global_planner/rrtOccMap.h>
