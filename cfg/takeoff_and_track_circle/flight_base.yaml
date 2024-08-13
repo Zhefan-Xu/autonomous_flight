@@ -1,3 +1,4 @@
+simulation: true
 takeoff_height: 1.0 # m
 circle_radius: 0.75 # m
 time_to_max_radius: 20 #s

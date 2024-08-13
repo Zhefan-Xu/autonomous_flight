@@ -9,11 +9,12 @@ namespace AutoFlight{
 	flightBase::flightBase(const ros::NodeHandle& nh) : nh_(nh){   
 		if (not this->nh_.getParam("autonomous_flight/simulation", this->simulation_)){
 			this->simulation_ = true;
-			cout << "[AutoFlight]: No simulation param found. Use default: true." << endl;
+			cout << "[trackingController]: No simulation option param. Use default: true." << endl;
 		}
 		else{
-			cout << "[AutoFlight]: Simulation: " << this->simulation_ << endl;
-		}
+			cout << "[trackingController]: Simulation option is set to (0: px4/1: sim): " << this->simulation_  << endl;
+		}	
+
     	// parameters    	
 		if (not this->nh_.getParam("autonomous_flight/takeoff_height", this->takeoffHgt_)){
 			this->takeoffHgt_ = 1.0;
@@ -23,6 +24,7 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: Takeoff Height: " << this->takeoffHgt_ << "m." << endl;
 		}
 		
+		this->odomReceived_ = false;
 		// ---------------------------- simulation -------------------------- 
 		if (this->simulation_){
 			// subscriber
@@ -59,7 +61,6 @@ namespace AutoFlight{
 
 
 			// Wait for odometry and mavros to be ready
-			this->odomReceived_ = false;
 			this->mavrosStateReceived_ = false;
 			ros::Rate r (10);
 			while (ros::ok() and not (this->odomReceived_ and this->mavrosStateReceived_)){
@@ -238,7 +239,7 @@ namespace AutoFlight{
 			cout << "[AutoFlight]: No time to max radius param found. Use default: 30s." << endl;
 		}
 		else{
-			cout << "[AutoFlight]: Time to Maximum Circle Radius: " << this->timeStep_ <<"s." << endl;
+			cout << "[AutoFlight]: Time to Maximum Circle Radius: " << this->timeStep_ << "s." << endl;
 		}
 
         if (not this->nh_.getParam("autonomous_flight/yaw_control", this->yawControl_)){
@@ -280,12 +281,13 @@ namespace AutoFlight{
         ros::Time startTime = ros::Time::now();
         ros::Time endTime1, endTime2, endTime3;
         while(ros::ok() && terminate == 0){
+			radius = std::max(0.1, radius);
             x = radius * cos(theta);
             y = radius * sin(theta);
             vx = -velocity * sin(theta);
             vy = velocity * cos(theta);
             ax = - velocity*velocity/radius * cos(theta);
-            ay = - velocity*velocity/radius  * sin(theta);
+            ay = - velocity*velocity/radius * sin(theta);
             if (this->yawControl_ == true){
                 yaw = theta + PI_const / 2;
             }
@@ -314,7 +316,7 @@ namespace AutoFlight{
                 radius += this->radius_/step;
                 velocity += this->velocity_/step;
                 
-                if (std::abs(radius-radius_)<=0.01){
+                if (std::abs(radius-this->radius_)<=0.01){
                     theta_start = theta;
                     endTime1 = ros::Time::now();
                     circle += 1;
@@ -520,6 +522,7 @@ namespace AutoFlight{
 		this->stateTgt_ = target;
 		this->poseControl_ = false;
 	}
+
 	bool flightBase::isReach(const geometry_msgs::PoseStamped& poseTgt, bool useYaw){
 		double targetX, targetY, targetZ, targetYaw, currX, currY, currZ, currYaw;
 		targetX = poseTgt.pose.position.x;
