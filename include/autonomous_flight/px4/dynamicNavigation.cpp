@@ -867,7 +867,7 @@ namespace AutoFlight{
 						for (double t=realTime; t<=endTime; t+=dt){
 							// Eigen::Vector3d p = this->mpc_->getPos(t);
 							Eigen::Vector3d p = this->mpc_->getRef(t);
-							if ((p - pos).norm() >= forwardDist){
+							if ((p - refPos).norm() >= forwardDist){
 								target.yaw = atan2(p(1) - refPos(1), p(0) - refPos(0));
 								noYawChange = false;
 								break;
