@@ -867,7 +867,7 @@ namespace AutoFlight{
 						for (double t=realTime; t<=endTime; t+=dt){
 							// Eigen::Vector3d p = this->mpc_->getPos(t);
 							Eigen::Vector3d p = this->mpc_->getRef(t);
-							if ((p - pos).norm() >= forwardDist){
+							if ((p - refPos).norm() >= forwardDist){
 								target.yaw = atan2(p(1) - refPos(1), p(0) - refPos(0));
 								noYawChange = false;
 								break;
@@ -929,8 +929,8 @@ namespace AutoFlight{
 		double fov = 1.57;
 		for (onboardDetector::box3D ob: obstacles){
 			if (this->detector_->isObstacleInSensorRange(ob, fov)){
-				Eigen::Vector3d lowerBound (ob.x-ob.x_width/2-0.3, ob.y-ob.y_width/2-0.3, ob.z);
-				Eigen::Vector3d upperBound (ob.x+ob.x_width/2+0.3, ob.y+ob.y_width/2+0.3, ob.z+ob.z_width+0.3);
+				Eigen::Vector3d lowerBound (ob.x-ob.x_width/2-0.3, ob.y-ob.y_width/2-0.3, ob.z-ob.z_width/2-0.3);
+				Eigen::Vector3d upperBound (ob.x+ob.x_width/2+0.3, ob.y+ob.y_width/2+0.3, ob.z+ob.z_width/2+0.3);
 				freeRegions.push_back(std::make_pair(lowerBound, upperBound));
 			}
 		}
