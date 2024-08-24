@@ -281,7 +281,7 @@ namespace AutoFlight{
         ros::Time startTime = ros::Time::now();
         ros::Time endTime1, endTime2, endTime3;
         while(ros::ok() && terminate == 0){
-			radius = std::max(0.1, radius);
+			// radius = std::max(0.1, radius);
             x = radius * cos(theta);
             y = radius * sin(theta);
             vx = -velocity * sin(theta);
