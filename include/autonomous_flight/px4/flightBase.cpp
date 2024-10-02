@@ -106,17 +106,19 @@ namespace AutoFlight{
 			armCmd.request.value = true;
 			ros::Time lastRequest = ros::Time::now();
 			while (ros::ok()){
-				if (this->mavrosState_.mode != "OFFBOARD" && (ros::Time::now() - lastRequest > ros::Duration(5.0))){
-					if (this->setModeClient_.call(offboardMode) && offboardMode.response.mode_sent){
-						cout << "[AutoFlight]: Offboard mode enabled." << endl;
-					}
-					lastRequest = ros::Time::now();
-				} else {
-					if (!this->mavrosState_.armed && (ros::Time::now() - lastRequest > ros::Duration(5.0))){
-						if (this->armClient_.call(armCmd) && armCmd.response.success){
-							cout << "[AutoFlight]: Vehicle armed." << endl;
+				if (not this->hasTakeoff_){
+					if (this->mavrosState_.mode != "OFFBOARD" && (ros::Time::now() - lastRequest > ros::Duration(5.0))){
+						if (this->setModeClient_.call(offboardMode) && offboardMode.response.mode_sent){
+							cout << "[AutoFlight]: Offboard mode enabled." << endl;
 						}
 						lastRequest = ros::Time::now();
+					} else {
+						if (!this->mavrosState_.armed && (ros::Time::now() - lastRequest > ros::Duration(5.0))){
+							if (this->armClient_.call(armCmd) && armCmd.response.success){
+								cout << "[AutoFlight]: Vehicle armed." << endl;
+							}
+							lastRequest = ros::Time::now();
+						}
 					}
 				}
 
@@ -221,6 +223,7 @@ namespace AutoFlight{
 			ros::spinOnce();
 			r.sleep();
 		}
+		this->hasTakeoff_ = true;
 		cout << "[AutoFlight]: Takeoff succeed!" << endl;
 	}
 
