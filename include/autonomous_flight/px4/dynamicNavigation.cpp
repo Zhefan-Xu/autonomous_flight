@@ -621,7 +621,7 @@ namespace AutoFlight{
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
-					this->trajStartTime_ = ros::Time::now();
+					// this->trajStartTime_ = ros::Time::now();
 					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 					this->bsplineTrajectoryReady_ = true;
@@ -871,10 +871,29 @@ namespace AutoFlight{
 				return;
 			}
 
+			if (this->goalHasCollision()){
+				this->stop();
+				this->bsplineReplan_ = false;
+				this->mpcReplan_ = false;
+				this->mpcTrajectoryReady_ = false;
+				this->bsplineTrajectoryReady_ = false;
+				// ros::Rate r(200);
+				// while(ros::ok() and this->replanning_){
+				// 	r.sleep();
+				// }
+				// this->mpcTrajectoryReady_ = false;
+				// this->stop();
+				this->refTrajReady_ = false;
+				this->mpcFirstTime_ = true;
+				cout<<"[AutoFlight]: Invalid goal. Stop!" << endl;
+				return;
+			}
+
 			// return;
 			if (this->bsplineTrajectoryReady_){
 				if (this->bsplineHasCollision()){ // if trajectory not ready, do not replan
 					this->bsplineReplan_ = true;
+					this->mpcReplan_ = true;
 					this->refTrajReady_ = false;
 					cout << "[AutoFlight]: Replan for collision." << endl;
 					return;
@@ -882,6 +901,7 @@ namespace AutoFlight{
 
 				if (this->computeExecutionDistance() >= 1.5 and AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) >= 3){
 					this->bsplineReplan_ = true;
+					this->mpcReplan_ = true;
 					this->refTrajReady_ = false;
 					cout << "[AutoFlight]: Regular replan." << endl;
 					return;
@@ -889,7 +909,6 @@ namespace AutoFlight{
 			}
 			else{
 				this->stop();
-				this->mpcReplan_ = false;
 				this->refTrajReady_ = false;
 				return;
 			}
