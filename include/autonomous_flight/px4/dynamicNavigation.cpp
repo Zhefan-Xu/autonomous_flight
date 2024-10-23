@@ -621,7 +621,9 @@ namespace AutoFlight{
 				bool planSuccess = this->bsplineTraj_->makePlan(bsplineTrajMsgTemp);
 				if (planSuccess){
 					this->bsplineTrajMsg_ = bsplineTrajMsgTemp;
-					// this->trajStartTime_ = ros::Time::now();
+					if (this->plannerType_ == PLANNER::BSPLINE){
+						this->trajStartTime_ = ros::Time::now();
+					}
 					this->trajTime_ = 0.0; // reset trajectory time
 					this->trajectory_ = this->bsplineTraj_->getTrajectory();
 					this->bsplineTrajectoryReady_ = true;
@@ -641,6 +643,12 @@ namespace AutoFlight{
 							this->mpcReplan_ = false;
 							this->mpcTrajectoryReady_ = false;
 						}
+					}
+					else if (this->hasDynamicCollision() and this->plannerType_ == PLANNER::BSPLINE){
+						this->bsplineTrajectoryReady_ = false;
+						this->stop();
+						cout << "[AutoFlight]: Stop!!! Trajectory generation fails. Replan for dynamic obstacles." << endl;
+						this->bsplineReplan_ = true;
 					}
 					else{
 						if (this->bsplineTrajectoryReady_){
