@@ -266,7 +266,6 @@ namespace AutoFlight{
 			if (this->mpcReplan_){
 				this->replanning_ = true;
 				if (not this->refTrajReady_){
-					this->stop();
 					if (this->plannerType_ == PLANNER::MPC){
 						if (this->usePredefinedGoal_){			
 							Eigen::Vector3d startVel (0, 0, 0);
@@ -349,6 +348,9 @@ namespace AutoFlight{
 							this->mpcFirstTime_ = true;
 							this->trackingStartTime_ = ros::Time::now();
 						}
+						else{
+							this->stop();
+						}
 					}
 				}
 				else if (this->refTrajReady_){
@@ -424,7 +426,6 @@ namespace AutoFlight{
 
 		if (this->bsplineReplan_){
 			std::vector<Eigen::Vector3d> obstaclesPos, obstaclesVel, obstaclesSize;
-			// if (this->plannerType_ == PLANNER::BSPLINE){
 			if (this->useFakeDetector_){
 				Eigen::Vector3d robotSize;
 				this->map_->getRobotSize(robotSize);
@@ -433,7 +434,6 @@ namespace AutoFlight{
 			else{ 
 				this->map_->getDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 			}
-			// }
 			// get start and end condition for trajectory generation (the end condition is the final zero condition)
 			std::vector<Eigen::Vector3d> startEndConditions;
 			this->getStartEndConditions(startEndConditions); 
@@ -637,6 +637,10 @@ namespace AutoFlight{
 						this->stop();
 						cout << "[AutoFlight]: Stop!!! Trajectory generation fails." << endl;
 						this->bsplineReplan_ = false;
+						if (this->plannerType_ == PLANNER::MIXED){
+							this->mpcReplan_ = false;
+							this->mpcTrajectoryReady_ = false;
+						}
 					}
 					else{
 						if (this->bsplineTrajectoryReady_){
@@ -646,6 +650,10 @@ namespace AutoFlight{
 						else{
 							cout << "[AutoFlight]: Unable to generate a feasible trajectory. Please provide a new goal." << endl;
 							this->bsplineReplan_ = false;
+							if (this->plannerType_ == PLANNER::MIXED){
+								this->mpcReplan_ = false;
+								this->mpcTrajectoryReady_ = false;
+							}
 						}
 					}
 				}
@@ -871,24 +879,6 @@ namespace AutoFlight{
 				return;
 			}
 
-			if (this->goalHasCollision()){
-				this->stop();
-				this->bsplineReplan_ = false;
-				this->mpcReplan_ = false;
-				this->mpcTrajectoryReady_ = false;
-				this->bsplineTrajectoryReady_ = false;
-				// ros::Rate r(200);
-				// while(ros::ok() and this->replanning_){
-				// 	r.sleep();
-				// }
-				// this->mpcTrajectoryReady_ = false;
-				// this->stop();
-				this->refTrajReady_ = false;
-				this->mpcFirstTime_ = true;
-				cout<<"[AutoFlight]: Invalid goal. Stop!" << endl;
-				return;
-			}
-
 			// return;
 			if (this->bsplineTrajectoryReady_){
 				if (this->bsplineHasCollision()){ // if trajectory not ready, do not replan
@@ -914,14 +904,30 @@ namespace AutoFlight{
 			}
 
 			if (this->mpcTrajectoryReady_){
-				if (this->mpcHasCollision() or this->hasDynamicCollision()){ 
+				if (this->goalHasCollision()){
+						this->mpcReplan_ = false;
+						this->bsplineReplan_ = false;
+						this->mpcTrajectoryReady_ = false;
+						this->bsplineTrajectoryReady_ = false;
+						ros::Rate r(200);
+						while(ros::ok() and this->replanning_){
+							r.sleep();
+						}
+						this->mpcTrajectoryReady_ = false;
+						this->stop();
+						this->refTrajReady_ = false;
+						this->mpcFirstTime_ = true;
+						cout<<"[AutoFlight]: Invalid goal. Stop!" << endl;
+						return;
+					}
+				else if (this->mpcHasCollision() or this->hasDynamicCollision()){ 
 					this->stop();
 					this->mpcTrajectoryReady_ = false;
 					this->mpcReplan_ = true;
 					cout << "[AutoFlight]: Collision detected. MPC replan." << endl;
 					return;
 				}
-				else if(AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3){
+				else if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3){
 					this->mpcReplan_ = false;
 					this->mpcTrajectoryReady_ = false;
 					ros::Rate r(200);
@@ -974,7 +980,6 @@ namespace AutoFlight{
 				vel = this->mpc_->getVel(realTime);
 				acc = this->mpc_->getAcc(realTime);
 				refPos = this->mpc_->getRef(realTime);
-				// // TODO: fix the trajTime_, instead of using execution time, use index
 				this->trajTime_ = this->estimateExecutionTime();
 			}
 
@@ -1269,8 +1274,7 @@ namespace AutoFlight{
 	}
 
 	double dynamicNavigation::estimateExecutionTime(){
-		// TODO: dt
-		double dt = 0.1;
+		double dt = this->bsplineTraj_->getInitTs();
 		double minDist = INFINITY;
 		double time = -1;
 		for (double t=0; t<=this->trajectory_.getDuration(); t+=dt){
