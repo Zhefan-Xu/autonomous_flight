@@ -613,7 +613,7 @@ namespace AutoFlight{
 			this->inputTrajMsg_ = inputTraj;
 
 			bool updateSuccess = this->bsplineTraj_->updatePath(inputTraj, startEndConditions);
-			if (obstaclesPos.size() != 0 and updateSuccess and PLANNER::BSPLINE){
+			if (obstaclesPos.size() != 0 and updateSuccess and this->plannerType_ == PLANNER::BSPLINE){
 				this->bsplineTraj_->updateDynamicObstacles(obstaclesPos, obstaclesVel, obstaclesSize);
 			}
 			if (updateSuccess){
