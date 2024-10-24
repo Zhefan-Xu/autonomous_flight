@@ -167,6 +167,11 @@ namespace AutoFlight{
 			this->predefinedGoal_.poses = pathTemp;
 		}
 
+		if (this->usePredefinedGoal_ and this->plannerType_ == PLANNER::MIXED){
+			this->goalIdx_ = 0;
+			this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
+		}
+
 		// whether or not to repeat tracking predefined path
 		if (not this->nh_.getParam("autonomous_flight/execute_path_times", this->repeatPathNum_)){
 			this->repeatPathNum_ = 1;
@@ -862,6 +867,31 @@ namespace AutoFlight{
 			}
 		}
 		else if (this->plannerType_ == PLANNER::MIXED){
+			if (this->usePredefinedGoal_){
+				if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and this->repeatPathNum_){
+					this->goalIdx_++;
+					if (this->goalIdx_ == this->predefinedGoal_.poses.size()){
+						this->goalIdx_ = 0;
+						this->repeatPathNum_ -= 1;
+						if (this->repeatPathNum_ > 1){
+								cout << "[AutoFlight]: Goal reached. " << this->repeatPathNum_ << " rounds left." << endl;
+						}
+						else{
+							cout << "[AutoFlight]: Goal reached. " << this->repeatPathNum_ << " round left." << endl;
+						}
+					}
+					if (this->repeatPathNum_){
+						this->goal_ = this->predefinedGoal_.poses[this->goalIdx_];
+						if (not this->firstGoal_){
+							this->firstGoal_ = true;
+						}
+						if (not this->goalReceived_){
+							this->goalReceived_ = true;
+						}
+					}
+					return;
+				}
+			}
 			if (this->goalReceived_){
 				this->bsplineReplan_ = false;
 				this->mpcReplan_ = false;
