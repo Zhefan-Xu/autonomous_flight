@@ -8,6 +8,7 @@ odom_topic: /CERLAB/quadcopter/odom
 # depth_image_topic: /camera/depth/image_rect_raw
 # aligned_depth_image_topic: /camera/aligned_depth_to_color/image_raw
 # pose_topic: /mavros/local_position/pose
+# odom_topic: /mavros/local_position/odom
 # odom_topic: /vins_estimator/imu_propagate
 
 # Camera Parameters

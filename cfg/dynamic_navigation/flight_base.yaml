@@ -3,7 +3,9 @@ use_fake_detector: false
 use_predictor: false
 takeoff_height: 1.0 # m
 use_global_planner: false
-use_mpc_planner: false # if set true, will use MPC as the local planner instead of bspline
+use_bspline_planner: true
+use_mpc_planner: false # if set true, will use MPC as the local planner instead of bspline, if both mpc and bspline set true, will use both
+#if both mpc and bspline set true, will use both
 no_yaw_turning: false
 use_yaw_control: false
 desired_velocity: 2.0 # m/s
