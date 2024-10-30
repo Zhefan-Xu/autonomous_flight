@@ -18,6 +18,9 @@
 #include <trajectory_planner/mpcPlanner.h>
 
 namespace AutoFlight{
+
+	enum PLANNER {BSPLINE, MPC, MIXED};
+
 	class dynamicNavigation : public flightBase{
 	private:
 		std::shared_ptr<mapManager::dynamicMap> map_;
@@ -50,6 +53,7 @@ namespace AutoFlight{
 		bool useFakeDetector_;
 		bool usePredictor_;
 		bool useGlobalPlanner_;
+		bool useBsplinePlanner_;
 		bool useMPCPlanner_;
 		bool noYawTurning_;
 		bool useYawControl_;
@@ -62,9 +66,11 @@ namespace AutoFlight{
 		nav_msgs::Path predefinedGoal_;
 		int goalIdx_ = 0;
 		int repeatPathNum_;
+		PLANNER plannerType_;
 
 		// navigation data
-		bool replan_ = false;
+		bool bsplineReplan_ = false;
+		bool mpcReplan_ = false;
 		bool replanning_ = false;
 		bool needGlobalPlan_ = false;
 		bool globalPlanReady_ = false;
@@ -76,7 +82,8 @@ namespace AutoFlight{
 		nav_msgs::Path bsplineTrajMsg_;
 		nav_msgs::Path mpcTrajMsg_;
 		nav_msgs::Path inputTrajMsg_;
-		bool trajectoryReady_ = false;
+		bool mpcTrajectoryReady_ = false;
+		bool bsplineTrajectoryReady_ = false;
 		ros::Time trajStartTime_;
 		ros::Time trackingStartTime_;
 		double trajTime_; // current trajectory time
@@ -96,6 +103,7 @@ namespace AutoFlight{
 
 		void mpcCB();
 		void plannerCB(const ros::TimerEvent&);
+		void staticPlannerCB(const ros::TimerEvent&);
 		void replanCheckCB(const ros::TimerEvent&);
 		void trajExeCB(const ros::TimerEvent&);
 		void visCB(const ros::TimerEvent&);
@@ -104,8 +112,11 @@ namespace AutoFlight{
 		void run();	
 		void getStartEndConditions(std::vector<Eigen::Vector3d>& startEndConditions);	
 		bool goalHasCollision();
+		bool mpcHasCollision();
+		bool bsplineHasCollision();
 		bool hasCollision();
 		bool hasDynamicCollision();
+		double estimateExecutionTime();
 		double computeExecutionDistance();
 		bool replanForDynamicObstacle();
 		nav_msgs::Path getCurrentTraj(double dt);
