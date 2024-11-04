@@ -8,8 +8,8 @@ use_mpc_planner: false # if set true, will use MPC as the local planner instead 
 #if both mpc and bspline set true, will use both
 no_yaw_turning: false
 use_yaw_control: false
-desired_velocity: 1.5 # m/s
-desired_acceleration: 1.0 # m/s^2
+desired_velocity: 2.0 # m/s
+desired_acceleration: 3.0 # m/s^2
 desired_angular_velocity: 0.5 # rad/s
 trajectory_info_save_path: "No"
 use_time_optimizer: false

@@ -870,7 +870,7 @@ namespace AutoFlight{
 			if (this->usePredefinedGoal_){
 				if (AutoFlight::getPoseDistance(this->odom_.pose.pose, this->goal_.pose) <= 0.3 and this->repeatPathNum_){
 					this->goalIdx_++;
-					if (this->goalIdx_ == this->predefinedGoal_.poses.size()){
+					if (this->goalIdx_ == int(this->predefinedGoal_.poses.size())){
 						this->goalIdx_ = 0;
 						this->repeatPathNum_ -= 1;
 						if (this->repeatPathNum_ > 1){
@@ -1012,7 +1012,7 @@ namespace AutoFlight{
 				acc = this->trajectory_.getDerivative().getDerivative().at(this->trajTime_) * pow(linearReparamFactor, 2);
 				endTime = this->trajectory_.getDuration()/linearReparamFactor;
 			}
-			else if (this->plannerType_ == PLANNER::MIXED){
+			else{
 				endTime = this->mpc_->getHorizon() * this->mpc_->getTs();
 				pos = this->mpc_->getPos(realTime);
 				vel = this->mpc_->getVel(realTime);
