@@ -1,26 +1,115 @@
 simulation: true
-use_fake_detector: false
-use_predictor: false
+use_fake_detector: true
+use_predictor: true
 takeoff_height: 1.0 # m
 use_global_planner: false
 use_bspline_planner: true
-use_mpc_planner: false # if set true, will use MPC as the local planner instead of bspline, if both mpc and bspline set true, will use both
+use_mpc_planner: true # if set true, will use MPC as the local planner instead of bspline, if both mpc and bspline set true, will use both
 #if both mpc and bspline set true, will use both
 no_yaw_turning: false
-use_yaw_control: false
-desired_velocity: 2.0 # m/s
-desired_acceleration: 3.0 # m/s^2
+use_yaw_control: true
+desired_velocity: 1.5 # m/s
+desired_acceleration: 1.5 # m/s^2
 desired_angular_velocity: 0.5 # rad/s
 trajectory_info_save_path: "No"
 use_time_optimizer: false
 
 # MPC target parameters
-use_predefined_goal: false
-goal: [0, 0, 1.0,
-       7.5, 0, 1.0,
-       15, 0, 1.0,
-       15, 4.0, 1.0,
-       7.5, 4.0, 1.0,
-       0, 4.0, 1.0,
+use_predefined_goal: true
+# goal: [0, 0, 1.0,
+#        7.5, 0, 1.0,
+#        15, 0, 1.0,
+#        15, 4.0, 1.0,
+#        7.5, 4.0, 1.0,
+#        0, 4.0, 1.0,
+#        0, 0, 1.0]
+       # goal: [0.0,0.0,1.0,
+#        -0.5,2.5,1.0,
+#        3.0,3.0,1.0,
+#        2.5,-0.5,1.0,
+#        0.0,0.0,1.0]
+# goal: [0.0, 24.0, 1.0,
+#        0.0, -24.0, 1.0,
+#        0.0, 24.0, 1.0
+#        ]
+# goal: [0, 6.5, 1.0,
+#        5.5, 5.5, 1.0,
+#        7.5, 0.0, 1.0,
+#        5.5, -5.5, 1.0,
+#        0.0, -7.0, 1.0,
+#        -6.0, -5.5, 1.0,
+#        -7.0, 0.0, 1.0,
+#        -6.0, 6.0, 1.0,
+#        0, 6.5, 1.0] # x,y,z
+# goal: [0.0,6.0,1.0,
+#        # 3.0, 7.5, 1.0,
+#        # 7.0, 7.0, 1.0,
+#        7.0, 2.5,1.0,
+#        7.5, 0.5, 1.0,
+#        # 4.3, -1.2, 1.0,
+#        9.0, -4.3, 1.0,
+#        8.3, -8.1, 1.0,
+#        4.4, -9.0, 1.0,
+#        # 3.2, -5.3, 1.0,
+#        # 1.3, -5.1, 1.0,
+#        1.4, -8.4, 1.0,
+#        -4.1, -8.5, 1.0,
+#        -6.0, -5.5, 1.0,
+#        # -9.8, -4.3, 1.0,
+#        -7.0, -0.5, 1.0,
+#        -6.5, 3.5, 1.0,
+#        0, 6.0, 1.0] # x,y,z
+
+# goal: [0.0, 0.0, 1.0,
+#        -17.0, 1.0, 1.0,
+#        -15.0, -3.0, 1.0,
+#        -6.0, -3.6, 1.0,
+#        4.0, -6.0, 1.0,
+#        8.0, 7.5, 1.0,
+#        -6.5, 7.5,1.0,
+#        0.0, 0.0, 1.0]
+# goal: [0, 0, 1.0,
+#        7.5, 0, 1.0,
+#        15, 0, 1.0,
+#        15, 4.0, 1.0,
+#        7.5, 4.0, 1.0,
+#        0, 4.0, 1.0,
+#        0, 0, 1.0]
+goal: [0,0,1.0,
+       20.0,0,1.0,
        0, 0, 1.0]
-execute_path_times: 2 # how many times to repeat the trajectory 
+# goal: [0.0, 0.0, 1.0,
+#        6.0,1.0,1.0,
+#        11.0,1.8,1.0,
+#        14.5,-3.0,1.0,
+#        16.0,-10.0,1.0,
+#        16.5, -8.0,1.0,
+#        17.0,-5.0,1.0,
+#        20.0,-6.0,1.0,
+#        27.0,-5.0,1.0,
+#        15.5,-5.0,1.0,
+#        12.0,0.0,1.0,
+#        7.0,-1.0,1.0,
+#        5.0,1.0,1.0,
+#        0.0,0.0,1.0]
+# goal: [0.0, 0.0, 1.0,
+#        6.0,1.0,1.0,
+#        11.0,1.8,1.0,
+#        14.5,-3.0,1.0,
+#        # 16.0,-10.0,1.0,
+#        # 16.5, -8.0,1.0,
+#        16.0,-8.0,1.0,
+#        17.0,-9.0,1.0,
+#        19.0, -6.5,1.0,
+#        # 17.0,-5.0,1.0,
+#        # 20.0,-6.0,1.0,
+#        25.0,-5.5,1.0,
+#        24.0,-4.8,1.0,
+#        15.5,-5.0,1.0,
+#        13.0,0.0,1.0,
+#        7.0,-1.0,1.0,
+#        5.0,1.0,1.0,
+#        0.0,0.0,1.0]
+# goal: [0.0, 0.0, 1.0,
+#        2.0, 3.1, 1.0]
+execute_path_times: 1 # how many times to repeat the trajectory 

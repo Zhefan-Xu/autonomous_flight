@@ -1,0 +1,16 @@
+simulation: true
+use_fake_detector: true
+use_predictor: true
+takeoff_height: 1.0 # m
+use_global_planner: false
+no_yaw_turning: false
+use_yaw_control: true
+desired_velocity: 1.5 # m/s
+desired_acceleration: 1.5 # m/s^2
+desired_angular_velocity: 0.5 # rad/s
+
+# MPC target parameters
+use_predefined_goal: true
+predefined_goal_directory: "/home/jhy/catkin_ws/src/CERLAB-UAV-Autonomy-v2/autonomous_flight/cfg/mpc_navigation/ref_trajectory.txt"
+execute_path_times: 1 # how many times to repeat the trajectory 
+

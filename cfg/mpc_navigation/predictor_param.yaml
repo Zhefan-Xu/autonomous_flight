@@ -1,0 +1,14 @@
+#Trajectory Prediction param
+prediction_size: 30 # prediction length
+prediction_time_step: 0.1 #sec
+min_turning_time: 2.0 #sec
+max_turning_time: 3.0 #sec
+prediction_z_score: 0.674 #3.291 for 99% confidence level
+
+
+# Intent Probability Distrubution param
+max_front_prob: 0.5 # unscaled front prob when angle = 0, stop prob = 0
+front_angle: 25 # angle in degree that front prob = left/right prob
+stop_velocity_thereshold: 0.1 # vel that stop prob = non-stop prob
+prob_scale_param: 5.0 
+
